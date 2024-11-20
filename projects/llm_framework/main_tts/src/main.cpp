@@ -19,7 +19,8 @@
 using namespace StackFlows;
 
 int main_exit_flage = 0;
-static void __sigint(int iSigNo) {
+static void __sigint(int iSigNo)
+{
     SLOGW("llm_sys will be exit!");
     main_exit_flage = 1;
 }
@@ -42,11 +43,11 @@ typedef std::function<void(const std::string &data, bool finish)> task_callback_
         mode_config_.key = obj[#key];
 
 class llm_task {
-   private:
+private:
     float *dataW = NULL;
     int modelSize;
 
-   public:
+public:
     std::unique_ptr<SynthesizerTrn> synthesizer_;
     SynthesizerTrn_config mode_config_;
     std::vector<std::string> inputs_;
@@ -59,11 +60,13 @@ class llm_task {
     task_callback_t out_callback_;
     int awake_delay_ = 1000;
 
-    void set_output(task_callback_t out_callback) {
+    void set_output(task_callback_t out_callback)
+    {
         out_callback_ = out_callback;
     }
 
-    bool parse_config(const nlohmann::json &config_body) {
+    bool parse_config(const nlohmann::json &config_body)
+    {
         try {
             model_           = config_body.at("model");
             response_format_ = config_body.at("response_format");
@@ -86,7 +89,8 @@ class llm_task {
         return false;
     }
 
-    int load_model(const nlohmann::json &config_body) {
+    int load_model(const nlohmann::json &config_body)
+    {
         if (parse_config(config_body)) {
             return -1;
         }
@@ -131,7 +135,8 @@ class llm_task {
         return 0;
     }
 
-    bool TTS(const std::string &msg) {
+    bool TTS(const std::string &msg)
+    {
         SLOGI("TTS msg:%s", msg.c_str());
         int32_t dataLen;
         int16_t *rawData = synthesizer_->infer(msg, mode_config_.spacker_role, mode_config_.spacker_speed, dataLen);
@@ -145,25 +150,29 @@ class llm_task {
         return false;
     }
 
-    bool delete_model() {
+    bool delete_model()
+    {
         synthesizer_.reset();
         return true;
     }
 
-    llm_task(const std::string &workid) {
+    llm_task(const std::string &workid)
+    {
     }
 
-    ~llm_task() {
+    ~llm_task()
+    {
     }
 };
 
 #undef CONFIG_AUTO_SET
 
 class llm_tts : public StackFlow {
-   private:
+private:
     int task_count_;
     std::unordered_map<int, std::shared_ptr<llm_task>> llm_task_;
-    int _load_config() {
+    int _load_config()
+    {
         if (base_model_path_.empty()) {
             base_model_path_ = sys_sql_select("config_base_mode_path");
         }
@@ -178,14 +187,16 @@ class llm_tts : public StackFlow {
         }
     }
 
-   public:
-    llm_tts() : StackFlow("tts") {
+public:
+    llm_tts() : StackFlow("tts")
+    {
         task_count_ = 1;
         repeat_event(1000, std::bind(&llm_tts::_load_config, this));
     }
 
     void task_output(const std::shared_ptr<llm_task> llm_task_obj, const std::shared_ptr<llm_channel_obj> llm_channel,
-                     const std::string &data, bool finish) {
+                     const std::string &data, bool finish)
+    {
         std::string base64_data;
         int len = encode_base64(data, base64_data);
         if (llm_channel->enstream_) {
@@ -207,7 +218,8 @@ class llm_tts : public StackFlow {
         }
     }
 
-    std::vector<std::string> splitEachChar(const std::string &text) {
+    std::vector<std::string> splitEachChar(const std::string &text)
+    {
         std::vector<std::string> words;
         std::string input(text);
         int len = input.length();
@@ -231,7 +243,8 @@ class llm_tts : public StackFlow {
 
     void task_user_data(const std::shared_ptr<llm_task> llm_task_obj,
                         const std::shared_ptr<llm_channel_obj> llm_channel, const std::string &object,
-                        const std::string &data) {
+                        const std::string &data)
+    {
         if (data.empty() || (data == "None")) return;
         static std::string faster_stream_buff;
         nlohmann::json error_body;
@@ -286,7 +299,8 @@ class llm_tts : public StackFlow {
     }
 
     void kws_awake(const std::shared_ptr<llm_task> llm_task_obj, const std::shared_ptr<llm_channel_obj> llm_channel,
-                   const std::string &object, const std::string &data) {
+                   const std::string &object, const std::string &data)
+    {
         if (llm_task_obj->superior_flage_) {
             llm_channel->stop_subscriber_work_id(llm_task_obj->superior_id_);
             if (llm_task_obj->response_format_.find("sys") != std::string::npos) {
@@ -302,7 +316,8 @@ class llm_tts : public StackFlow {
         }
     }
 
-    int setup(const std::string &work_id, const std::string &object, const std::string &data) override {
+    int setup(const std::string &work_id, const std::string &object, const std::string &data) override
+    {
         nlohmann::json error_body;
         if ((llm_task_channel_.size() - 1) == task_count_) {
             error_body["code"]    = -21;
@@ -361,7 +376,8 @@ class llm_tts : public StackFlow {
         }
     }
 
-    void link(const std::string &work_id, const std::string &object, const std::string &data) override {
+    void link(const std::string &work_id, const std::string &object, const std::string &data) override
+    {
         SLOGI("llm_tts::link:%s", data.c_str());
         int ret = 1;
         nlohmann::json error_body;
@@ -396,7 +412,8 @@ class llm_tts : public StackFlow {
         }
     }
 
-    void unlink(const std::string &work_id, const std::string &object, const std::string &data) override {
+    void unlink(const std::string &work_id, const std::string &object, const std::string &data) override
+    {
         SLOGI("llm_tts::unlink:%s", data.c_str());
         int ret = 0;
         nlohmann::json error_body;
@@ -424,7 +441,8 @@ class llm_tts : public StackFlow {
         send("None", "None", LLM_NO_ERROR, work_id);
     }
 
-    void taskinfo(const std::string &work_id, const std::string &object, const std::string &data) override {
+    void taskinfo(const std::string &work_id, const std::string &object, const std::string &data) override
+    {
         SLOGI("llm_tts::taskinfo:%s", data.c_str());
         nlohmann::json req_body;
         int work_id_num = sample_get_work_id_num(work_id);
@@ -450,7 +468,8 @@ class llm_tts : public StackFlow {
         }
     }
 
-    int exit(const std::string &work_id, const std::string &object, const std::string &data) override {
+    int exit(const std::string &work_id, const std::string &object, const std::string &data) override
+    {
         SLOGI("llm_tts::exit:%s", data.c_str());
 
         nlohmann::json error_body;
@@ -468,7 +487,8 @@ class llm_tts : public StackFlow {
         return 0;
     }
 
-    ~llm_tts() {
+    ~llm_tts()
+    {
         while (1) {
             auto iteam = llm_task_.begin();
             if (iteam == llm_task_.end()) {
@@ -482,7 +502,8 @@ class llm_tts : public StackFlow {
     }
 };
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
     signal(SIGTERM, __sigint);
     signal(SIGINT, __sigint);
     mkdir("/tmp/llm", 0777);

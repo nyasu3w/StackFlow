@@ -14,7 +14,8 @@ using namespace StackFlows;
 
 int unit_call_timeout;
 
-int remote_call(int com_id, const std::string &json_str) {
+int remote_call(int com_id, const std::string &json_str)
+{
     std::string work_id   = sample_json_str_get(json_str, "work_id");
     std::string work_unit = work_id.substr(0, work_id.find("."));
     std::string action    = sample_json_str_get(json_str, "action");
@@ -29,9 +30,11 @@ int remote_call(int com_id, const std::string &json_str) {
     return clent.call_rpc_action(action, send_data, [](const std::string &val) {});
 }
 
-void remote_action_work() {
+void remote_action_work()
+{
     SAFE_READING(unit_call_timeout, int, "config_unit_call_timeout");
 }
 
-void remote_action_stop_work() {
+void remote_action_stop_work()
+{
 }

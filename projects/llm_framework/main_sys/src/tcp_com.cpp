@@ -1,8 +1,8 @@
 /*
-* SPDX-FileCopyrightText: 2024 M5Stack Technology CO LTD
-*
-* SPDX-License-Identifier: MIT
-*/
+ * SPDX-FileCopyrightText: 2024 M5Stack Technology CO LTD
+ *
+ * SPDX-License-Identifier: MIT
+ */
 #include "all.h"
 #include "hv/TcpServer.h"
 #include <unordered_map>
@@ -31,31 +31,34 @@ std::atomic<int> counter_port(8000);
 TcpServer srv;
 
 class tcp_com : public zmq_bus_com {
-   private:
-   public:
+private:
+public:
     SocketChannelPtr channel;
     std::string json_str;
     int flage;
     std::mutex tcp_server_mutex;
-    tcp_com() : zmq_bus_com() {
+    tcp_com() : zmq_bus_com()
+    {
         flage = 0;
     }
 
-    void send_data(const std::string& data) {
+    void send_data(const std::string& data)
+    {
         tcp_server_mutex.lock();
         if (exit_flage) channel->write(data);
         tcp_server_mutex.unlock();
     }
 };
 
-void onConnection(const SocketChannelPtr& channel) {
+void onConnection(const SocketChannelPtr& channel)
+{
     std::string peeraddr = channel->peeraddr();
     tcp_com* con_data;
     if (channel->isConnected()) {
         con_data          = new tcp_com();
         con_data->channel = channel;
         con_data->work(zmq_s_format, counter_port.fetch_add(1));
-        if(counter_port.load() > 65535) counter_port.store(8000);
+        if (counter_port.load() > 65535) counter_port.store(8000);
         channel->setContext(con_data);
     } else {
         con_data = (tcp_com*)channel->context();
@@ -66,7 +69,8 @@ void onConnection(const SocketChannelPtr& channel) {
     }
 }
 
-void onMessage(const SocketChannelPtr& channel, Buffer* buf) {
+void onMessage(const SocketChannelPtr& channel, Buffer* buf)
+{
     int len           = (int)buf->size();
     char* data        = (char*)buf->data();
     tcp_com* con_data = (tcp_com*)channel->context();
@@ -96,7 +100,8 @@ void onMessage(const SocketChannelPtr& channel, Buffer* buf) {
     con_data->tcp_server_mutex.unlock();
 }
 
-void tcp_work() {
+void tcp_work()
+{
     int listenport = 0;
     SAFE_READING(listenport, int, "config_tcp_server");
 
@@ -110,6 +115,7 @@ void tcp_work() {
     srv.setThreadNum(1);
     srv.start();
 }
-void tcp_stop_work() {
+void tcp_stop_work()
+{
     srv.stop();
 }

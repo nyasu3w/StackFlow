@@ -21,10 +21,10 @@ void zmq_bus_stop_work();
 using namespace StackFlows;
 
 class unit_data {
-   private:
+private:
     std::unique_ptr<pzmq> user_inference_chennal_;
 
-   public:
+public:
     std::string work_id;
     std::string input_url;
     std::string output_url;
@@ -41,14 +41,14 @@ int zmq_bus_publisher_push(const std::string &work_id, const std::string &json_s
 void zmq_com_send(int com_id, const std::string &out_str);
 
 class zmq_bus_com {
-   protected:
+protected:
     std::string _zmq_url;
     int exit_flage;
     int err_count;
     int _port;
     std::unique_ptr<std::thread> reace_data_event_thread;
 
-   public:
+public:
     std::unique_ptr<pzmq> user_chennal_;
     zmq_bus_com();
     void work(const std::string &zmq_url_format, int port);

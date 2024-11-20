@@ -24,7 +24,8 @@
 using namespace StackFlows;
 
 int main_exit_flage = 0;
-static void __sigint(int iSigNo) {
+static void __sigint(int iSigNo)
+{
     SLOGW("llm_asr will be exit!");
     main_exit_flage = 1;
 }
@@ -41,12 +42,12 @@ typedef std::function<void(const std::string &data, bool finish)> task_callback_
         mode_config_.key = obj[#key];
 
 class llm_task {
-   private:
+private:
     sherpa_ncnn::RecognizerConfig mode_config_;
     std::unique_ptr<sherpa_ncnn::Recognizer> recognizer_;
     std::unique_ptr<sherpa_ncnn::Stream> recognizer_stream_;
 
-   public:
+public:
     std::string model_;
     std::string response_format_;
     std::vector<std::string> inputs_;
@@ -62,7 +63,8 @@ class llm_task {
 
     std::function<void(void)> pause;
 
-    bool parse_config(const nlohmann::json &config_body) {
+    bool parse_config(const nlohmann::json &config_body)
+    {
         try {
             model_           = config_body.at("model");
             response_format_ = config_body.at("response_format");
@@ -84,7 +86,8 @@ class llm_task {
         return false;
     }
 
-    int load_model(const nlohmann::json &config_body) {
+    int load_model(const nlohmann::json &config_body)
+    {
         if (parse_config(config_body)) {
             return -1;
         }
@@ -163,7 +166,7 @@ class llm_task {
             mode_config_.model_config.decoder_bin   = base_model + mode_config_.model_config.decoder_bin;
             mode_config_.model_config.joiner_param  = base_model + mode_config_.model_config.joiner_param;
             mode_config_.model_config.joiner_bin    = base_model + mode_config_.model_config.joiner_bin;
-            recognizer_ = std::make_unique<sherpa_ncnn::Recognizer>(mode_config_);
+            recognizer_                             = std::make_unique<sherpa_ncnn::Recognizer>(mode_config_);
         } catch (...) {
             SLOGE("config false");
             return -3;
@@ -171,11 +174,13 @@ class llm_task {
         return 0;
     }
 
-    void set_output(task_callback_t out_callback) {
+    void set_output(task_callback_t out_callback)
+    {
         out_callback_ = out_callback;
     }
 
-    void sys_pcm_on_data(const std::string &raw) {
+    void sys_pcm_on_data(const std::string &raw)
+    {
         static int count = 0;
         if (count < delay_audio_frame_) {
             buffer_write_char(pcmdata, raw.c_str(), raw.length());
@@ -225,22 +230,26 @@ class llm_task {
         }
     }
 
-    void kws_awake() {
+    void kws_awake()
+    {
         awake_flage_ = true;
     }
 
-    bool delete_model() {
+    bool delete_model()
+    {
         recognizer_.reset();
         return true;
     }
 
-    llm_task(const std::string &workid) {
+    llm_task(const std::string &workid)
+    {
         ensleep_     = false;
         awake_flage_ = false;
         pcmdata      = buffer_create();
     }
 
-    ~llm_task() {
+    ~llm_task()
+    {
         if (recognizer_stream_) {
             recognizer_stream_.reset();
         }
@@ -251,14 +260,15 @@ class llm_task {
 #undef CONFIG_AUTO_SET
 
 class llm_asr : public StackFlow {
-   public:
+public:
     enum { EVENT_LOAD_CONFIG = EVENT_EXPORT + 1, EVENT_TASK_PAUSE };
 
-   private:
+private:
     int task_count_;
     std::string audio_url_;
     std::unordered_map<int, std::shared_ptr<llm_task>> llm_task_;
-    int _load_config() {
+    int _load_config()
+    {
         if (base_model_path_.empty()) {
             base_model_path_ = sys_sql_select("config_base_mode_path");
         }
@@ -273,8 +283,9 @@ class llm_asr : public StackFlow {
         }
     }
 
-   public:
-    llm_asr() : StackFlow("asr") {
+public:
+    llm_asr() : StackFlow("asr")
+    {
         task_count_ = 1;
         repeat_event(1000, std::bind(&llm_asr::_load_config, this));
         event_queue_.appendListener(
@@ -282,7 +293,8 @@ class llm_asr : public StackFlow {
     }
 
     void task_output(const std::shared_ptr<llm_task> llm_task_obj, const std::shared_ptr<llm_channel_obj> llm_channel,
-                     const std::string &data, bool finish) {
+                     const std::string &data, bool finish)
+    {
         std::string tmp_msg1;
         const std::string *next_data = &data;
         if (finish) {
@@ -304,7 +316,8 @@ class llm_asr : public StackFlow {
         }
     }
 
-    int decode_wav(const std::string &in, std::string &out) {
+    int decode_wav(const std::string &in, std::string &out)
+    {
         int post = 0;
         if (in.length() > 10)
             for (int i = 0; i < in.length() - 4; i++) {
@@ -322,13 +335,15 @@ class llm_asr : public StackFlow {
         return 0;
     }
 
-    int decode_mp3(const std::string &in, std::string &out) {
+    int decode_mp3(const std::string &in, std::string &out)
+    {
         return 0;
     }
 
     void task_user_data(const std::shared_ptr<llm_task> llm_task_obj,
                         const std::shared_ptr<llm_channel_obj> llm_channel, const std::string &object,
-                        const std::string &data) {
+                        const std::string &data)
+    {
         std::string tmp_msg1;
         const std::string *next_data = &data;
         int ret;
@@ -364,7 +379,8 @@ class llm_asr : public StackFlow {
         llm_task_obj->sys_pcm_on_data((*next_data));
     }
 
-    void _task_pause(const std::string &work_id, const std::string &data) {
+    void _task_pause(const std::string &work_id, const std::string &data)
+    {
         int work_id_num = sample_get_work_id_num(work_id);
         if (llm_task_.find(work_id_num) == llm_task_.end()) {
             return;
@@ -377,11 +393,13 @@ class llm_asr : public StackFlow {
         }
     }
 
-    void task_pause(const std::string &work_id, const std::string &data) {
+    void task_pause(const std::string &work_id, const std::string &data)
+    {
         event_queue_.enqueue(EVENT_TASK_PAUSE, work_id, "");
     }
 
-    void task_work(const std::shared_ptr<llm_task> llm_task_obj, const std::shared_ptr<llm_channel_obj> llm_channel) {
+    void task_work(const std::shared_ptr<llm_task> llm_task_obj, const std::shared_ptr<llm_channel_obj> llm_channel)
+    {
         llm_task_obj->kws_awake();
         if ((!audio_url_.empty()) && (llm_task_obj->audio_flage_ == false)) {
             llm_channel->subscriber(audio_url_,
@@ -391,12 +409,14 @@ class llm_asr : public StackFlow {
     }
 
     void kws_awake(const std::shared_ptr<llm_task> llm_task_obj, const std::shared_ptr<llm_channel_obj> llm_channel,
-                   const std::string &object, const std::string &data) {
+                   const std::string &object, const std::string &data)
+    {
         std::this_thread::sleep_for(std::chrono::milliseconds(llm_task_obj->awake_delay_));
         task_work(llm_task_obj, llm_channel);
     }
 
-    void work(const std::string &work_id, const std::string &object, const std::string &data) override {
+    void work(const std::string &work_id, const std::string &object, const std::string &data) override
+    {
         SLOGI("llm_asr::work:%s", data.c_str());
 
         nlohmann::json error_body;
@@ -411,7 +431,8 @@ class llm_asr : public StackFlow {
         send("None", "None", LLM_NO_ERROR, work_id);
     }
 
-    void pause(const std::string &work_id, const std::string &object, const std::string &data) override {
+    void pause(const std::string &work_id, const std::string &object, const std::string &data) override
+    {
         SLOGI("llm_asr::work:%s", data.c_str());
 
         nlohmann::json error_body;
@@ -426,7 +447,8 @@ class llm_asr : public StackFlow {
         send("None", "None", LLM_NO_ERROR, work_id);
     }
 
-    int setup(const std::string &work_id, const std::string &object, const std::string &data) override {
+    int setup(const std::string &work_id, const std::string &object, const std::string &data) override
+    {
         nlohmann::json error_body;
         if ((llm_task_channel_.size() - 1) == task_count_) {
             error_body["code"]    = -21;
@@ -490,7 +512,8 @@ class llm_asr : public StackFlow {
         }
     }
 
-    void link(const std::string &work_id, const std::string &object, const std::string &data) override {
+    void link(const std::string &work_id, const std::string &object, const std::string &data) override
+    {
         SLOGI("llm_asr::link:%s", data.c_str());
         int ret = 0;
         nlohmann::json error_body;
@@ -525,7 +548,8 @@ class llm_asr : public StackFlow {
         }
     }
 
-    void unlink(const std::string &work_id, const std::string &object, const std::string &data) override {
+    void unlink(const std::string &work_id, const std::string &object, const std::string &data) override
+    {
         SLOGI("llm_asr::unlink:%s", data.c_str());
         int ret = 0;
         nlohmann::json error_body;
@@ -549,9 +573,10 @@ class llm_asr : public StackFlow {
         send("None", "None", LLM_NO_ERROR, work_id);
     }
 
-    void taskinfo(const std::string &work_id, const std::string &object, const std::string &data) override {
+    void taskinfo(const std::string &work_id, const std::string &object, const std::string &data) override
+    {
         SLOGI("llm_asr::taskinfo:%s", data.c_str());
-        
+
         nlohmann::json req_body;
         int work_id_num = sample_get_work_id_num(work_id);
         if (WORK_ID_NONE == work_id_num) {
@@ -576,7 +601,8 @@ class llm_asr : public StackFlow {
         }
     }
 
-    int exit(const std::string &work_id, const std::string &object, const std::string &data) override {
+    int exit(const std::string &work_id, const std::string &object, const std::string &data) override
+    {
         SLOGI("llm_asr::exit:%s", data.c_str());
         nlohmann::json error_body;
         int work_id_num = sample_get_work_id_num(work_id);
@@ -596,7 +622,8 @@ class llm_asr : public StackFlow {
         return 0;
     }
 
-    ~llm_asr() {
+    ~llm_asr()
+    {
         while (1) {
             auto iteam = llm_task_.begin();
             if (iteam == llm_task_.end()) {
@@ -613,7 +640,8 @@ class llm_asr : public StackFlow {
     }
 };
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
     signal(SIGTERM, __sigint);
     signal(SIGINT, __sigint);
     mkdir("/tmp/llm", 0777);

@@ -27,30 +27,34 @@
 namespace StackFlows {
 template <typename T>
 class ThreadSafeWrapper {
-   public:
+public:
     template <typename... Args>
-    ThreadSafeWrapper(Args &&...args) : object(std::make_unique<T>(std::forward<Args>(args)...)) {
+    ThreadSafeWrapper(Args &&...args) : object(std::make_unique<T>(std::forward<Args>(args)...))
+    {
     }
 
     template <typename Func>
-    auto access(Func func) -> decltype(func(std::declval<T &>())) {
+    auto access(Func func) -> decltype(func(std::declval<T &>()))
+    {
         std::lock_guard<std::mutex> lock(mutex);
         return func(*object);
     }
 
-    ThreadSafeWrapper &operator=(const T &newValue) {
+    ThreadSafeWrapper &operator=(const T &newValue)
+    {
         std::lock_guard<std::mutex> lock(mutex);
         *object = newValue;
         return *this;
     }
 
-    ThreadSafeWrapper &operator=(T &&newValue) {
+    ThreadSafeWrapper &operator=(T &&newValue)
+    {
         std::lock_guard<std::mutex> lock(mutex);
         *object = std::move(newValue);
         return *this;
     }
 
-   private:
+private:
     std::unique_ptr<T> object;
     mutable std::mutex mutex;
 };
@@ -59,12 +63,12 @@ class ThreadSafeWrapper {
 #define LLM_NONE     std::string("None")
 
 class llm_channel_obj {
-   private:
+private:
     std::unordered_map<int, std::unique_ptr<pzmq>> zmq_;
     std::atomic<int> zmq_url_index_;
     std::unordered_map<std::string, int> zmq_url_map_;
 
-   public:
+public:
     std::string unit_name_;
     bool enoutput_;
     bool enstream_;
@@ -77,16 +81,20 @@ class llm_channel_obj {
 
     llm_channel_obj(const std::string &_publisher_url, const std::string &inference_url, const std::string &unit_name);
     ~llm_channel_obj();
-    inline void set_output(bool flage) {
+    inline void set_output(bool flage)
+    {
         enoutput_ = flage;
     }
-    inline bool get_output() {
+    inline bool get_output()
+    {
         return enoutput_;
     }
-    inline void set_stream(bool flage) {
+    inline void set_stream(bool flage)
+    {
         enstream_ = flage;
     }
-    inline bool get_stream() {
+    inline bool get_stream()
+    {
         return enstream_;
     }
     void subscriber_event_call(const std::function<void(const std::string &, const std::string &)> &call,
@@ -100,7 +108,8 @@ class llm_channel_obj {
     int send_raw_to_pub(const std::string &raw);
     int send_raw_to_usr(const std::string &raw);
     template <typename T, typename U>
-    int output_data(const std::string &object, const T &data, const U &error_msg) {
+    int output_data(const std::string &object, const T &data, const U &error_msg)
+    {
         return output_data(request_id_, work_id_, object, data, error_msg);
     }
     void set_push_url(const std::string &url);
@@ -110,7 +119,8 @@ class llm_channel_obj {
     template <typename T, typename U>
     static int output_data_for_url(const std::string &zmq_url, const std::string &request_id,
                                    const std::string &work_id, const std::string &object, const U &data,
-                                   const T &error_msg, bool outuart = false) {
+                                   const T &error_msg, bool outuart = false)
+    {
         nlohmann::json out_body;
         out_body["request_id"] = request_id;
         out_body["work_id"]    = work_id;
@@ -130,7 +140,8 @@ class llm_channel_obj {
     }
     template <typename T, typename U>
     int send(const std::string &object, const U &data, const T &error_msg, const std::string &work_id = "",
-             bool outuart = false) {
+             bool outuart = false)
+    {
         nlohmann::json out_body;
         out_body["request_id"] = request_id_;
         out_body["work_id"]    = work_id.empty() ? work_id_ : work_id;
@@ -150,7 +161,8 @@ class llm_channel_obj {
     }
     template <typename T, typename U>
     int output_data(const std::string &request_id, const std::string &work_id, const std::string &object, const T &data,
-                    const U &error_msg) {
+                    const U &error_msg)
+    {
         nlohmann::json out_body;
         out_body["request_id"] = request_id;
         out_body["work_id"]    = work_id;
@@ -171,8 +183,8 @@ class llm_channel_obj {
 };
 
 class StackFlow {
-   private:
-   protected:
+private:
+protected:
     std::string unit_name_;
     typedef enum {
         EVENT_NONE = 0,
@@ -202,7 +214,7 @@ class StackFlow {
 
     void _repeat_loop(const std::string &zmq_url, const std::string &raw);
 
-   public:
+public:
     std::string request_id_;
     std::string out_zmq_url_;
 
@@ -222,7 +234,8 @@ class StackFlow {
     void _none_event(const std::string &data1, const std::string &data2);
 
     template <typename T>
-    std::shared_ptr<llm_channel_obj> get_channel(T workid) {
+    std::shared_ptr<llm_channel_obj> get_channel(T workid)
+    {
         int _work_id_num;
         if constexpr (std::is_same<T, int>::value) {
             _work_id_num = workid;
@@ -235,7 +248,8 @@ class StackFlow {
     }
 
     std::string _rpc_setup(const std::string &data);
-    void _setup(const std::string &zmq_url, const std::string &data) {
+    void _setup(const std::string &zmq_url, const std::string &data)
+    {
         // printf("void _setup run \n");
         request_id_  = sample_json_str_get(data, "request_id");
         out_zmq_url_ = zmq_url;
@@ -245,7 +259,8 @@ class StackFlow {
     virtual int setup(const std::string &work_id, const std::string &object, const std::string &data);
 
     std::string _rpc_link(const std::string &data);
-    void _link(const std::string &zmq_url, const std::string &data) {
+    void _link(const std::string &zmq_url, const std::string &data)
+    {
         // printf("void _link run \n");
         request_id_  = sample_json_str_get(data, "request_id");
         out_zmq_url_ = zmq_url;
@@ -255,7 +270,8 @@ class StackFlow {
     virtual void link(const std::string &work_id, const std::string &object, const std::string &data);
 
     std::string _rpc_unlink(const std::string &data);
-    void _unlink(const std::string &zmq_url, const std::string &data) {
+    void _unlink(const std::string &zmq_url, const std::string &data)
+    {
         // printf("void _unlink run \n");
         request_id_  = sample_json_str_get(data, "request_id");
         out_zmq_url_ = zmq_url;
@@ -265,7 +281,8 @@ class StackFlow {
     virtual void unlink(const std::string &work_id, const std::string &object, const std::string &data);
 
     std::string _rpc_exit(const std::string &data);
-    void _exit(const std::string &zmq_url, const std::string &data) {
+    void _exit(const std::string &zmq_url, const std::string &data)
+    {
         request_id_  = sample_json_str_get(data, "request_id");
         out_zmq_url_ = zmq_url;
         if (status_.load()) exit(zmq_url, data);
@@ -274,7 +291,8 @@ class StackFlow {
     virtual int exit(const std::string &work_id, const std::string &object, const std::string &data);
 
     std::string _rpc_work(const std::string &data);
-    void _work(const std::string &zmq_url, const std::string &data) {
+    void _work(const std::string &zmq_url, const std::string &data)
+    {
         request_id_  = sample_json_str_get(data, "request_id");
         out_zmq_url_ = zmq_url;
         if (status_.load()) work(zmq_url, data);
@@ -283,7 +301,8 @@ class StackFlow {
     virtual void work(const std::string &work_id, const std::string &object, const std::string &data);
 
     std::string _rpc_pause(const std::string &data);
-    void _pause(const std::string &zmq_url, const std::string &data) {
+    void _pause(const std::string &zmq_url, const std::string &data)
+    {
         request_id_  = sample_json_str_get(data, "request_id");
         out_zmq_url_ = zmq_url;
         if (status_.load()) pause(zmq_url, data);
@@ -292,7 +311,8 @@ class StackFlow {
     virtual void pause(const std::string &work_id, const std::string &object, const std::string &data);
 
     std::string _rpc_taskinfo(const std::string &data);
-    void _taskinfo(const std::string &zmq_url, const std::string &data) {
+    void _taskinfo(const std::string &zmq_url, const std::string &data)
+    {
         request_id_  = sample_json_str_get(data, "request_id");
         out_zmq_url_ = zmq_url;
         if (status_.load()) taskinfo(zmq_url, data);
@@ -305,7 +325,8 @@ class StackFlow {
     void user_output(const std::string &zmq_url, const std::string &request_id, const std::string &data);
     template <typename T, typename U>
     int send(const std::string &object, const U &data, const T &error_msg, const std::string &work_id,
-             const std::string &zmq_url = "") {
+             const std::string &zmq_url = "")
+    {
         nlohmann::json out_body;
         out_body["request_id"] = request_id_;
         out_body["work_id"]    = work_id;
@@ -326,7 +347,8 @@ class StackFlow {
         }
     }
 
-    void llm_firework_exit() {
+    void llm_firework_exit()
+    {
     }
 
     std::string unit_call(const std::string &unit_name, const std::string &unit_action, const std::string &data);
@@ -335,7 +357,8 @@ class StackFlow {
     void sys_sql_unset(const std::string &key);
     int sys_register_unit(const std::string &unit_name);
     template <typename T>
-    bool sys_release_unit(T workid) {
+    bool sys_release_unit(T workid)
+    {
         std::string _work_id;
         int _work_id_num;
         if constexpr (std::is_same<T, int>::value) {

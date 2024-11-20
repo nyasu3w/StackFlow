@@ -36,7 +36,8 @@
 #include "remote_action.h"
 
 void usr_print_error(const std::string &request_id, const std::string &work_id, const std::string &error_msg,
-                     int zmq_out) {
+                     int zmq_out)
+{
     nlohmann::json out_body;
     out_body["request_id"] = request_id;
     out_body["work_id"]    = work_id;
@@ -49,7 +50,8 @@ void usr_print_error(const std::string &request_id, const std::string &work_id, 
 }
 
 template <typename T>
-void usr_out(const std::string &request_id, const std::string &work_id, const T &data, int zmq_out) {
+void usr_out(const std::string &request_id, const std::string &work_id, const T &data, int zmq_out)
+{
     nlohmann::json out_body;
     out_body["request_id"] = request_id;
     out_body["work_id"]    = work_id;
@@ -65,13 +67,15 @@ void usr_out(const std::string &request_id, const std::string &work_id, const T 
     zmq_com_send(zmq_out, out);
 }
 
-int sys_ping(int com_id, const nlohmann::json &json_obj) {
+int sys_ping(int com_id, const nlohmann::json &json_obj)
+{
     int out = 0;
     usr_print_error(json_obj["request_id"], json_obj["work_id"], "{\"code\":0, \"message\":\"\"}", com_id);
     return out;
 }
 
-void _sys_uartsetup(int com_id, const nlohmann::json &json_obj) {
+void _sys_uartsetup(int com_id, const nlohmann::json &json_obj)
+{
     SAFE_SETTING("config_serial_baud", (int)json_obj["data"]["baud"]);
     SAFE_SETTING("config_serial_data_bits", (int)json_obj["data"]["data_bits"]);
     SAFE_SETTING("config_serial_stop_bits", (int)json_obj["data"]["stop_bits"]);
@@ -82,14 +86,16 @@ void _sys_uartsetup(int com_id, const nlohmann::json &json_obj) {
     serial_work();
 }
 
-int sys_uartsetup(int com_id, const nlohmann::json &json_obj) {
+int sys_uartsetup(int com_id, const nlohmann::json &json_obj)
+{
     int out = 0;
     std::thread t(_sys_uartsetup, com_id, json_obj);
     t.detach();
     return out;
 }
 
-void get_memory_info(unsigned long *total_memory, unsigned long *free_memory) {
+void get_memory_info(unsigned long *total_memory, unsigned long *free_memory)
+{
     FILE *meminfo = fopen("/proc/meminfo", "r");
     if (meminfo == NULL) {
         perror("fopen");
@@ -113,7 +119,8 @@ struct cpu_use_t {
     long time;
 };
 
-int _sys_hwinfo(int com_id, const nlohmann::json &json_obj) {
+int _sys_hwinfo(int com_id, const nlohmann::json &json_obj)
+{
     unsigned long one;
     unsigned long two;
     unsigned long temp;
@@ -154,14 +161,16 @@ int _sys_hwinfo(int com_id, const nlohmann::json &json_obj) {
     return 0;
 }
 
-int sys_hwinfo(int com_id, const nlohmann::json &json_obj) {
+int sys_hwinfo(int com_id, const nlohmann::json &json_obj)
+{
     int out = 0;
     std::thread t(_sys_hwinfo, com_id, json_obj);
     t.detach();
     return out;
 }
 
-int sys_lsmode(int com_id, const nlohmann::json &json_obj) {
+int sys_lsmode(int com_id, const nlohmann::json &json_obj)
+{
     int out;
     nlohmann::json out_body;
     int stream = false;
@@ -220,7 +229,8 @@ sys_lsmode_err_1:
     return out;
 }
 
-int sys_lstask(int com_id, const nlohmann::json &json_obj) {
+int sys_lstask(int com_id, const nlohmann::json &json_obj)
+{
     int out;
 
 sys_lstask_err_1:
@@ -229,7 +239,8 @@ sys_lstask_err_1:
     return out;
 }
 
-int sys_push(int com_id, const nlohmann::json &json_obj) {
+int sys_push(int com_id, const nlohmann::json &json_obj)
+{
     int out;
     nlohmann::json out_body;
     out_body["request_id"] = json_obj["request_id"];
@@ -279,7 +290,8 @@ sys_push_err_1:
     return out;
 }
 
-int sys_pull(int com_id, const nlohmann::json &json_obj) {
+int sys_pull(int com_id, const nlohmann::json &json_obj)
+{
     int out;
 
 sys_pull_err_1:
@@ -288,7 +300,8 @@ sys_pull_err_1:
     return out;
 }
 
-int sys_update(int com_id, const nlohmann::json &json_obj) {
+int sys_update(int com_id, const nlohmann::json &json_obj)
+{
     int out;
     const std::string command = "find /mnt -name \"llm_update_*.deb\" >> /tmp/find_update_file_out.txt 2>&1 ";
     out                       = system(command.c_str());
@@ -311,7 +324,8 @@ sys_update_err_1:
                     "{\"code\":-10, \"message\":\"Not available at the moment.\"}", com_id);
     return out;
 }
-int sys_upgrade(int com_id, const nlohmann::json &json_obj) {
+int sys_upgrade(int com_id, const nlohmann::json &json_obj)
+{
     int out;
     std::string version;
     try {
@@ -336,8 +350,8 @@ sys_upgrade_err_1:
     return out;
 }
 
-int _sys_bashexec(int com_id, std::string request_id, std::string work_id, std::string bashcmd, int stream,
-                  int base64) {
+int _sys_bashexec(int com_id, std::string request_id, std::string work_id, std::string bashcmd, int stream, int base64)
+{
     int out;
     int stream_size = 512;
     /****************************************************/
@@ -404,7 +418,8 @@ sys_bashexec_err_1:
     return out;
 }
 
-int sys_bashexec(int com_id, const nlohmann::json &json_obj) {
+int sys_bashexec(int com_id, const nlohmann::json &json_obj)
+{
     std::string request_id = json_obj["request_id"];
     std::string work_id    = json_obj["work_id"];
     std::string bashcmd;
@@ -438,7 +453,8 @@ int sys_bashexec(int com_id, const nlohmann::json &json_obj) {
     return 0;
 }
 
-int sys_reset(int com_id, const nlohmann::json &json_obj) {
+int sys_reset(int com_id, const nlohmann::json &json_obj)
+{
     int out = 0;
     usr_print_error(json_obj["request_id"], json_obj["work_id"],
                     "{\"code\":0, \"message\":\"llm server restarting ...\"}", com_id);
@@ -449,13 +465,15 @@ int sys_reset(int com_id, const nlohmann::json &json_obj) {
     return out;
 }
 
-int sys_version(int com_id, const nlohmann::json &json_obj) {
+int sys_version(int com_id, const nlohmann::json &json_obj)
+{
     usr_out(json_obj["request_id"], json_obj["work_id"], std::string("v1.2"), com_id);
     int out = 0;
     return out;
 }
 
-int sys_reboot(int com_id, const nlohmann::json &json_obj) {
+int sys_reboot(int com_id, const nlohmann::json &json_obj)
+{
     int out = 0;
     usr_print_error(json_obj["request_id"], json_obj["work_id"], "{\"code\":0, \"message\":\"rebooting ...\"}", com_id);
     usleep(200000);
@@ -463,7 +481,8 @@ int sys_reboot(int com_id, const nlohmann::json &json_obj) {
     return out;
 }
 
-void server_work() {
+void server_work()
+{
     key_sql["sys.ping"]      = sys_ping;
     key_sql["sys.lsmode"]    = sys_lsmode;
     key_sql["sys.lstask"]    = sys_lstask;
@@ -476,14 +495,16 @@ void server_work() {
     key_sql["sys.uartsetup"] = sys_uartsetup;
     key_sql["sys.reset"]     = sys_reset;
     key_sql["sys.reboot"]    = sys_reboot;
-    key_sql["sys.version"]    = sys_version;
+    key_sql["sys.version"]   = sys_version;
 }
 
-void server_stop_work() {
+void server_stop_work()
+{
 }
 
 typedef int (*sys_fun_call)(int, const nlohmann::json &);
-void unit_action_match(int com_id, const std::string &json_str) {
+void unit_action_match(int com_id, const std::string &json_str)
+{
     int ret;
     std::string out_str;
     nlohmann::json req_body;
@@ -515,7 +536,7 @@ void unit_action_match(int com_id, const std::string &json_str) {
 
     if ((work_id_fragment.size() > 0) && (work_id_fragment[0] == "sys")) {
         std::string unit_action = "sys." + action;
-        sys_fun_call call_fun = NULL;
+        sys_fun_call call_fun   = NULL;
         SAFE_READING(call_fun, sys_fun_call, unit_action);
         if (call_fun)
             call_fun(com_id, req_body);

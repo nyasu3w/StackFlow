@@ -26,11 +26,12 @@
 #include <memory>
 
 class serial_com : public zmq_bus_com {
-   private:
+private:
     int uart_fd;
 
-   public:
-    serial_com(uart_t *uart_parm, const std::string &dev_name) : zmq_bus_com() {
+public:
+    serial_com(uart_t *uart_parm, const std::string &dev_name) : zmq_bus_com()
+    {
         uart_fd = linux_uart_init((char *)dev_name.c_str(), uart_parm);
         if (uart_fd <= 0) {
             SLOGE("open %s false!", dev_name.c_str());
@@ -38,12 +39,14 @@ class serial_com : public zmq_bus_com {
         }
     }
 
-    void send_data(const std::string &data) {
+    void send_data(const std::string &data)
+    {
         SLOGD("serial send:%s", data.c_str());
         linux_uart_write(uart_fd, data.length(), (void *)data.c_str());
     }
 
-    void reace_data_event() {
+    void reace_data_event()
+    {
         std::string json_str;
         int flage = 0;
         fd_set readfds;
@@ -83,12 +86,14 @@ class serial_com : public zmq_bus_com {
         }
     }
 
-    void stop() {
+    void stop()
+    {
         zmq_bus_com::stop();
         linux_uart_deinit(uart_fd);
     }
-    
-    ~serial_com() {
+
+    ~serial_com()
+    {
         if (exit_flage) {
             stop();
         }
@@ -96,7 +101,8 @@ class serial_com : public zmq_bus_com {
 };
 std::unique_ptr<serial_com> serial_con_;
 
-void serial_work() {
+void serial_work()
+{
     uart_t uart_parm;
     std::string dev_name;
     int port;
@@ -132,6 +138,7 @@ void serial_work() {
     sync();
 }
 
-void serial_stop_work() {
+void serial_stop_work()
+{
     serial_con_.reset();
 }

@@ -31,8 +31,6 @@ class Request(BaseHTTPRequestHandler):
         self.end_headers()
         if self.path == "/bos_id":
             bos_id = token_obj.bos_id
-            # print(bos_id)
-            # to json
             if bos_id is None:
                 msg = json.dumps({"bos_id": -1})
             else:
@@ -126,7 +124,7 @@ def rpc_forever():
                         del url_path_map[key]
             zmq_socket.send(val.encode('utf-8'))
         except:
-            pass
+            zmq_socket.send('error'.encode('utf-8'))
 
 if __name__ == "__main__":
     rpc_forever()

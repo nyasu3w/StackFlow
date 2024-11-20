@@ -6,7 +6,8 @@
 #include <stdio.h>
 #include <unistd.h>
 
-int main() {
+int main()
+{
     if (access("./_tokenizer.py", F_OK) == 0) {
         char *args[] = {"python3", "./_tokenizer.py", NULL};
         if (execvp("python3", args) == -1) {

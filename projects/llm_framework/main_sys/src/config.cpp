@@ -1,15 +1,16 @@
 /*
-* SPDX-FileCopyrightText: 2024 M5Stack Technology CO LTD
-*
-* SPDX-License-Identifier: MIT
-*/
+ * SPDX-FileCopyrightText: 2024 M5Stack Technology CO LTD
+ *
+ * SPDX-License-Identifier: MIT
+ */
 #include <fstream>
 #include <iostream>
 
 #include "all.h"
 #include "json.hpp"
 
-void load_default_config() {
+void load_default_config()
+{
     std::ifstream file("./sys_config.json");
     if (!file.is_open()) {
         return;

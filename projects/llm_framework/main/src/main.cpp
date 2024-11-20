@@ -13,13 +13,14 @@
 #include <iostream>
 using namespace StackFlows;
 int main_exit_flage = 0;
-static void __sigint(int iSigNo) {
+static void __sigint(int iSigNo)
+{
     main_exit_flage = 1;
 }
 typedef std::function<void(const std::string &data, bool finish)> task_callback_t;
 class llm_task {
-   private:
-   public:
+private:
+public:
     std::string model_;
     std::string response_format_;
     std::vector<std::string> inputs_;
@@ -27,11 +28,13 @@ class llm_task {
     bool enoutput_;
     bool enstream_;
 
-    void set_output(task_callback_t out_callback) {
+    void set_output(task_callback_t out_callback)
+    {
         out_callback_ = out_callback;
     }
 
-    bool parse_config(const nlohmann::json &config_body) {
+    bool parse_config(const nlohmann::json &config_body)
+    {
         try {
             model_           = config_body.at("model");
             response_format_ = config_body.at("response_format");
@@ -52,37 +55,43 @@ class llm_task {
         return false;
     }
 
-    int load_model(const nlohmann::json &config_body) {
+    int load_model(const nlohmann::json &config_body)
+    {
         if (parse_config(config_body)) {
             return -1;
         }
         return 0;
     }
 
-    void inference(const std::string &msg) {
+    void inference(const std::string &msg)
+    {
         std::cout << msg << std::endl;
         if (out_callback_) out_callback_(std::string("hello"), true);
     }
 
-    llm_task(const std::string &workid) {
+    llm_task(const std::string &workid)
+    {
     }
 
-    ~llm_task() {
+    ~llm_task()
+    {
     }
 };
 
 class llm_llm : public StackFlow {
-   private:
+private:
     int task_count_;
     std::unordered_map<int, std::shared_ptr<llm_task>> llm_task_;
 
-   public:
-    llm_llm() : StackFlow("test") {
+public:
+    llm_llm() : StackFlow("test")
+    {
         task_count_ = 1;
     }
 
     void task_output(const std::shared_ptr<llm_task> llm_task_obj, const std::shared_ptr<llm_channel_obj> llm_channel,
-                     const std::string &data, bool finish) {
+                     const std::string &data, bool finish)
+    {
         if (llm_channel->enstream_) {
             static int count = 0;
             nlohmann::json data_body;
@@ -102,7 +111,8 @@ class llm_llm : public StackFlow {
 
     void task_user_data(const std::shared_ptr<llm_task> llm_task_obj,
                         const std::shared_ptr<llm_channel_obj> llm_channel, const std::string &object,
-                        const std::string &data) {
+                        const std::string &data)
+    {
         const std::string *next_data = &data;
         int ret;
         std::string tmp_msg1;
@@ -122,7 +132,8 @@ class llm_llm : public StackFlow {
         llm_task_obj->inference((*next_data));
     }
 
-    int setup(const std::string &work_id, const std::string &object, const std::string &data) override {
+    int setup(const std::string &work_id, const std::string &object, const std::string &data) override
+    {
         nlohmann::json error_body;
         if ((llm_task_channel_.size() - 1) == task_count_) {
             error_body["code"]    = -21;
@@ -161,7 +172,8 @@ class llm_llm : public StackFlow {
         }
     }
 
-    void taskinfo(const std::string &work_id, const std::string &object, const std::string &data) override {
+    void taskinfo(const std::string &work_id, const std::string &object, const std::string &data) override
+    {
         nlohmann::json req_body;
         int work_id_num = sample_get_work_id_num(work_id);
         if (WORK_ID_NONE == work_id_num) {
@@ -186,7 +198,8 @@ class llm_llm : public StackFlow {
         }
     }
 
-    int exit(const std::string &work_id, const std::string &object, const std::string &data) override {
+    int exit(const std::string &work_id, const std::string &object, const std::string &data) override
+    {
         nlohmann::json error_body;
         int work_id_num = sample_get_work_id_num(work_id);
         if (llm_task_.find(work_id_num) == llm_task_.end()) {
@@ -202,7 +215,8 @@ class llm_llm : public StackFlow {
         return 0;
     }
 
-    ~llm_llm() {
+    ~llm_llm()
+    {
         while (1) {
             auto iteam = llm_task_.begin();
             if (iteam == llm_task_.end()) {
@@ -214,7 +228,8 @@ class llm_llm : public StackFlow {
     }
 };
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
     signal(SIGTERM, __sigint);
     signal(SIGINT, __sigint);
     mkdir("/tmp/llm", 0777);

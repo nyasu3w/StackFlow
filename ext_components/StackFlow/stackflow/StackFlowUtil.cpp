@@ -6,7 +6,8 @@
 #include "StackFlowUtil.h"
 #include <vector>
 
-std::string StackFlows::sample_json_str_get(const std::string &json_str, const std::string &json_key) {
+std::string StackFlows::sample_json_str_get(const std::string &json_str, const std::string &json_key)
+{
     std::string key_val;
     std::string format_val;
     // SLOGD("json_str: %s json_key:%s\n", json_str.c_str(), json_key.c_str());
@@ -81,7 +82,8 @@ std::string StackFlows::sample_json_str_get(const std::string &json_str, const s
     return key_val;
 }
 
-int StackFlows::sample_get_work_id_num(const std::string &work_id) {
+int StackFlows::sample_get_work_id_num(const std::string &work_id)
+{
     int a = work_id.find(".");
     if ((a == std::string::npos) || (a == work_id.length() - 1)) {
         return WORK_ID_NONE;
@@ -89,7 +91,8 @@ int StackFlows::sample_get_work_id_num(const std::string &work_id) {
     return std::stoi(work_id.substr(a + 1));
 }
 
-std::string StackFlows::sample_get_work_id_name(const std::string &work_id) {
+std::string StackFlows::sample_get_work_id_name(const std::string &work_id)
+{
     int a = work_id.find(".");
     if (a == std::string::npos) {
         return work_id;
@@ -98,11 +101,13 @@ std::string StackFlows::sample_get_work_id_name(const std::string &work_id) {
     }
 }
 
-std::string StackFlows::sample_get_work_id(int work_id_num, const std::string &unit_name) {
+std::string StackFlows::sample_get_work_id(int work_id_num, const std::string &unit_name)
+{
     return unit_name + "." + std::to_string(work_id_num);
 }
 
-std::string StackFlows::sample_escapeString(const std::string &input) {
+std::string StackFlows::sample_escapeString(const std::string &input)
+{
     std::string escaped;
     for (char c : input) {
         switch (c) {
@@ -132,7 +137,8 @@ std::string StackFlows::sample_escapeString(const std::string &input) {
     return escaped;
 }
 
-std::string StackFlows::sample_unescapeString(const std::string &input) {
+std::string StackFlows::sample_unescapeString(const std::string &input)
+{
     std::string unescaped;
     for (size_t i = 0; i < input.length(); ++i) {
         if (input[i] == '\\' && i + 1 < input.length()) {
@@ -173,7 +179,8 @@ std::string StackFlows::sample_unescapeString(const std::string &input) {
 }
 
 bool StackFlows::decode_stream(const std::string &in, std::string &out,
-                               std::unordered_map<int, std::string> &stream_buff) {
+                               std::unordered_map<int, std::string> &stream_buff)
+{
     try {
         int index          = std::stoi(StackFlows::sample_json_str_get(in, "index"));
         std::string finish = StackFlows::sample_json_str_get(in, "finish");
@@ -310,7 +317,8 @@ static const signed char base64de[] = {
     51,
 };
 
-static int base64_encode(const unsigned char *in, unsigned int inlen, char *out) {
+static int base64_encode(const unsigned char *in, unsigned int inlen, char *out)
+{
     unsigned int i = 0, j = 0;
 
     for (; i < inlen; i++) {
@@ -345,7 +353,8 @@ static int base64_encode(const unsigned char *in, unsigned int inlen, char *out)
     return j;
 }
 
-static int base64_decode(const char *in, unsigned int inlen, unsigned char *out) {
+static int base64_decode(const char *in, unsigned int inlen, unsigned char *out)
+{
     unsigned int i = 0, j = 0;
 
     for (; i < inlen; i++) {
@@ -380,12 +389,14 @@ static int base64_decode(const char *in, unsigned int inlen, unsigned char *out)
     return j;
 }
 
-int StackFlows::decode_base64(const std::string &in, std::string &out) {
+int StackFlows::decode_base64(const std::string &in, std::string &out)
+{
     out.resize(BASE64_DECODE_OUT_SIZE(in.length()));
     return base64_decode((const char *)in.c_str(), in.length(), (unsigned char *)out.data());
 }
 
-int StackFlows::encode_base64(const std::string &in, std::string &out) {
+int StackFlows::encode_base64(const std::string &in, std::string &out)
+{
     out.resize(BASE64_ENCODE_OUT_SIZE(in.length()));
     return base64_encode((const unsigned char *)in.c_str(), in.length(), (char *)out.data());
 }

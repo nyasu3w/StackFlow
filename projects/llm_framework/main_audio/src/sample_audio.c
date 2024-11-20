@@ -41,7 +41,8 @@
 static AX_S32 gplayLoopExit = 0;
 static AX_S32 gcapLoopExit  = 0;
 
-int BitsToFormat(unsigned int bits, AX_AUDIO_BIT_WIDTH_E *format) {
+int BitsToFormat(unsigned int bits, AX_AUDIO_BIT_WIDTH_E *format)
+{
     switch (bits) {
         case 32:
             *format = AX_AUDIO_BIT_WIDTH_32;
@@ -60,20 +61,23 @@ int BitsToFormat(unsigned int bits, AX_AUDIO_BIT_WIDTH_E *format) {
     return 0;
 }
 
-int IsUpTalkVqeEnabled(const AX_AP_UPTALKVQE_ATTR_T *pstVqeAttr) {
+int IsUpTalkVqeEnabled(const AX_AP_UPTALKVQE_ATTR_T *pstVqeAttr)
+{
     int ret = ((pstVqeAttr->stAecCfg.enAecMode != AX_AEC_MODE_DISABLE) || (pstVqeAttr->stNsCfg.bNsEnable != AX_FALSE) ||
                (pstVqeAttr->stAgcCfg.bAgcEnable != AX_FALSE));
     return ret;
 }
 
-int IsDnVqeEnabled(const AX_AP_DNVQE_ATTR_T *pstVqeAttr) {
+int IsDnVqeEnabled(const AX_AP_DNVQE_ATTR_T *pstVqeAttr)
+{
     int ret = ((pstVqeAttr->stNsCfg.bNsEnable != AX_FALSE) || (pstVqeAttr->stAgcCfg.bAgcEnable != AX_FALSE));
     return ret;
 }
 
 AX_AUDIO_SAMPLE_CONFIG_t play_config;
 void ax_play(unsigned int card, unsigned int device, float Volume, int channel, int rate, int bit, const void *data,
-             int size) {
+             int size)
+{
     gplayLoopExit               = 0;
     int ret                     = 0;
     AX_AUDIO_BIT_WIDTH_E format = AX_AUDIO_BIT_WIDTH_16;
@@ -264,17 +268,20 @@ FCLOSE_MIX_FILE:
     return;
 }
 
-void ax_close_play() {
+void ax_close_play()
+{
     gplayLoopExit = 1;
 }
 
-int ax_play_status() {
+int ax_play_status()
+{
     return gplayLoopExit;
 }
 
 AX_AUDIO_SAMPLE_CONFIG_t cap_config;
 void ax_cap_start(unsigned int card, unsigned int device, float Volume, int channel, int rate, int bit,
-                  AUDIOCallback callback) {
+                  AUDIOCallback callback)
+{
     int ret;
     AX_AUDIO_BIT_WIDTH_E format;
     unsigned int totalFrames = 0;
@@ -458,10 +465,12 @@ FREE_SYS:
     gcapLoopExit = 2;
 }
 
-void ax_close_cap() {
+void ax_close_cap()
+{
     gcapLoopExit = 1;
 }
 
-int ax_cap_status() {
+int ax_cap_status()
+{
     return gcapLoopExit;
 }

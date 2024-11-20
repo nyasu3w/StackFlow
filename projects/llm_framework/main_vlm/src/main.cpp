@@ -18,7 +18,8 @@
 using namespace StackFlows;
 
 int main_exit_flage = 0;
-static void __sigint(int iSigNo) {
+static void __sigint(int iSigNo)
+{
     SLOGW("llm_sys will be exit!");
     main_exit_flage = 1;
 }
@@ -35,8 +36,8 @@ typedef std::function<void(const std::string &data, bool finish)> task_callback_
         mode_config_.key = obj[#key];
 
 class llm_task {
-   private:
-   public:
+private:
+public:
     LLMAttrType mode_config_;
     std::unique_ptr<LLM> lLaMa_;
     std::string model_;
@@ -52,11 +53,13 @@ class llm_task {
     std::atomic_bool tokenizer_server_flage_;
     unsigned int port_ = 8080;
 
-    void set_output(task_callback_t out_callback) {
+    void set_output(task_callback_t out_callback)
+    {
         out_callback_ = out_callback;
     }
 
-    bool parse_config(const nlohmann::json &config_body) {
+    bool parse_config(const nlohmann::json &config_body)
+    {
         try {
             model_           = config_body.at("model");
             response_format_ = config_body.at("response_format");
@@ -80,7 +83,8 @@ class llm_task {
         return false;
     }
 
-    int load_model(const nlohmann::json &config_body) {
+    int load_model(const nlohmann::json &config_body)
+    {
         if (parse_config(config_body)) {
             return -1;
         }
@@ -128,21 +132,19 @@ class llm_task {
                     pid_t pid = fork();
                     if (pid == 0) {
                         execl("/usr/bin/python3", "python3",
-                            ("/opt/m5stack/scripts/" + model_ + "_tokenizer.py").c_str(),
-                            "--host", "localhost",
-                            "--port", std::to_string(port_).c_str(),
-                            "--model_id", (base_model + "tokenizer").c_str(),
-                            "--content", ("'" + prompt_ + "'").c_str(),
-                            nullptr);
+                              ("/opt/m5stack/scripts/" + model_ + "_tokenizer.py").c_str(), "--host", "localhost",
+                              "--port", std::to_string(port_).c_str(), "--model_id", (base_model + "tokenizer").c_str(),
+                              "--content", ("'" + prompt_ + "'").c_str(), nullptr);
                         perror("execl failed");
                         exit(1);
                     }
                     tokenizer_server_flage_ = true;
-                    SLOGI("port_=%s model_id=%s content=%s", std::to_string(port_).c_str(), (base_model + "tokenizer").c_str(), ("'" + prompt_ + "'").c_str());
+                    SLOGI("port_=%s model_id=%s content=%s", std::to_string(port_).c_str(),
+                          (base_model + "tokenizer").c_str(), ("'" + prompt_ + "'").c_str());
                     std::this_thread::sleep_for(std::chrono::seconds(10));
                 }
             } else {
-                mode_config_.filename_tokenizer_model  = base_model + mode_config_.filename_tokenizer_model;
+                mode_config_.filename_tokenizer_model = base_model + mode_config_.filename_tokenizer_model;
             }
             SLOGI("filename_tokenizer_model: %s", mode_config_.filename_tokenizer_model.c_str());
             mode_config_.filename_tokens_embed           = base_model + mode_config_.filename_tokens_embed;
@@ -166,7 +168,8 @@ class llm_task {
         return 0;
     }
 
-    std::string prompt_complete(const std::string &input) {
+    std::string prompt_complete(const std::string &input)
+    {
         std::ostringstream oss_prompt;
         switch (mode_config_.tokenizer_type) {
             case TKT_LLaMa:
@@ -187,11 +190,12 @@ class llm_task {
                 oss_prompt << input;
                 break;
         }
-        SLOGI("prompt_complete:%s",oss_prompt.str().c_str());
+        SLOGI("prompt_complete:%s", oss_prompt.str().c_str());
         return oss_prompt.str();
     }
 
-    void inference(const std::string &msg) {
+    void inference(const std::string &msg)
+    {
         try {
             if (image_data_.empty()) {
                 lLaMa_->Encode(prompt_data_, prompt_complete(msg));
@@ -215,31 +219,36 @@ class llm_task {
         }
     }
 
-    bool pause() {
+    bool pause()
+    {
         lLaMa_->Stop();
         return true;
     }
 
-    bool delete_model() {
+    bool delete_model()
+    {
         lLaMa_->Deinit();
         lLaMa_.reset();
         return true;
     }
 
-    llm_task(const std::string &workid) {
+    llm_task(const std::string &workid)
+    {
     }
 
-    ~llm_task() {
+    ~llm_task()
+    {
     }
 };
 
 #undef CONFIG_AUTO_SET
 
 class llm_llm : public StackFlow {
-   private:
+private:
     int task_count_;
     std::unordered_map<int, std::shared_ptr<llm_task>> llm_task_;
-    int _load_config() {
+    int _load_config()
+    {
         if (base_model_path_.empty()) {
             base_model_path_ = sys_sql_select("config_base_mode_path");
         }
@@ -254,14 +263,16 @@ class llm_llm : public StackFlow {
         }
     }
 
-   public:
-    llm_llm() : StackFlow("vlm") {
+public:
+    llm_llm() : StackFlow("vlm")
+    {
         task_count_ = 2;
         repeat_event(1000, std::bind(&llm_llm::_load_config, this));
     }
 
     void task_output(const std::shared_ptr<llm_task> llm_task_obj, const std::shared_ptr<llm_channel_obj> llm_channel,
-                     const std::string &data, bool finish) {
+                     const std::string &data, bool finish)
+    {
         SLOGI("send:%s", data.c_str());
         if (llm_channel->enstream_) {
             static int count = 0;
@@ -284,7 +295,8 @@ class llm_llm : public StackFlow {
 
     void task_user_data(const std::shared_ptr<llm_task> llm_task_obj,
                         const std::shared_ptr<llm_channel_obj> llm_channel, const std::string &object,
-                        const std::string &data) {
+                        const std::string &data)
+    {
         const std::string *next_data = &data;
         int ret;
         std::string tmp_msg1;
@@ -309,7 +321,8 @@ class llm_llm : public StackFlow {
     }
 
     void task_asr_data(const std::shared_ptr<llm_task> llm_task_obj, const std::shared_ptr<llm_channel_obj> llm_channel,
-                       const std::string &object, const std::string &data) {
+                       const std::string &object, const std::string &data)
+    {
         if (object.find("stream") != std::string::npos) {
             if (sample_json_str_get(data, "finish") == "true") {
                 llm_task_obj->inference(sample_json_str_get(data, "delta"));
@@ -320,11 +333,13 @@ class llm_llm : public StackFlow {
     }
 
     void kws_awake(const std::shared_ptr<llm_task> llm_task_obj, const std::shared_ptr<llm_channel_obj> llm_channel,
-                   const std::string &object, const std::string &data) {
+                   const std::string &object, const std::string &data)
+    {
         llm_task_obj->lLaMa_->Stop();
     }
 
-    int setup(const std::string &work_id, const std::string &object, const std::string &data) override {
+    int setup(const std::string &work_id, const std::string &object, const std::string &data) override
+    {
         nlohmann::json error_body;
         if ((llm_task_channel_.size() - 1) == task_count_) {
             error_body["code"]    = -21;
@@ -383,7 +398,8 @@ class llm_llm : public StackFlow {
         }
     }
 
-    void link(const std::string &work_id, const std::string &object, const std::string &data) override {
+    void link(const std::string &work_id, const std::string &object, const std::string &data) override
+    {
         SLOGI("llm_llm::link:%s", data.c_str());
         int ret = 1;
         nlohmann::json error_body;
@@ -416,7 +432,8 @@ class llm_llm : public StackFlow {
         }
     }
 
-    void unlink(const std::string &work_id, const std::string &object, const std::string &data) override {
+    void unlink(const std::string &work_id, const std::string &object, const std::string &data) override
+    {
         SLOGI("llm_llm::unlink:%s", data.c_str());
         int ret = 0;
         nlohmann::json error_body;
@@ -440,7 +457,8 @@ class llm_llm : public StackFlow {
         send("None", "None", LLM_NO_ERROR, work_id);
     }
 
-    void taskinfo(const std::string &work_id, const std::string &object, const std::string &data) override {
+    void taskinfo(const std::string &work_id, const std::string &object, const std::string &data) override
+    {
         SLOGI("llm_llm::taskinfo:%s", data.c_str());
         nlohmann::json req_body;
         int work_id_num = sample_get_work_id_num(work_id);
@@ -466,7 +484,8 @@ class llm_llm : public StackFlow {
         }
     }
 
-    int exit(const std::string &work_id, const std::string &object, const std::string &data) override {
+    int exit(const std::string &work_id, const std::string &object, const std::string &data) override
+    {
         SLOGI("llm_llm::exit:%s", data.c_str());
 
         nlohmann::json error_body;
@@ -484,7 +503,8 @@ class llm_llm : public StackFlow {
         return 0;
     }
 
-    ~llm_llm() {
+    ~llm_llm()
+    {
         while (1) {
             auto iteam = llm_task_.begin();
             if (iteam == llm_task_.end()) {
@@ -496,7 +516,8 @@ class llm_llm : public StackFlow {
     }
 };
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
     signal(SIGTERM, __sigint);
     signal(SIGINT, __sigint);
     mkdir("/tmp/llm", 0777);

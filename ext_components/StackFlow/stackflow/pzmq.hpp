@@ -16,7 +16,7 @@
 #define ZMQ_RPC_CALL (ZMQ_REQ | 0x80)
 namespace StackFlows {
 class pzmq {
-   private:
+private:
     const std::string unix_socket_head_ = "ipc://";
     const std::string rpc_url_head_     = "ipc:///tmp/rpc.";
     void *zmq_ctx_;
@@ -29,24 +29,29 @@ class pzmq {
     std::string zmq_url_;
     int timeout_;
 
-   public:
-    pzmq() : zmq_ctx_(NULL), zmq_socket_(NULL), flage_(true), timeout_(3000) {
+public:
+    pzmq() : zmq_ctx_(NULL), zmq_socket_(NULL), flage_(true), timeout_(3000)
+    {
     }
     pzmq(const std::string &server)
-        : zmq_ctx_(NULL), zmq_socket_(NULL), rpc_server_(server), flage_(true), timeout_(3000) {
+        : zmq_ctx_(NULL), zmq_socket_(NULL), rpc_server_(server), flage_(true), timeout_(3000)
+    {
     }
     pzmq(const std::string &url, int mode, const std::function<void(const std::string &)> &raw_call = nullptr)
-        : zmq_ctx_(NULL), zmq_socket_(NULL), mode_(mode), flage_(true), timeout_(3000) {
+        : zmq_ctx_(NULL), zmq_socket_(NULL), mode_(mode), flage_(true), timeout_(3000)
+    {
         if (mode_ != ZMQ_RPC_FUN) creat(url, raw_call);
     }
-    void set_timeout(int ms) {
+    void set_timeout(int ms)
+    {
         timeout_ = ms;
     }
-    int get_timeout() {
+    int get_timeout()
+    {
         return timeout_;
     }
-    int register_rpc_action(const std::string &action,
-                            const std::function<std::string(const std::string &)> &raw_call) {
+    int register_rpc_action(const std::string &action, const std::function<std::string(const std::string &)> &raw_call)
+    {
         if (zmq_fun_.find(action) != zmq_fun_.end()) {
             zmq_fun_[action] = raw_call;
             return 0;
@@ -63,7 +68,8 @@ class pzmq {
         return creat(url);
     }
     int call_rpc_action(const std::string &action, const std::string &data,
-                        const std::function<void(const std::string &)> &raw_call) {
+                        const std::function<void(const std::string &)> &raw_call)
+    {
         int ret;
         zmq_msg_t msg;
         zmq_msg_init(&msg);
@@ -83,7 +89,9 @@ class pzmq {
                 zmq_send(zmq_socket_, data.c_str(), data.length(), 0);
             }
             // action
-            { zmq_msg_recv(&msg, zmq_socket_, 0); }
+            {
+                zmq_msg_recv(&msg, zmq_socket_, 0);
+            }
             raw_call(std::string((const char *)zmq_msg_data(&msg), zmq_msg_size(&msg)));
         } catch (int e) {
             ret = e;
@@ -92,7 +100,8 @@ class pzmq {
         close_zmq();
         return ret;
     }
-    int creat(const std::string &url, const std::function<void(const std::string &)> &raw_call = nullptr) {
+    int creat(const std::string &url, const std::function<void(const std::string &)> &raw_call = nullptr)
+    {
         zmq_url_ = url;
         do {
             zmq_ctx_ = zmq_ctx_new();
@@ -137,7 +146,8 @@ class pzmq {
         }
         return 0;
     }
-    int check_zmq_errno(int code) {
+    int check_zmq_errno(int code)
+    {
         if (code == -1) {
             // SLOGE("Error occurred: %s", zmq_strerror(errno));
             switch (errno) {
@@ -162,41 +172,49 @@ class pzmq {
         }
         return code;
     }
-    int send_data(const std::string &raw) {
+    int send_data(const std::string &raw)
+    {
         return zmq_send(zmq_socket_, raw.c_str(), raw.length(), 0);
     }
-    int send_data(const char *raw, int size) {
+    int send_data(const char *raw, int size)
+    {
         return zmq_send(zmq_socket_, raw, size, 0);
     }
-    inline int creat_pub(const std::string &url) {
+    inline int creat_pub(const std::string &url)
+    {
         return zmq_bind(zmq_socket_, url.c_str());
     }
-    inline int creat_push(const std::string &url) {
+    inline int creat_push(const std::string &url)
+    {
         int timeout = 3000;
         zmq_setsockopt(zmq_socket_, ZMQ_SNDTIMEO, &timeout, sizeof(timeout));
         zmq_setsockopt(zmq_socket_, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
         return zmq_connect(zmq_socket_, url.c_str());
     }
-    inline int creat_pull(const std::string &url, const std::function<void(const std::string &)> &raw_call) {
+    inline int creat_pull(const std::string &url, const std::function<void(const std::string &)> &raw_call)
+    {
         int ret     = zmq_bind(zmq_socket_, url.c_str());
         flage_      = false;
         zmq_thread_ = std::make_unique<std::thread>(std::bind(&pzmq::zmq_event_loop, this, raw_call));
         return ret;
     }
-    inline int subscriber_url(const std::string &url, const std::function<void(const std::string &)> &raw_call) {
+    inline int subscriber_url(const std::string &url, const std::function<void(const std::string &)> &raw_call)
+    {
         int ret = zmq_connect(zmq_socket_, url.c_str());
         zmq_setsockopt(zmq_socket_, ZMQ_SUBSCRIBE, "", 0);
         flage_      = false;
         zmq_thread_ = std::make_unique<std::thread>(std::bind(&pzmq::zmq_event_loop, this, raw_call));
         return ret;
     }
-    inline int creat_rep(const std::string &url, const std::function<void(const std::string &)> &raw_call) {
+    inline int creat_rep(const std::string &url, const std::function<void(const std::string &)> &raw_call)
+    {
         int ret     = zmq_bind(zmq_socket_, url.c_str());
         flage_      = false;
         zmq_thread_ = std::make_unique<std::thread>(std::bind(&pzmq::zmq_event_loop, this, raw_call));
         return ret;
     }
-    inline int creat_req(const std::string &url) {
+    inline int creat_req(const std::string &url)
+    {
         int pos = url.find(unix_socket_head_);
         if (pos != std::string::npos) {
             std::string socket_file = url.substr(pos + unix_socket_head_.length());
@@ -208,7 +226,8 @@ class pzmq {
         zmq_setsockopt(zmq_socket_, ZMQ_RCVTIMEO, &timeout_, sizeof(timeout_));
         return zmq_connect(zmq_socket_, url.c_str());
     }
-    void zmq_event_loop(const std::function<void(const std::string &)> &raw_call) {
+    void zmq_event_loop(const std::function<void(const std::string &)> &raw_call)
+    {
         int ret;
         zmq_pollitem_t items[1];
         if (mode_ == ZMQ_PULL) {
@@ -258,7 +277,8 @@ class pzmq {
             zmq_msg_close(&msg);
         }
     }
-    void close_zmq() {
+    void close_zmq()
+    {
         zmq_close(zmq_socket_);
         zmq_ctx_destroy(zmq_ctx_);
         int pos = zmq_url_.find(unix_socket_head_);
@@ -273,7 +293,8 @@ class pzmq {
         zmq_socket_ = NULL;
         zmq_ctx_    = NULL;
     }
-    ~pzmq() {
+    ~pzmq()
+    {
         if (!zmq_socket_) {
             return;
         }
