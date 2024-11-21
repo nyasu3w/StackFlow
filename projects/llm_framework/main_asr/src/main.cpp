@@ -292,9 +292,14 @@ public:
             EVENT_TASK_PAUSE, std::bind(&llm_asr::_task_pause, this, std::placeholders::_1, std::placeholders::_2));
     }
 
-    void task_output(const std::shared_ptr<llm_task> llm_task_obj, const std::shared_ptr<llm_channel_obj> llm_channel,
-                     const std::string &data, bool finish)
+    void task_output(const std::weak_ptr<llm_task> llm_task_obj_weak,
+                     const std::weak_ptr<llm_channel_obj> llm_channel_weak, const std::string &data, bool finish)
     {
+        auto llm_task_obj = llm_task_obj_weak.lock();
+        auto llm_channel  = llm_channel_weak.lock();
+        if (!(llm_task_obj && llm_channel)) {
+            return;
+        }
         std::string tmp_msg1;
         const std::string *next_data = &data;
         if (finish) {
@@ -340,10 +345,15 @@ public:
         return 0;
     }
 
-    void task_user_data(const std::shared_ptr<llm_task> llm_task_obj,
-                        const std::shared_ptr<llm_channel_obj> llm_channel, const std::string &object,
+    void task_user_data(const std::weak_ptr<llm_task> llm_task_obj_weak,
+                        const std::weak_ptr<llm_channel_obj> llm_channel_weak, const std::string &object,
                         const std::string &data)
     {
+        auto llm_task_obj = llm_task_obj_weak.lock();
+        auto llm_channel  = llm_channel_weak.lock();
+        if (!(llm_task_obj && llm_channel)) {
+            return;
+        }
         std::string tmp_msg1;
         const std::string *next_data = &data;
         int ret;
@@ -398,8 +408,14 @@ public:
         event_queue_.enqueue(EVENT_TASK_PAUSE, work_id, "");
     }
 
-    void task_work(const std::shared_ptr<llm_task> llm_task_obj, const std::shared_ptr<llm_channel_obj> llm_channel)
+    void task_work(const std::weak_ptr<llm_task> llm_task_obj_weak,
+                   const std::weak_ptr<llm_channel_obj> llm_channel_weak)
     {
+        auto llm_task_obj = llm_task_obj_weak.lock();
+        auto llm_channel  = llm_channel_weak.lock();
+        if (!(llm_task_obj && llm_channel)) {
+            return;
+        }
         llm_task_obj->kws_awake();
         if ((!audio_url_.empty()) && (llm_task_obj->audio_flage_ == false)) {
             llm_channel->subscriber(audio_url_,
@@ -408,9 +424,15 @@ public:
         }
     }
 
-    void kws_awake(const std::shared_ptr<llm_task> llm_task_obj, const std::shared_ptr<llm_channel_obj> llm_channel,
-                   const std::string &object, const std::string &data)
+    void kws_awake(const std::weak_ptr<llm_task> llm_task_obj_weak,
+                   const std::weak_ptr<llm_channel_obj> llm_channel_weak, const std::string &object,
+                   const std::string &data)
     {
+        auto llm_task_obj = llm_task_obj_weak.lock();
+        auto llm_channel  = llm_channel_weak.lock();
+        if (!(llm_task_obj && llm_channel)) {
+            return;
+        }
         std::this_thread::sleep_for(std::chrono::milliseconds(llm_task_obj->awake_delay_));
         task_work(llm_task_obj, llm_channel);
     }
@@ -476,10 +498,9 @@ public:
             llm_channel->set_output(llm_task_obj->enoutput_);
             llm_channel->set_stream(llm_task_obj->enstream_);
             llm_task_obj->pause = std::bind(&llm_asr::task_pause, this, work_id, "");
-            SLOGI("llm_task_obj->enoutput_:%d", llm_task_obj->enoutput_);
-            SLOGI("llm_task_obj->enstream_:%d", llm_task_obj->enstream_);
-            llm_task_obj->set_output(std::bind(&llm_asr::task_output, this, llm_task_obj, llm_channel,
-                                               std::placeholders::_1, std::placeholders::_2));
+            llm_task_obj->set_output(std::bind(&llm_asr::task_output, this, std::weak_ptr<llm_task>(llm_task_obj),
+                                               std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1,
+                                               std::placeholders::_2));
 
             for (const auto input : llm_task_obj->inputs_) {
                 if (input.find("sys") != std::string::npos) {
@@ -489,13 +510,15 @@ public:
                     llm_task_obj->audio_flage_ = true;
                 } else if (input.find("asr") != std::string::npos) {
                     llm_channel->subscriber_work_id(
-                        "", std::bind(&llm_asr::task_user_data, this, llm_task_obj, llm_channel, std::placeholders::_1,
+                        "", std::bind(&llm_asr::task_user_data, this, std::weak_ptr<llm_task>(llm_task_obj),
+                                      std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1,
                                       std::placeholders::_2));
                 } else if (input.find("kws") != std::string::npos) {
                     llm_task_obj->ensleep_ = true;
                     task_pause(work_id, "");
                     llm_channel->subscriber_work_id(
-                        input, std::bind(&llm_asr::kws_awake, this, llm_task_obj, llm_channel, std::placeholders::_1,
+                        input, std::bind(&llm_asr::kws_awake, this, std::weak_ptr<llm_task>(llm_task_obj),
+                                         std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1,
                                          std::placeholders::_2));
                 }
             }
@@ -534,8 +557,10 @@ public:
             llm_task_obj->inputs_.push_back(data);
         } else if (data.find("kws") != std::string::npos) {
             llm_task_obj->ensleep_ = true;
-            ret = llm_channel->subscriber_work_id(data, std::bind(&llm_asr::kws_awake, this, llm_task_obj, llm_channel,
-                                                                  std::placeholders::_1, std::placeholders::_2));
+            ret                    = llm_channel->subscriber_work_id(
+                data,
+                std::bind(&llm_asr::kws_awake, this, std::weak_ptr<llm_task>(llm_task_obj),
+                                             std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1, std::placeholders::_2));
             llm_task_obj->inputs_.push_back(data);
         }
         if (ret) {

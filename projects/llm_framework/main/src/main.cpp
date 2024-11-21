@@ -89,9 +89,14 @@ public:
         task_count_ = 1;
     }
 
-    void task_output(const std::shared_ptr<llm_task> llm_task_obj, const std::shared_ptr<llm_channel_obj> llm_channel,
-                     const std::string &data, bool finish)
+    void task_output(const std::weak_ptr<llm_task> llm_task_obj_weak,
+                     const std::weak_ptr<llm_channel_obj> llm_channel_weak, const std::string &data, bool finish)
     {
+        auto llm_task_obj = llm_task_obj_weak.lock();
+        auto llm_channel  = llm_channel_weak.lock();
+        if (!(llm_task_obj && llm_channel)) {
+            return;
+        }
         if (llm_channel->enstream_) {
             static int count = 0;
             nlohmann::json data_body;
@@ -109,10 +114,15 @@ public:
         }
     }
 
-    void task_user_data(const std::shared_ptr<llm_task> llm_task_obj,
-                        const std::shared_ptr<llm_channel_obj> llm_channel, const std::string &object,
+    void task_user_data(const std::weak_ptr<llm_task> llm_task_obj_weak,
+                        const std::weak_ptr<llm_channel_obj> llm_channel_weak, const std::string &object,
                         const std::string &data)
     {
+        auto llm_task_obj = llm_task_obj_weak.lock();
+        auto llm_channel  = llm_channel_weak.lock();
+        if (!(llm_task_obj && llm_channel)) {
+            return;
+        }
         const std::string *next_data = &data;
         int ret;
         std::string tmp_msg1;
@@ -157,10 +167,13 @@ public:
         if (ret == 0) {
             llm_channel->set_output(llm_task_obj->enoutput_);
             llm_channel->set_stream(llm_task_obj->enstream_);
-            llm_task_obj->set_output(std::bind(&llm_llm::task_output, this, llm_task_obj, llm_channel,
-                                               std::placeholders::_1, std::placeholders::_2));
-            llm_channel->subscriber_work_id("", std::bind(&llm_llm::task_user_data, this, llm_task_obj, llm_channel,
-                                                          std::placeholders::_1, std::placeholders::_2));
+            llm_task_obj->set_output(std::bind(&llm_llm::task_output, this, std::weak_ptr<llm_task>(llm_task_obj),
+                                               std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1,
+                                               std::placeholders::_2));
+            llm_channel->subscriber_work_id(
+                "",
+                std::bind(&llm_llm::task_user_data, this, std::weak_ptr<llm_task>(llm_task_obj),
+                          std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1, std::placeholders::_2));
             llm_task_[work_id_num] = llm_task_obj;
             send("None", "None", LLM_NO_ERROR, work_id);
             return 0;

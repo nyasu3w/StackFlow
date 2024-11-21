@@ -314,16 +314,28 @@ public:
         }
     }
 
-    void task_pause(const std::shared_ptr<llm_task> llm_task_obj, const std::shared_ptr<llm_channel_obj> llm_channel)
+    void task_pause(const std::weak_ptr<llm_task> llm_task_obj_weak,
+                    const std::weak_ptr<llm_channel_obj> llm_channel_weak)
     {
+        auto llm_task_obj = llm_task_obj_weak.lock();
+        auto llm_channel  = llm_channel_weak.lock();
+        if (!(llm_task_obj && llm_channel)) {
+            return;
+        }
         if (llm_task_obj->audio_flage_) {
             if (!audio_url_.empty()) llm_channel->stop_subscriber(audio_url_);
             llm_task_obj->audio_flage_ = false;
         }
     }
 
-    void task_work(const std::shared_ptr<llm_task> llm_task_obj, const std::shared_ptr<llm_channel_obj> llm_channel)
+    void task_work(const std::weak_ptr<llm_task> llm_task_obj_weak,
+                   const std::weak_ptr<llm_channel_obj> llm_channel_weak)
     {
+        auto llm_task_obj = llm_task_obj_weak.lock();
+        auto llm_channel  = llm_channel_weak.lock();
+        if (!(llm_task_obj && llm_channel)) {
+            return;
+        }
         if ((!audio_url_.empty()) && (llm_task_obj->audio_flage_ == false)) {
             llm_channel->subscriber(audio_url_,
                                     std::bind(&llm_task::sys_pcm_on_data, llm_task_obj.get(), std::placeholders::_1));
@@ -363,10 +375,15 @@ public:
         send("None", "None", LLM_NO_ERROR, work_id);
     }
 
-    void task_user_data(const std::shared_ptr<llm_task> llm_task_obj,
-                        const std::shared_ptr<llm_channel_obj> llm_channel, const std::string &object,
+    void task_user_data(const std::weak_ptr<llm_task> llm_task_obj_weak,
+                        const std::weak_ptr<llm_channel_obj> llm_channel_weak, const std::string &object,
                         const std::string &data)
     {
+        auto llm_task_obj = llm_task_obj_weak.lock();
+        auto llm_channel  = llm_channel_weak.lock();
+        if (!(llm_task_obj && llm_channel)) {
+            return;
+        }
         std::string tmp_msg1;
         const std::string *next_data = &data;
         int ret;
@@ -426,7 +443,8 @@ public:
                     llm_task_obj->audio_flage_ = true;
                 } else if (input.find("kws") != std::string::npos) {
                     llm_channel->subscriber_work_id(
-                        "", std::bind(&llm_kws::task_user_data, this, llm_task_obj, llm_channel, std::placeholders::_1,
+                        "", std::bind(&llm_kws::task_user_data, this, std::weak_ptr<llm_task>(llm_task_obj),
+                                      std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1,
                                       std::placeholders::_2));
                 }
             }

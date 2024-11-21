@@ -85,6 +85,7 @@ public:
     task_callback_t out_callback_;
     bool enaudio_;
     int awake_delay_ = 1000;
+    std::string tts_string_stream_buff;
 
     bool parse_config(const nlohmann::json &config_body)
     {
@@ -371,9 +372,14 @@ public:
         repeat_event(1000, std::bind(&llm_tts::_load_config, this));
     }
 
-    void task_output(const std::shared_ptr<llm_task> llm_task_obj, const std::shared_ptr<llm_channel_obj> llm_channel,
-                     const std::string &data, bool finish)
+    void task_output(const std::weak_ptr<llm_task> llm_task_obj_weak,
+                     const std::weak_ptr<llm_channel_obj> llm_channel_weak, const std::string &data, bool finish)
     {
+        auto llm_task_obj = llm_task_obj_weak.lock();
+        auto llm_channel  = llm_channel_weak.lock();
+        if (!(llm_task_obj && llm_channel)) {
+            return;
+        }
         std::string base64_data;
         int len = encode_base64(data, base64_data);
         if (llm_channel->enstream_) {
@@ -395,12 +401,25 @@ public:
         }
     }
 
-    void task_user_data(const std::shared_ptr<llm_task> llm_task_obj,
-                        const std::shared_ptr<llm_channel_obj> llm_channel, const std::string &object,
+    bool is_breakpoint(const std::string &cutf8)
+    {
+        if (cutf8 == "，" || cutf8 == "、" || cutf8 == "," || cutf8 == "。" || cutf8 == "." || cutf8 == "!" ||
+            cutf8 == "！" || cutf8 == "?" || cutf8 == "？" || cutf8 == ";" || cutf8 == "；")
+            return true;
+        else
+            return false;
+    }
+
+    void task_user_data(const std::weak_ptr<llm_task> llm_task_obj_weak,
+                        const std::weak_ptr<llm_channel_obj> llm_channel_weak, const std::string &object,
                         const std::string &data)
     {
+        auto llm_task_obj = llm_task_obj_weak.lock();
+        auto llm_channel  = llm_channel_weak.lock();
+        if (!(llm_task_obj && llm_channel)) {
+            return;
+        }
         if (data.empty() || (data == "None")) return;
-        static std::string faster_stream_buff;
         nlohmann::json error_body;
         const std::string *next_data = &data;
         bool enbase64                = (object.find("base64") == std::string::npos) ? false : true;
@@ -424,25 +443,24 @@ public:
         }
         std::vector<std::string> tmp_data = llm_task_obj->lexicon_->splitEachChar((*next_data));
         for (auto cutf8 : tmp_data) {
-            if (cutf8 == "，" || cutf8 == "、" || cutf8 == "," || cutf8 == "。" || cutf8 == "." || cutf8 == "!" ||
-                cutf8 == "！" || cutf8 == "?" || cutf8 == "？" || cutf8 == ";" || cutf8 == "；") {
-                faster_stream_buff += cutf8;
-                ret = llm_task_obj->TTS(faster_stream_buff);
-                faster_stream_buff.clear();
+            if (is_breakpoint(cutf8)) {
+                llm_task_obj->tts_string_stream_buff += cutf8;
+                ret = llm_task_obj->TTS(llm_task_obj->tts_string_stream_buff);
+                llm_task_obj->tts_string_stream_buff.clear();
                 if (ret) {
                     error_body["code"]    = -11;
                     error_body["message"] = "Model run failed.";
                     llm_channel->send("None", "None", error_body, llm_channel->work_id_);
                 }
             } else {
-                faster_stream_buff += cutf8;
+                llm_task_obj->tts_string_stream_buff += cutf8;
             }
         }
         if (finish_flage) {
-            if (!faster_stream_buff.empty()) {
-                faster_stream_buff.push_back('.');
-                ret = llm_task_obj->TTS(faster_stream_buff);
-                faster_stream_buff.clear();
+            if (!llm_task_obj->tts_string_stream_buff.empty()) {
+                llm_task_obj->tts_string_stream_buff.push_back('.');
+                ret = llm_task_obj->TTS(llm_task_obj->tts_string_stream_buff);
+                llm_task_obj->tts_string_stream_buff.clear();
                 if (ret) {
                     error_body["code"]    = -11;
                     error_body["message"] = "Model run failed.";
@@ -452,11 +470,18 @@ public:
         }
     }
 
-    void kws_awake(const std::shared_ptr<llm_task> llm_task_obj, const std::shared_ptr<llm_channel_obj> llm_channel,
-                   const std::string &object, const std::string &data)
+    void kws_awake(const std::weak_ptr<llm_task> llm_task_obj_weak,
+                   const std::weak_ptr<llm_channel_obj> llm_channel_weak, const std::string &object,
+                   const std::string &data)
     {
+        auto llm_task_obj = llm_task_obj_weak.lock();
+        auto llm_channel  = llm_channel_weak.lock();
+        if (!(llm_task_obj && llm_channel)) {
+            return;
+        }
         if (llm_task_obj->superior_flage_) {
             llm_channel->stop_subscriber_work_id(llm_task_obj->superior_id_);
+            llm_task_obj->tts_string_stream_buff.clear();
             if (llm_task_obj->response_format_.find("sys") != std::string::npos) {
                 unit_call("audio", "queue_play_stop", data);
             }
@@ -464,9 +489,10 @@ public:
             if (llm_task_obj->response_format_.find("sys") != std::string::npos) {
                 unit_call("audio", "play_stop", data);
             }
-            llm_channel->subscriber_work_id(llm_task_obj->superior_id_,
-                                            std::bind(&llm_tts::task_user_data, this, llm_task_obj, llm_channel,
-                                                      std::placeholders::_1, std::placeholders::_2));
+            llm_channel->subscriber_work_id(
+                llm_task_obj->superior_id_,
+                std::bind(&llm_tts::task_user_data, this, std::weak_ptr<llm_task>(llm_task_obj),
+                          std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1, std::placeholders::_2));
         }
     }
 
@@ -498,22 +524,26 @@ public:
             llm_channel->set_stream(llm_task_obj->enstream_);
             SLOGI("llm_task_obj->enoutput_:%d", llm_task_obj->enoutput_);
             SLOGI("llm_task_obj->enstream_:%d", llm_task_obj->enstream_);
-            llm_task_obj->set_output(std::bind(&llm_tts::task_output, this, llm_task_obj, llm_channel,
-                                               std::placeholders::_1, std::placeholders::_2));
+            llm_task_obj->set_output(std::bind(&llm_tts::task_output, this, std::weak_ptr<llm_task>(llm_task_obj),
+                                               std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1,
+                                               std::placeholders::_2));
             for (const auto input : llm_task_obj->inputs_) {
                 if (input.find("tts") != std::string::npos) {
                     llm_channel->subscriber_work_id(
-                        "", std::bind(&llm_tts::task_user_data, this, llm_task_obj, llm_channel, std::placeholders::_1,
+                        "", std::bind(&llm_tts::task_user_data, this, std::weak_ptr<llm_task>(llm_task_obj),
+                                      std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1,
                                       std::placeholders::_2));
                 } else if ((input.find("llm") != std::string::npos) || (input.find("vlm") != std::string::npos)) {
-                    llm_channel->subscriber_work_id(input,
-                                                    std::bind(&llm_tts::task_user_data, this, llm_task_obj, llm_channel,
-                                                              std::placeholders::_1, std::placeholders::_2));
+                    llm_channel->subscriber_work_id(
+                        input, std::bind(&llm_tts::task_user_data, this, std::weak_ptr<llm_task>(llm_task_obj),
+                                         std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1,
+                                         std::placeholders::_2));
                     llm_task_obj->superior_id_    = input;
                     llm_task_obj->superior_flage_ = true;
                 } else if (input.find("kws") != std::string::npos) {
                     llm_channel->subscriber_work_id(
-                        input, std::bind(&llm_tts::kws_awake, this, llm_task_obj, llm_channel, std::placeholders::_1,
+                        input, std::bind(&llm_tts::kws_awake, this, std::weak_ptr<llm_task>(llm_task_obj),
+                                         std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1,
                                          std::placeholders::_2));
                 }
             }
@@ -546,14 +576,17 @@ public:
         auto llm_task_obj = llm_task_[work_id_num];
         if ((data.find("llm") != std::string::npos) || (data.find("vlm") != std::string::npos)) {
             ret = llm_channel->subscriber_work_id(
-                data, std::bind(&llm_tts::task_user_data, this, llm_task_obj, llm_channel, std::placeholders::_1,
-                                std::placeholders::_2));
+                data,
+                std::bind(&llm_tts::task_user_data, this, std::weak_ptr<llm_task>(llm_task_obj),
+                          std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1, std::placeholders::_2));
             llm_task_obj->superior_id_    = data;
             llm_task_obj->superior_flage_ = true;
             llm_task_obj->inputs_.push_back(data);
         } else if (data.find("kws") != std::string::npos) {
-            ret = llm_channel->subscriber_work_id(data, std::bind(&llm_tts::kws_awake, this, llm_task_obj, llm_channel,
-                                                                  std::placeholders::_1, std::placeholders::_2));
+            ret = llm_channel->subscriber_work_id(
+                data,
+                std::bind(&llm_tts::kws_awake, this, std::weak_ptr<llm_task>(llm_task_obj),
+                          std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1, std::placeholders::_2));
             llm_task_obj->inputs_.push_back(data);
         }
         if (ret) {
