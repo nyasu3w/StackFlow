@@ -26,11 +26,6 @@ llm_channel_obj::~llm_channel_obj()
 void llm_channel_obj::subscriber_event_call(const std::function<void(const std::string &, const std::string &)> &call,
                                             const std::string &raw)
 {
-    // SLOGI("object%s", sample_json_str_get(raw, "object").c_str());
-    // SLOGI("request_id%s", sample_json_str_get(raw, "request_id").c_str());
-    // SLOGI("work_id%s", sample_json_str_get(raw, "work_id").c_str());
-    // SLOGI("action%s", sample_json_str_get(raw, "action").c_str());
-    // SLOGI("data%s", sample_json_str_get(raw, "data").c_str());
     if (sample_json_str_get(raw, "action") == "inference") {
         std::string zmq_com = sample_json_str_get(raw, "zmq_com");
         if (!zmq_com.empty()) set_push_url(zmq_com);
@@ -141,7 +136,7 @@ int llm_channel_obj::output_to_uart(const std::string &data)
 }
 
 StackFlow::StackFlow::StackFlow(const std::string &unit_name)
-    : unit_name_(unit_name), rpc_ctx_(std::make_unique<pzmq>(unit_name))
+    : work_id_num_cout_(1000), unit_name_(unit_name), rpc_ctx_(std::make_unique<pzmq>(unit_name))
 {
     event_queue_.appendListener(EVENT_NONE,
                                 std::bind(&StackFlow::_none_event, this, std::placeholders::_1, std::placeholders::_2));
@@ -185,6 +180,7 @@ StackFlow::~StackFlow()
             break;
         }
         sys_release_unit(iteam->first, "");
+        iteam->second.reset();
         llm_task_channel_.erase(iteam->first);
     }
     exit_flage_.store(true);

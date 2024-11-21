@@ -12,22 +12,33 @@
 #include <atomic>
 #include <unordered_map>
 #include <unistd.h>
+#include <mutex>
+#include <vector>
 #define ZMQ_RPC_FUN  (ZMQ_REP | 0x80)
 #define ZMQ_RPC_CALL (ZMQ_REQ | 0x80)
 namespace StackFlows {
 class pzmq {
 private:
-    const std::string unix_socket_head_ = "ipc://";
-    const std::string rpc_url_head_     = "ipc:///tmp/rpc.";
+    const int rpc_url_head_length = 6;
+    std::string rpc_url_head_     = "ipc:///tmp/rpc.";
     void *zmq_ctx_;
     void *zmq_socket_;
     std::unordered_map<std::string, std::function<std::string(const std::string &)>> zmq_fun_;
+    std::mutex zmq_fun_mtx_;
     std::atomic<bool> flage_;
     std::unique_ptr<std::thread> zmq_thread_;
     int mode_;
     std::string rpc_server_;
     std::string zmq_url_;
     int timeout_;
+
+    bool is_bind()
+    {
+        if ((mode_ == ZMQ_PUB) || (mode_ == ZMQ_PULL) || (mode_ == ZMQ_RPC_FUN))
+            return true;
+        else
+            return false;
+    }
 
 public:
     pzmq() : zmq_ctx_(NULL), zmq_socket_(NULL), flage_(true), timeout_(3000)
@@ -36,6 +47,9 @@ public:
     pzmq(const std::string &server)
         : zmq_ctx_(NULL), zmq_socket_(NULL), rpc_server_(server), flage_(true), timeout_(3000)
     {
+        if (server.find("://") != std::string::npos) {
+            rpc_url_head_.clear();
+        }
     }
     pzmq(const std::string &url, int mode, const std::function<void(const std::string &)> &raw_call = nullptr)
         : zmq_ctx_(NULL), zmq_socket_(NULL), mode_(mode), flage_(true), timeout_(3000)
@@ -50,22 +64,60 @@ public:
     {
         return timeout_;
     }
+    std::string get_zmq_url()
+    {
+        if ((!flage_.load()) && is_bind() && (zmq_url_.find("tcp://") != std::string::npos) &&
+            (zmq_url_.find(":*") != std::string::npos)) {
+            std::vector<char> zmq_url(zmq_url_.length() + 8, 0);
+            size_t addr_len = zmq_url.size();
+            if (zmq_getsockopt(zmq_socket_, ZMQ_LAST_ENDPOINT, zmq_url.data(), &addr_len) != 0) {
+                return zmq_url_;
+            }
+            zmq_url_ = std::string(zmq_url.data());
+        }
+        return zmq_url_;
+    }
+    std::string _rpc_list_action(const std::string &_None)
+    {
+        std::string action_list;
+        action_list.reserve(128);
+        action_list = "{\"actions\":[";
+        for (auto i = zmq_fun_.begin();;) {
+            action_list += "\"";
+            action_list += i->first;
+            action_list += "\"";
+            if (++i == zmq_fun_.end()) {
+                action_list += "]}";
+                break;
+            } else {
+                action_list += ",";
+            }
+        }
+        return action_list;
+    }
     int register_rpc_action(const std::string &action, const std::function<std::string(const std::string &)> &raw_call)
     {
+        int ret = 0;
+        std::unique_lock<std::mutex> lock(zmq_fun_mtx_);
         if (zmq_fun_.find(action) != zmq_fun_.end()) {
             zmq_fun_[action] = raw_call;
-            return 0;
+            return ret;
         }
-        std::string url = rpc_url_head_ + rpc_server_;
-        if (!flage_) {
-            flage_ = true;
-            zmq_ctx_shutdown(zmq_ctx_);
-            zmq_thread_->join();
-            close_zmq();
+        if (zmq_fun_.empty()) {
+            std::string url         = rpc_url_head_ + rpc_server_;
+            mode_                   = ZMQ_RPC_FUN;
+            zmq_fun_["list_action"] = std::bind(&pzmq::_rpc_list_action, this, std::placeholders::_1);
+            ret                     = creat(url);
         }
         zmq_fun_[action] = raw_call;
-        mode_            = ZMQ_RPC_FUN;
-        return creat(url);
+        return ret;
+    }
+    void unregister_rpc_action(const std::string &action)
+    {
+        std::unique_lock<std::mutex> lock(zmq_fun_mtx_);
+        if (zmq_fun_.find(action) != zmq_fun_.end()) {
+            zmq_fun_.erase(action);
+        }
     }
     int call_rpc_action(const std::string &action, const std::string &data,
                         const std::function<void(const std::string &)> &raw_call)
@@ -215,9 +267,8 @@ public:
     }
     inline int creat_req(const std::string &url)
     {
-        int pos = url.find(unix_socket_head_);
-        if (pos != std::string::npos) {
-            std::string socket_file = url.substr(pos + unix_socket_head_.length());
+        if (!rpc_url_head_.empty()) {
+            std::string socket_file = url.substr(rpc_url_head_length);
             if (access(socket_file.c_str(), F_OK) != 0) {
                 return -1;
             }
@@ -249,10 +300,8 @@ public:
                     continue;
                 }
             }
-            // SLOGI("zmq_msg_recv");
             ret = zmq_msg_recv(&msg, zmq_socket_, 0);
             if (ret <= 0) {
-                // SLOGE("zmq_connect false:%s", zmq_strerror(zmq_errno()));
                 zmq_msg_close(&msg);
                 continue;
             }
@@ -264,6 +313,7 @@ public:
                 std::string _raw_data((const char *)zmq_msg_data(&msg1), zmq_msg_size(&msg1));
                 std::string retval;
                 try {
+                    std::unique_lock<std::mutex> lock(zmq_fun_mtx_);
                     retval = zmq_fun_.at(raw_data)(_raw_data);
                 } catch (...) {
                     retval = "NotAction";
@@ -271,7 +321,6 @@ public:
                 zmq_send(zmq_socket_, retval.c_str(), retval.length(), 0);
                 zmq_msg_close(&msg1);
             } else {
-                // SLOGI("zmq_msg:%s", zmq_msg_data(&msg));
                 raw_call(raw_data);
             }
             zmq_msg_close(&msg);
@@ -281,10 +330,9 @@ public:
     {
         zmq_close(zmq_socket_);
         zmq_ctx_destroy(zmq_ctx_);
-        int pos = zmq_url_.find(unix_socket_head_);
         if ((mode_ == ZMQ_PUB) || (mode_ == ZMQ_PULL) || (mode_ == ZMQ_RPC_FUN)) {
-            if (pos != std::string::npos) {
-                std::string socket_file = zmq_url_.substr(pos + unix_socket_head_.length());
+            if (!rpc_url_head_.empty()) {
+                std::string socket_file = zmq_url_.substr(rpc_url_head_length);
                 if (access(socket_file.c_str(), F_OK) == 0) {
                     remove(socket_file.c_str());
                 }

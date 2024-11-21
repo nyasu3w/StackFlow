@@ -184,6 +184,7 @@ public:
 
 class StackFlow {
 private:
+    std::atomic_int work_id_num_cout_;
 protected:
     std::string unit_name_;
     typedef enum {
