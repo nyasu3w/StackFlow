@@ -210,6 +210,7 @@ public:
         }
         auto llm_channel = get_channel(work_id_num);
         llm_channel->stop_subscriber("");
+        llm_task_channel_.erase(work_id_num);
         llm_task_.erase(work_id_num);
         send("None", "None", LLM_NO_ERROR, work_id);
         return 0;
@@ -217,6 +218,15 @@ public:
 
     ~llm_llm()
     {
+        while (1) {
+            auto iteam = llm_task_channel_.begin();
+            if (iteam == llm_task_channel_.end()) {
+                break;
+            }
+            iteam->second->stop_subscriber("");
+            iteam->second.reset();
+            llm_task_channel_.erase(iteam->first);
+        }
         while (1) {
             auto iteam = llm_task_.begin();
             if (iteam == llm_task_.end()) {

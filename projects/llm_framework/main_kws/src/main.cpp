@@ -492,6 +492,26 @@ public:
 
     ~llm_kws()
     {
+        while (1) {
+            auto iteam = llm_task_channel_.begin();
+            if (iteam == llm_task_channel_.end()) {
+                break;
+            }
+            iteam->second->stop_subscriber("");
+            iteam->second.reset();
+            llm_task_channel_.erase(iteam->first);
+        }
+        while (1) {
+            auto iteam = llm_task_.begin();
+            if (iteam == llm_task_.end()) {
+                break;
+            }
+            if (iteam->second->audio_flage_) {
+                unit_call("audio", "cap_stop", "None");
+            }
+            iteam->second.reset();
+            llm_task_.erase(iteam->first);
+        }
     }
 };
 
