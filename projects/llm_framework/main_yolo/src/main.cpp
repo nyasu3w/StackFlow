@@ -5,8 +5,7 @@
  */
 #include "StackFlow.h"
 #include "EngineWrapper.hpp"
-#include "base/common.hpp"
-#include "base/detection.h"
+#include "common.hpp"
 #include <ax_sys_api.h>
 #include <sys/stat.h>
 #include <fstream>
@@ -153,7 +152,7 @@ public:
             }
             std::vector<detection::Object> objects;
             yolo_->Post_Process(src, mode_config_.img_w, mode_config_.img_h, mode_config_.cls_num,
-                              mode_config_.pron_threshold, mode_config_.nms_threshold, objects);
+                                mode_config_.pron_threshold, mode_config_.nms_threshold, objects);
             std::vector<nlohmann::json> yolo_output;
             for (size_t i = 0; i < objects.size(); i++) {
                 const detection::Object &obj = objects[i];

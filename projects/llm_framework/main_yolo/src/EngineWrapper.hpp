@@ -12,16 +12,34 @@
 
 #include <cstdint>
 #include <opencv2/opencv.hpp>
-#include <base/detection.h>
 #include "ax_engine_api.h"
+
+#ifndef UNUSE_STRUCT_OBJECT
+namespace detection {
+typedef struct Object {
+    cv::Rect_<float> rect;
+    int label;
+    float prob;
+    cv::Point2f landmark[5];
+    /* for yolov5-seg */
+    cv::Mat mask;
+    std::vector<float> mask_feat;
+    std::vector<float> kps_feat;
+    /* for yolov8-obb */
+    float angle;
+} Object;
+
+}  // namespace detection
+#endif
 
 class EngineWrapper {
 public:
-    EngineWrapper() :
-            m_hasInit(false),
-            m_handle(nullptr) {}
+    EngineWrapper() : m_hasInit(false), m_handle(nullptr)
+    {
+    }
 
-    ~EngineWrapper() {
+    ~EngineWrapper()
+    {
         Release();
     }
 
@@ -31,7 +49,8 @@ public:
 
     int RunSync();
 
-    int Post_Process(cv::Mat& mat, int& input_w, int& input_, int& cls_num,  float& pron_threshold, float& nms_threshold, std::vector<detection::Object>& objects);
+    int Post_Process(cv::Mat& mat, int& input_w, int& input_, int& cls_num, float& pron_threshold, float& nms_threshold,
+                     std::vector<detection::Object>& objects);
 
     int GetOutput(void* pOutput, int index);
 
@@ -43,7 +62,7 @@ public:
 protected:
     bool m_hasInit;
     AX_ENGINE_HANDLE m_handle;
-    AX_ENGINE_IO_INFO_T *m_io_info{};
+    AX_ENGINE_IO_INFO_T* m_io_info{};
     AX_ENGINE_IO_T m_io{};
     int m_input_num{}, m_output_num{};
 };
