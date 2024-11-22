@@ -504,7 +504,7 @@ void StackFlow::sys_sql_unset(const std::string &key)
 {
     std::string val;
     pzmq _call("sys");
-    _call.call_rpc_action("sql_select", key, [](const std::string &data) {});
+    _call.call_rpc_action("sql_unset", key, [](const std::string &data) {});
 }
 
 std::string StackFlow::unit_call(const std::string &unit_name, const std::string &unit_action, const std::string &data)

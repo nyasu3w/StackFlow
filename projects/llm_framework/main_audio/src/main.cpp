@@ -111,8 +111,8 @@ public:
     {
         event_queue_.appendListener(
             EVENT_QUEUE_PLAY, std::bind(&llm_audio::hw_queue_play, this, std::placeholders::_1, std::placeholders::_2));
-        setup("", "{\"object\":\"audio.play\",\"data\":{\"None\":\"None\"}}");
-        setup("", "{\"object\":\"audio.cap\",\"data\":{\"None\":\"None\"}}");
+        setup("", "audio.play", "{\"None\":\"None\"}");
+        setup("", "audio.cap", "{\"None\":\"None\"}");
         self        = this;
         cap_status_ = 0;
         rpc_ctx_->register_rpc_action("play", std::bind(&llm_audio::play, this, std::placeholders::_1));
@@ -125,11 +125,8 @@ public:
         rpc_ctx_->register_rpc_action("cap_stop", std::bind(&llm_audio::cap_stop, this, std::placeholders::_1));
         rpc_ctx_->register_rpc_action("cap_stop_all", std::bind(&llm_audio::cap_stop_all, this, std::placeholders::_1));
     }
-
-    int setup(const std::string &zmq_url, const std::string &raw) override
+    int setup(const std::string &work_id, const std::string &object, const std::string &data) override
     {
-        std::string object = sample_json_str_get(raw, "object");
-        std::string data   = sample_json_str_get(raw, "data");
         nlohmann::json config_body;
         nlohmann::json file_body;
         nlohmann::json error_body;
