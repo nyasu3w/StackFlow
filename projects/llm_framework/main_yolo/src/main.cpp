@@ -18,7 +18,7 @@ using namespace StackFlows;
 int main_exit_flage = 0;
 static void __sigint(int iSigNo)
 {
-    SLOGW("llm_cv will be exit!");
+    SLOGW("llm_yolo will be exit!");
     main_exit_flage = 1;
 }
 
@@ -26,13 +26,13 @@ static std::string base_model_path_;
 static std::string base_model_config_path_;
 
 typedef struct {
-    std::string cv_model;
+    std::string yolo_model;
     int img_h            = 640;
     int img_w            = 640;
     int cls_num          = 80;
     float pron_threshold = 0.45f;
     float nms_threshold  = 0.45;
-} cv_config;
+} yolo_config;
 
 typedef std::function<void(const std::vector<nlohmann::json> &data, bool finish)> task_callback_t;
 
@@ -45,9 +45,9 @@ typedef std::function<void(const std::vector<nlohmann::json> &data, bool finish)
 class llm_task {
 private:
 public:
-    cv_config mode_config_;
+    yolo_config mode_config_;
     std::string model_;
-    std::unique_ptr<EngineWrapper> cv_;
+    std::unique_ptr<EngineWrapper> yolo_;
     std::string response_format_;
     std::vector<std::string> inputs_;
     std::vector<unsigned char> image_data_;
@@ -106,15 +106,15 @@ public:
             }
             std::string base_model = base_model_path_ + model_ + "/";
             SLOGI("base_model %s", base_model.c_str());
-            CONFIG_AUTO_SET(file_body["mode_param"], cv_model);
+            CONFIG_AUTO_SET(file_body["mode_param"], yolo_model);
             CONFIG_AUTO_SET(file_body["mode_param"], img_h);
             CONFIG_AUTO_SET(file_body["mode_param"], img_w);
             CONFIG_AUTO_SET(file_body["mode_param"], pron_threshold);
             CONFIG_AUTO_SET(file_body["mode_param"], nms_threshold);
-            mode_config_.cv_model = base_model + mode_config_.cv_model;
-            cv_                   = std::make_unique<EngineWrapper>();
-            if (0 != cv_->Init(mode_config_.cv_model.c_str())) {
-                SLOGE("Init cv_model model failed!\n");
+            mode_config_.yolo_model = base_model + mode_config_.yolo_model;
+            yolo_                   = std::make_unique<EngineWrapper>();
+            if (0 != yolo_->Init(mode_config_.yolo_model.c_str())) {
+                SLOGE("Init yolo_model model failed!\n");
                 return -5;
             }
         } catch (...) {
@@ -146,13 +146,13 @@ public:
             std::vector<uint8_t> image(mode_config_.img_w * mode_config_.img_h * 3, 0);
             common::get_input_data_letterbox(src, image, mode_config_.img_w, mode_config_.img_h, true);
             int ret = -1;
-            cv_->SetInput(image.data(), 0);
-            if (0 != cv_->RunSync()) {
-                SLOGE("Run cv model failed!\n");
-                throw std::string("cv_ RunSync error");
+            yolo_->SetInput(image.data(), 0);
+            if (0 != yolo_->RunSync()) {
+                SLOGE("Run yolo model failed!\n");
+                throw std::string("yolo_ RunSync error");
             }
             std::vector<detection::Object> objects;
-            cv_->Post_Process(src, mode_config_.img_w, mode_config_.img_h, mode_config_.cls_num,
+            yolo_->Post_Process(src, mode_config_.img_w, mode_config_.img_h, mode_config_.cls_num,
                               mode_config_.pron_threshold, mode_config_.nms_threshold, objects);
             std::vector<nlohmann::json> yolo_output;
             for (size_t i = 0; i < objects.size(); i++) {
@@ -170,7 +170,7 @@ public:
             }
             if (out_callback_) out_callback_(yolo_output, true);
         } catch (...) {
-            SLOGW("CV_->Run have error!");
+            SLOGW("yolo_->Run have error!");
         }
     }
 
@@ -215,7 +215,7 @@ public:
 int llm_task::ax_init_flage_ = 0;
 #undef CONFIG_AUTO_SET
 
-class llm_cv : public StackFlow {
+class llm_yolo : public StackFlow {
 private:
     int task_count_;
     std::unordered_map<int, std::shared_ptr<llm_task>> llm_task_;
@@ -230,16 +230,16 @@ private:
         if (base_model_path_.empty() || base_model_config_path_.empty()) {
             return -1;
         } else {
-            SLOGI("llm_cv::_load_config success");
+            SLOGI("llm_yolo::_load_config success");
             return 0;
         }
     }
 
 public:
-    llm_cv() : StackFlow("cv")
+    llm_yolo() : StackFlow("yolo")
     {
         task_count_ = 1;
-        repeat_event(1000, std::bind(&llm_cv::_load_config, this));
+        repeat_event(1000, std::bind(&llm_yolo::_load_config, this));
     }
 
     void task_output(const std::weak_ptr<llm_task> llm_task_obj_weak,
@@ -312,7 +312,7 @@ public:
         if ((llm_task_channel_.size() - 1) == task_count_) {
             error_body["code"]    = -21;
             error_body["message"] = "task full";
-            send("None", "None", error_body, "cv");
+            send("None", "None", error_body, unit_name_);
             return -1;
         }
 
@@ -327,7 +327,7 @@ public:
             SLOGE("setup json format error.");
             error_body["code"]    = -2;
             error_body["message"] = "json format error.";
-            send("None", "None", error_body, "cv");
+            send("None", "None", error_body, unit_name_);
             return -2;
         }
         int ret = llm_task_obj->load_model(config_body);
@@ -335,13 +335,13 @@ public:
             llm_channel->set_output(llm_task_obj->enoutput_);
             llm_channel->set_stream(llm_task_obj->enstream_);
 
-            llm_task_obj->set_output(std::bind(&llm_cv::task_output, this, llm_task_obj, llm_channel,
+            llm_task_obj->set_output(std::bind(&llm_yolo::task_output, this, llm_task_obj, llm_channel,
                                                std::placeholders::_1, std::placeholders::_2));
 
             for (const auto input : llm_task_obj->inputs_) {
-                if (input.find("cv") != std::string::npos) {
+                if (input.find("yolo") != std::string::npos) {
                     llm_channel->subscriber_work_id(
-                        "", std::bind(&llm_cv::task_user_data, this, std::weak_ptr<llm_task>(llm_task_obj),
+                        "", std::bind(&llm_yolo::task_user_data, this, std::weak_ptr<llm_task>(llm_task_obj),
                                       std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1,
                                       std::placeholders::_2));
                 }
@@ -354,14 +354,14 @@ public:
             SLOGE("load_mode Failed");
             error_body["code"]    = -5;
             error_body["message"] = "Model loading failed.";
-            send("None", "None", error_body, "cv");
+            send("None", "None", error_body, unit_name_);
             return -1;
         }
     }
 
     void link(const std::string &work_id, const std::string &object, const std::string &data) override
     {
-        SLOGI("llm_cv::link:%s", data.c_str());
+        SLOGI("llm_yolo::link:%s", data.c_str());
         int ret = 1;
         nlohmann::json error_body;
         int work_id_num = sample_get_work_id_num(work_id);
@@ -373,10 +373,10 @@ public:
         }
         auto llm_channel  = get_channel(work_id);
         auto llm_task_obj = llm_task_[work_id_num];
-        if (data.find("cv") != std::string::npos) {
+        if (data.find("yolo") != std::string::npos) {
             ret = llm_channel->subscriber_work_id(
                 data,
-                std::bind(&llm_cv::task_user_data, this, std::weak_ptr<llm_task>(llm_task_obj),
+                std::bind(&llm_yolo::task_user_data, this, std::weak_ptr<llm_task>(llm_task_obj),
                           std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1, std::placeholders::_2));
             llm_task_obj->inputs_.push_back(data);
         }
@@ -392,7 +392,7 @@ public:
 
     void unlink(const std::string &work_id, const std::string &object, const std::string &data) override
     {
-        SLOGI("llm_cv::unlink:%s", data.c_str());
+        SLOGI("llm_yolo::unlink:%s", data.c_str());
         int ret = 0;
         nlohmann::json error_body;
         int work_id_num = sample_get_work_id_num(work_id);
@@ -417,7 +417,7 @@ public:
 
     void taskinfo(const std::string &work_id, const std::string &object, const std::string &data) override
     {
-        SLOGI("llm_cv::taskinfo:%s", data.c_str());
+        SLOGI("llm_yolo::taskinfo:%s", data.c_str());
         nlohmann::json req_body;
         int work_id_num = sample_get_work_id_num(work_id);
         if (WORK_ID_NONE == work_id_num) {
@@ -425,7 +425,7 @@ public:
             std::transform(llm_task_channel_.begin(), llm_task_channel_.end(), std::back_inserter(task_list),
                            [](const auto task_channel) { return task_channel.second->work_id_; });
             req_body = task_list;
-            send("cv.tasklist", req_body, LLM_NO_ERROR, work_id);
+            send("yolo.tasklist", req_body, LLM_NO_ERROR, work_id);
         } else {
             if (llm_task_.find(work_id_num) == llm_task_.end()) {
                 req_body["code"]    = -6;
@@ -438,13 +438,13 @@ public:
             req_body["response_format"] = llm_task_obj->response_format_;
             req_body["enoutput"]        = llm_task_obj->enoutput_;
             req_body["inputs_"]         = llm_task_obj->inputs_;
-            send("cv.taskinfo", req_body, LLM_NO_ERROR, work_id);
+            send("yolo.taskinfo", req_body, LLM_NO_ERROR, work_id);
         }
     }
 
     int exit(const std::string &work_id, const std::string &object, const std::string &data) override
     {
-        SLOGI("llm_cv::exit:%s", data.c_str());
+        SLOGI("llm_yolo::exit:%s", data.c_str());
 
         nlohmann::json error_body;
         int work_id_num = sample_get_work_id_num(work_id);
@@ -461,7 +461,7 @@ public:
         return 0;
     }
 
-    ~llm_cv()
+    ~llm_yolo()
     {
         while (1) {
             auto iteam = llm_task_.begin();
@@ -480,7 +480,7 @@ int main()
     signal(SIGTERM, __sigint);
     signal(SIGINT, __sigint);
     mkdir("/tmp/llm", 0777);
-    llm_cv llm;
+    llm_yolo llm;
     while (!main_exit_flage) {
         sleep(1);
     }
