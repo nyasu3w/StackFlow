@@ -310,7 +310,7 @@ public:
             }
         }
         if (post != 0) {
-            unit_call("audio", "play", std::string((char *)(wav_data.data() + post), size - post));
+            unit_call("audio", "play_raw", std::string((char *)(wav_data.data() + post), size - post));
         }
     }
 

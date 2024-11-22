@@ -116,6 +116,7 @@ public:
         self        = this;
         cap_status_ = 0;
         rpc_ctx_->register_rpc_action("play", std::bind(&llm_audio::play, this, std::placeholders::_1));
+        rpc_ctx_->register_rpc_action("play_raw", std::bind(&llm_audio::play_raw, this, std::placeholders::_1));
         rpc_ctx_->register_rpc_action("queue_play", std::bind(&llm_audio::enqueue_play, this, std::placeholders::_1));
         rpc_ctx_->register_rpc_action("play_stop", std::bind(&llm_audio::play_stop, this, std::placeholders::_1));
         rpc_ctx_->register_rpc_action("queue_play_stop",
@@ -369,13 +370,19 @@ public:
 
     std::string play(const std::string &rawdata)
     {
-        if (rawdata.size() < 3) return LLM_NONE;
-        if ((rawdata[0] == '{') && (rawdata[rawdata.size() - 1] == '}')) {
-            std::string src_data = sample_unescapeString(sample_json_str_get(rawdata, "raw_data"));
-            return parse_data(sample_json_str_get(src_data, "object"), sample_json_str_get(src_data, "data"));
-        } else {
-            _play(rawdata);
-        }
+        std::string zmq_url = RPC_PARSE_TO_FIRST(rawdata);
+        std::string audio_json = RPC_PARSE_TO_SECOND(rawdata);
+        std::string ret_val = parse_data(sample_json_str_get(audio_json, "object"), sample_json_str_get(audio_json, "data"));
+        request_id_  = sample_json_str_get(audio_json, "request_id");
+        send(LLM_NONE, LLM_NONE, LLM_NO_ERROR, sample_json_str_get(audio_json, "work_id"), zmq_url);
+        return ret_val;
+    }
+
+    std::string play_raw(const std::string &rawdata)
+    {
+        if(rawdata.empty())
+            return std::string("rawdata empty");
+        _play(rawdata);
         return LLM_NONE;
     }
 

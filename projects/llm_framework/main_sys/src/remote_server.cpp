@@ -171,28 +171,26 @@ int c_sys_release_unit(char const *unit)
     return sys_release_unit(unit);
 }
 
-std::string rpc_sql_select(const std::string &raw)
-{
-    return sys_sql_select(raw);
-}
-
 std::string rpc_allocate_unit(const std::string &raw)
 {
     unit_data *unit_info = sys_allocate_unit(raw);
-    std::string retval   = "{\"work_id_number\":";
-    retval += std::to_string(unit_info->port_);
-    retval += ",\"out_port\":\"";
-    retval += unit_info->output_url;
-    retval += "\",\"inference_port\":\"";
-    retval += unit_info->inference_url;
-    retval += "\"}";
-    return retval;
+    std::string send_data;
+    std::string send_data1;
+    std::string str_port = std::to_string(unit_info->port_);
+    RPC_PUSH_PARAM(send_data1, unit_info->output_url, unit_info->inference_url);
+    RPC_PUSH_PARAM(send_data, str_port, send_data1);
+    return send_data;
 }
 
 std::string rpc_release_unit(const std::string &raw)
 {
     sys_release_unit(raw);
     return "Success";
+}
+
+std::string rpc_sql_select(const std::string &raw)
+{
+    return sys_sql_select(raw);
 }
 
 std::string rpc_sql_set(const std::string &raw)

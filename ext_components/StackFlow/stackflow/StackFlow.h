@@ -185,6 +185,7 @@ public:
 class StackFlow {
 private:
     std::atomic_int work_id_num_cout_;
+
 protected:
     std::string unit_name_;
     typedef enum {
@@ -352,7 +353,6 @@ public:
     {
     }
 
-    std::string unit_call(const std::string &unit_name, const std::string &unit_action, const std::string &data);
     std::string sys_sql_select(const std::string &key);
     void sys_sql_set(const std::string &key, const std::string &val);
     void sys_sql_unset(const std::string &key);

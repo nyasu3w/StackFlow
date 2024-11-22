@@ -5,6 +5,7 @@
  */
 #include "StackFlowUtil.h"
 #include <vector>
+#include "pzmq.hpp"
 
 std::string StackFlows::sample_json_str_get(const std::string &json_str, const std::string &json_key)
 {
@@ -399,4 +400,12 @@ int StackFlows::encode_base64(const std::string &in, std::string &out)
 {
     out.resize(BASE64_ENCODE_OUT_SIZE(in.length()));
     return base64_encode((const unsigned char *)in.c_str(), in.length(), (char *)out.data());
+}
+
+std::string StackFlows::unit_call(const std::string &unit_name, const std::string &unit_action, const std::string &data)
+{
+    std::string value;
+    pzmq _call(unit_name);
+    _call.call_rpc_action(unit_action, data, [&value](const std::string &raw) { value = raw; });
+    return value;
 }

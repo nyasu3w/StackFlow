@@ -10,6 +10,12 @@ using namespace StackFlows;
 
 std::string llm_channel_obj::uart_push_url;
 
+// Deprecated
+#define RPC_PARSE_TO_PARAM_OLD(obj) \
+    sample_json_str_get(obj, "zmq_com"), sample_unescapeString(sample_json_str_get(obj, "raw_data"))
+
+#define RPC_PARSE_TO_PARAM(obj) RPC_PARSE_TO_FIRST(obj), RPC_PARSE_TO_SECOND(obj)
+
 llm_channel_obj::llm_channel_obj(const std::string &_publisher_url, const std::string &inference_url,
                                  const std::string &unit_name)
     : unit_name_(unit_name), inference_url_(inference_url)
@@ -47,9 +53,7 @@ int llm_channel_obj::subscriber_work_id(const std::string &work_id,
             // std::string part1 = matches[1].str();
             id_num                     = std::stoi(matches[2].str());
             std::string input_url_name = work_id + ".out_port";
-            std::string input_url;
-            pzmq _call("sys");
-            _call.call_rpc_action("sql_select", input_url_name, [&](const std::string &data) { input_url = data; });
+            std::string input_url      = unit_call("sys", "sql_select", input_url_name);
             if (input_url.empty()) {
                 return -1;
             }
@@ -217,9 +221,7 @@ void StackFlow::_sys_init(const std::string &zmq_url, const std::string &data)
 
 std::string StackFlow::_rpc_setup(const std::string &data)
 {
-    SLOGI("_rpc_setup:%s", data.c_str());
-    event_queue_.enqueue(EVENT_SETUP, sample_json_str_get(data, "zmq_com"),
-                         sample_unescapeString(sample_json_str_get(data, "raw_data")));
+    event_queue_.enqueue(EVENT_SETUP, RPC_PARSE_TO_PARAM(data));
     return std::string("None");
 }
 
@@ -253,8 +255,7 @@ int StackFlow::setup(const std::string &work_id, const std::string &object, cons
 
 std::string StackFlow::_rpc_link(const std::string &data)
 {
-    event_queue_.enqueue(EVENT_LINK, sample_json_str_get(data, "zmq_com"),
-                         sample_unescapeString(sample_json_str_get(data, "raw_data")));
+    event_queue_.enqueue(EVENT_LINK, RPC_PARSE_TO_PARAM(data));
     return std::string("None");
 }
 
@@ -285,8 +286,7 @@ void StackFlow::link(const std::string &work_id, const std::string &object, cons
 
 std::string StackFlow::_rpc_unlink(const std::string &data)
 {
-    event_queue_.enqueue(EVENT_UNLINK, sample_json_str_get(data, "zmq_com"),
-                         sample_unescapeString(sample_json_str_get(data, "raw_data")));
+    event_queue_.enqueue(EVENT_UNLINK, RPC_PARSE_TO_PARAM(data));
     return std::string("None");
 }
 
@@ -317,8 +317,7 @@ void StackFlow::unlink(const std::string &work_id, const std::string &object, co
 
 std::string StackFlow::_rpc_work(const std::string &data)
 {
-    event_queue_.enqueue(EVENT_WORK, sample_json_str_get(data, "zmq_com"),
-                         sample_unescapeString(sample_json_str_get(data, "raw_data")));
+    event_queue_.enqueue(EVENT_WORK, RPC_PARSE_TO_PARAM(data));
     return std::string("None");
 }
 
@@ -349,8 +348,7 @@ void StackFlow::work(const std::string &work_id, const std::string &object, cons
 
 std::string StackFlow::_rpc_exit(const std::string &data)
 {
-    event_queue_.enqueue(EVENT_EXIT, sample_json_str_get(data, "zmq_com"),
-                         sample_unescapeString(sample_json_str_get(data, "raw_data")));
+    event_queue_.enqueue(EVENT_EXIT, RPC_PARSE_TO_PARAM(data));
     return std::string("None");
 }
 
@@ -384,8 +382,7 @@ int StackFlow::exit(const std::string &work_id, const std::string &object, const
 
 std::string StackFlow::_rpc_pause(const std::string &data)
 {
-    event_queue_.enqueue(EVENT_PAUSE, sample_json_str_get(data, "zmq_com"),
-                         sample_unescapeString(sample_json_str_get(data, "raw_data")));
+    event_queue_.enqueue(EVENT_PAUSE, RPC_PARSE_TO_PARAM(data));
     return std::string("None");
 }
 
@@ -416,8 +413,7 @@ void StackFlow::pause(const std::string &work_id, const std::string &object, con
 
 std::string StackFlow::_rpc_taskinfo(const std::string &data)
 {
-    event_queue_.enqueue(EVENT_TASKINFO, sample_json_str_get(data, "zmq_com"),
-                         sample_unescapeString(sample_json_str_get(data, "raw_data")));
+    event_queue_.enqueue(EVENT_TASKINFO, RPC_PARSE_TO_PARAM(data));
     return std::string("None");
 }
 
@@ -449,15 +445,13 @@ void StackFlow::taskinfo(const std::string &work_id, const std::string &object, 
 int StackFlow::sys_register_unit(const std::string &unit_name)
 {
     int work_id_number;
-    std::string out_port;
-    std::string inference_port;
+    std::string component_msg = unit_call("sys", "register_unit", unit_name);
+    std::string str_port = RPC_PARSE_TO_FIRST(component_msg);
+    work_id_number             = std::stoi(str_port);
+    std::string tmp_buf        = RPC_PARSE_TO_SECOND(component_msg);
+    std::string out_port       = RPC_PARSE_TO_FIRST(tmp_buf);
+    std::string inference_port = RPC_PARSE_TO_SECOND(tmp_buf);
 
-    pzmq _call("sys");
-    _call.call_rpc_action("register_unit", unit_name, [&](const std::string &unit_info) {
-        work_id_number = std::stoi(sample_json_str_get(unit_info, "work_id_number"));
-        out_port       = sample_json_str_get(unit_info, "out_port");
-        inference_port = sample_json_str_get(unit_info, "inference_port");
-    });
     SLOGI("work_id_number:%d, out_port:%s, inference_port:%s ", work_id_number, out_port.c_str(),
           inference_port.c_str());
     llm_task_channel_[work_id_number] = std::make_shared<llm_channel_obj>(out_port, inference_port, unit_name_);
@@ -475,8 +469,7 @@ bool StackFlow::sys_release_unit(int work_id_num, const std::string &work_id)
         _work_id     = work_id;
         _work_id_num = sample_get_work_id_num(work_id);
     }
-    pzmq _call("sys");
-    _call.call_rpc_action("release_unit", _work_id, [&](const std::string &unit_info) {});
+    unit_call("sys", "release_unit", _work_id);
     llm_task_channel_[_work_id_num].reset();
     llm_task_channel_.erase(_work_id_num);
     SLOGI("release work_id %s success", _work_id.c_str());
@@ -485,10 +478,7 @@ bool StackFlow::sys_release_unit(int work_id_num, const std::string &work_id)
 
 std::string StackFlow::sys_sql_select(const std::string &key)
 {
-    std::string val;
-    pzmq _call("sys");
-    _call.call_rpc_action("sql_select", key, [&val](const std::string &data) { val = data; });
-    return val;
+    return sample_unescapeString(unit_call("sys", "sql_select", key));
 }
 
 void StackFlow::sys_sql_set(const std::string &key, const std::string &val)
@@ -496,23 +486,12 @@ void StackFlow::sys_sql_set(const std::string &key, const std::string &val)
     nlohmann::json out_body;
     out_body["key"] = key;
     out_body["val"] = val;
-    pzmq _call("sys");
-    _call.call_rpc_action("sql_set", out_body.dump(), [](const std::string &data) {});
+    unit_call("sys", "sql_set", out_body.dump());
 }
 
 void StackFlow::sys_sql_unset(const std::string &key)
 {
-    std::string val;
-    pzmq _call("sys");
-    _call.call_rpc_action("sql_unset", key, [](const std::string &data) {});
-}
-
-std::string StackFlow::unit_call(const std::string &unit_name, const std::string &unit_action, const std::string &data)
-{
-    std::string value;
-    pzmq _call(unit_name);
-    _call.call_rpc_action(unit_action, data, [&value](const std::string &raw) { value = raw; });
-    return value;
+    unit_call("sys", "sql_unset", key);
 }
 
 void StackFlow::_repeat_loop(const std::string &action, const std::string &ms)
