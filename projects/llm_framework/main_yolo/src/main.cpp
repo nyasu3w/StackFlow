@@ -26,6 +26,7 @@ static std::string base_model_config_path_;
 
 typedef struct {
     std::string yolo_model;
+    std::vector<std::string> cls_name;
     int img_h            = 640;
     int img_w            = 640;
     int cls_num          = 80;
@@ -110,6 +111,7 @@ public:
             CONFIG_AUTO_SET(file_body["mode_param"], img_w);
             CONFIG_AUTO_SET(file_body["mode_param"], pron_threshold);
             CONFIG_AUTO_SET(file_body["mode_param"], nms_threshold);
+            CONFIG_AUTO_SET(file_body["mode_param"], cls_name);
             mode_config_.yolo_model = base_model + mode_config_.yolo_model;
             yolo_                   = std::make_unique<EngineWrapper>();
             if (0 != yolo_->Init(mode_config_.yolo_model.c_str())) {
@@ -157,7 +159,7 @@ public:
             for (size_t i = 0; i < objects.size(); i++) {
                 const detection::Object &obj = objects[i];
                 nlohmann::json output;
-                output["class"]      = obj.label;
+                output["class"]      = mode_config_.cls_name[obj.label];
                 output["confidence"] = format_float(obj.prob * 100, 2);
                 output["bbox"]       = nlohmann::json::array();
                 output["bbox"].push_back(format_float(obj.rect.x, 0));
