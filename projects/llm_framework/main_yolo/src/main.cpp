@@ -135,12 +135,11 @@ public:
         out_callback_ = out_callback;
     }
 
-    void inference(const std::string &msg)
+    bool inference(const std::string &msg)
     {
         try {
-            if ((image_data_.empty())) return;
-            cv::Mat src = cv::imdecode(image_data_, cv::IMREAD_COLOR);
-            if (src.empty()) return;
+            cv::Mat src = cv::imdecode(std::vector<uint8_t>(msg.begin(), msg.end()), cv::IMREAD_COLOR);
+            if (src.empty()) return true;
 
             std::vector<uint8_t> image(mode_config_.img_w * mode_config_.img_h * 3, 0);
             common::get_input_data_letterbox(src, image, mode_config_.img_w, mode_config_.img_h, true);
@@ -170,7 +169,9 @@ public:
             if (out_callback_) out_callback_(yolo_output, true);
         } catch (...) {
             SLOGW("yolo_->Run have error!");
+            return true;
         }
+        return false;
     }
 
     void _ax_init()
@@ -274,34 +275,54 @@ public:
                         const std::weak_ptr<llm_channel_obj> llm_channel_weak, const std::string &object,
                         const std::string &data)
     {
+        nlohmann::json error_body;
         auto llm_task_obj = llm_task_obj_weak.lock();
         auto llm_channel  = llm_channel_weak.lock();
         if (!(llm_task_obj && llm_channel)) {
+            error_body["code"]    = -11;
+            error_body["message"] = "Model run failed.";
+            send("None", "None", error_body, unit_name_);
             return;
         }
-        if (data.empty() || (data == "None")) return;
-        nlohmann::json error_body;
+        if (data.empty() || (data == "None")) {
+            error_body["code"]    = -24;
+            error_body["message"] = "The inference data is empty.";
+            send("None", "None", error_body, unit_name_);
+            return;
+        }
         const std::string *next_data = &data;
-        bool enbase64                = (object.find("base64") == std::string::npos) ? false : true;
         bool enstream                = (object.find("stream") == std::string::npos) ? false : true;
         int ret;
         std::string tmp_msg1;
         if (enstream) {
             static std::unordered_map<int, std::string> stream_buff;
-            if (decode_stream(data, tmp_msg1, stream_buff)) return;
-            next_data = &tmp_msg1;
-        }
-        std::string tmp_msg2;
-        if (enbase64) {
-            ret = decode_base64((*next_data), tmp_msg2);
-            if (!ret) {
+            try {
+                if (decode_stream(data, tmp_msg1, stream_buff)) {
+                    return;
+                };
+            } catch (...) {
+                stream_buff.clear();
+                error_body["code"]    = -25;
+                error_body["message"] = "Stream data index error.";
+                send("None", "None", error_body, unit_name_);
                 return;
             }
-            next_data = &tmp_msg2;
+            next_data = &tmp_msg1;
         }
-        if (object.find("jpeg") != std::string::npos) {
-            llm_task_obj->image_data_.assign(next_data->begin(), next_data->end());
-            llm_task_obj->inference((*next_data));
+        // must encode base64
+        std::string tmp_msg2;
+        ret = decode_base64((*next_data), tmp_msg2);
+        if (!ret) {
+            error_body["code"]    = -23;
+            error_body["message"] = "Base64 decoding error.";
+            send("None", "None", error_body, unit_name_);
+            return;
+        }
+        next_data = &tmp_msg2;
+        if (llm_task_obj->inference(*next_data)) {
+            error_body["code"]    = -11;
+            error_body["message"] = "Model run failed.";
+            send("None", "None", error_body, unit_name_);
         }
     }
 
@@ -343,11 +364,14 @@ public:
                         "", std::bind(&llm_yolo::task_user_data, this, std::weak_ptr<llm_task>(llm_task_obj),
                                       std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1,
                                       std::placeholders::_2));
+                } else if (input.find("sys") != std::string::npos) {
+                    // TODO:...
                 }
+                llm_task_[work_id_num] = llm_task_obj;
+                SLOGI("load_mode success");
+                send("None", "None", LLM_NO_ERROR, work_id);
+                return 0;
             }
-            llm_task_[work_id_num] = llm_task_obj;
-            SLOGI("load_mode success");
-            send("None", "None", LLM_NO_ERROR, work_id);
             return 0;
         } else {
             SLOGE("load_mode Failed");
@@ -374,10 +398,12 @@ public:
         auto llm_task_obj = llm_task_[work_id_num];
         if (data.find("yolo") != std::string::npos) {
             ret = llm_channel->subscriber_work_id(
-                data,
+                "",
                 std::bind(&llm_yolo::task_user_data, this, std::weak_ptr<llm_task>(llm_task_obj),
                           std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1, std::placeholders::_2));
             llm_task_obj->inputs_.push_back(data);
+        } else if (data.find("sys") != std::string::npos) {
+            // TODO:...
         }
         if (ret) {
             error_body["code"]    = -20;

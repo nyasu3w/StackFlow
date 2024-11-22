@@ -182,22 +182,18 @@ std::string StackFlows::sample_unescapeString(const std::string &input)
 bool StackFlows::decode_stream(const std::string &in, std::string &out,
                                std::unordered_map<int, std::string> &stream_buff)
 {
-    try {
-        int index          = std::stoi(StackFlows::sample_json_str_get(in, "index"));
-        std::string finish = StackFlows::sample_json_str_get(in, "finish");
-        std::string delta  = StackFlows::sample_json_str_get(in, "delta");
-        stream_buff[index] = delta;
-        if (finish == "true") {
-            for (size_t i = 0; i < stream_buff.size(); i++) {
-                out += stream_buff.at(i);
-            }
-            stream_buff.clear();
-            return false;
-        } else if (finish != "false") {
-            throw true;
+    int index          = std::stoi(StackFlows::sample_json_str_get(in, "index"));
+    std::string finish = StackFlows::sample_json_str_get(in, "finish");
+    std::string delta  = StackFlows::sample_json_str_get(in, "delta");
+    stream_buff[index] = delta;
+    if (finish == "true") {
+        for (size_t i = 0; i < stream_buff.size(); i++) {
+            out += stream_buff.at(i);
         }
-    } catch (...) {
         stream_buff.clear();
+        return false;
+    } else if (finish != "false") {
+        throw true;
     }
     return true;
 }

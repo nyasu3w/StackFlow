@@ -287,9 +287,13 @@ public:
                         const std::weak_ptr<llm_channel_obj> llm_channel_weak, const std::string &object,
                         const std::string &data)
     {
+        nlohmann::json error_body;
         auto llm_task_obj = llm_task_obj_weak.lock();
         auto llm_channel  = llm_channel_weak.lock();
         if (!(llm_task_obj && llm_channel)) {
+            error_body["code"]    = -11;
+            error_body["message"] = "Model run failed.";
+            send("None", "None", error_body, unit_name_);
             return;
         }
         const std::string *next_data = &data;
@@ -297,13 +301,26 @@ public:
         std::string tmp_msg1;
         if (object.find("stream") != std::string::npos) {
             static std::unordered_map<int, std::string> stream_buff;
-            if (decode_stream(data, tmp_msg1, stream_buff)) return;
+            try {
+                if (decode_stream(data, tmp_msg1, stream_buff)) {
+                    return;
+                };
+            } catch (...) {
+                stream_buff.clear();
+                error_body["code"]    = -25;
+                error_body["message"] = "Stream data index error.";
+                send("None", "None", error_body, unit_name_);
+                return;
+            }
             next_data = &tmp_msg1;
         }
         std::string tmp_msg2;
         if (object.find("base64") != std::string::npos) {
             ret = decode_base64((*next_data), tmp_msg2);
             if (!ret) {
+                error_body["code"]    = -23;
+                error_body["message"] = "Base64 decoding error.";
+                send("None", "None", error_body, unit_name_);
                 return;
             }
             next_data = &tmp_msg2;
