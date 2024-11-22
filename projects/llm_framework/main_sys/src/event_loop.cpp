@@ -459,8 +459,8 @@ int sys_reset(int com_id, const nlohmann::json &json_obj)
     usr_print_error(json_obj["request_id"], json_obj["work_id"],
                     "{\"code\":0, \"message\":\"llm server restarting ...\"}", com_id);
     const char *cmd =
-        "[ -f '/tmp/llm/reset.lock' ] || bash -c \"touch /tmp/llm/reset.lock ; sync ; sleep 1 ; systemctl restart "
-        "llm-* \" > /dev/null 2>&1 & ";
+        "[ -f '/tmp/llm/reset.lock' ] || bash -c \"touch /tmp/llm/reset.lock ; sync ; sleep 1 ; rm /tmp/llm/* -f ; "
+        "systemctl restart llm-* \" > /dev/null 2>&1 & ";
     system(cmd);
     return out;
 }
