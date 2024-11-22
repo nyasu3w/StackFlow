@@ -1,0 +1,23 @@
+{
+    "mode":"yolo11s",
+    "type":"cv",
+    "capabilities":[
+        "object detect"
+    ],
+    "input_type":[
+        "cv.jpeg.base64"
+    ],
+    "output_type":[
+        "cv.yolobox"
+    ],
+    "mode_param":{
+        "cv_model":"yolo11s.axmodel"
+    },
+    "mode_param_bak":{
+        "model_config.img_h":640,
+        "model_config.img_w":640,
+        "model_config.cls_num":80,
+        "model_config.pron_threshold":0.45,
+        "model_config.nms_threshold":0.45
+    }
+}

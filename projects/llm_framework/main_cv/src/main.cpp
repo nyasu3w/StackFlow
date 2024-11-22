@@ -4,15 +4,13 @@
  * SPDX-License-Identifier: MIT
  */
 #include "StackFlow.h"
-#include "runner/LLM.hpp"
-
-#include <signal.h>
+#include "EngineWrapper.hpp"
+#include "base/common.hpp"
+#include "base/detection.h"
+#include <ax_sys_api.h>
 #include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include <base64.h>
 #include <fstream>
-#include <stdexcept>
+
 #include "../../../../SDK/components/utilities/include/sample_log.h"
 
 using namespace StackFlows;
@@ -20,14 +18,23 @@ using namespace StackFlows;
 int main_exit_flage = 0;
 static void __sigint(int iSigNo)
 {
-    SLOGW("llm_sys will be exit!");
+    SLOGW("llm_cv will be exit!");
     main_exit_flage = 1;
 }
 
 static std::string base_model_path_;
 static std::string base_model_config_path_;
 
-typedef std::function<void(const std::string &data, bool finish)> task_callback_t;
+typedef struct {
+    std::string cv_model;
+    int img_h            = 640;
+    int img_w            = 640;
+    int cls_num          = 80;
+    float pron_threshold = 0.45f;
+    float nms_threshold  = 0.45;
+} cv_config;
+
+typedef std::function<void(const std::vector<nlohmann::json> &data, bool finish)> task_callback_t;
 
 #define CONFIG_AUTO_SET(obj, key)             \
     if (config_body.contains(#key))           \
@@ -38,25 +45,16 @@ typedef std::function<void(const std::string &data, bool finish)> task_callback_
 class llm_task {
 private:
 public:
-    LLMAttrType mode_config_;
-    std::unique_ptr<LLM> lLaMa_;
+    cv_config mode_config_;
     std::string model_;
+    std::unique_ptr<EngineWrapper> cv_;
     std::string response_format_;
     std::vector<std::string> inputs_;
-    std::vector<unsigned short> prompt_data_;
     std::vector<unsigned char> image_data_;
-    std::vector<unsigned short> img_embed;
-    std::string prompt_;
-    task_callback_t out_callback_;
     bool enoutput_;
     bool enstream_;
-    std::atomic_bool tokenizer_server_flage_;
-    unsigned int port_ = 8080;
-
-    void set_output(task_callback_t out_callback)
-    {
-        out_callback_ = out_callback;
-    }
+    static int ax_init_flage_;
+    task_callback_t out_callback_;
 
     bool parse_config(const nlohmann::json &config_body)
     {
@@ -64,8 +62,6 @@ public:
             model_           = config_body.at("model");
             response_format_ = config_body.at("response_format");
             enoutput_        = config_body.at("enoutput");
-            prompt_          = config_body.at("prompt");
-
             if (config_body.contains("input")) {
                 if (config_body["input"].is_string()) {
                     inputs_.push_back(config_body["input"].get<std::string>());
@@ -74,12 +70,13 @@ public:
                         inputs_.push_back(_in.get<std::string>());
                     }
                 }
-            }
+            } else
+                throw std::string("error");
         } catch (...) {
             SLOGE("setup config_body error");
             return true;
         }
-        enstream_ = (response_format_.find("stream") != std::string::npos);
+        enstream_ = response_format_.find("stream") == std::string::npos ? false : true;
         return false;
     }
 
@@ -109,136 +106,116 @@ public:
             }
             std::string base_model = base_model_path_ + model_ + "/";
             SLOGI("base_model %s", base_model.c_str());
-
-            CONFIG_AUTO_SET(file_body["mode_param"], tokenizer_type);
-            CONFIG_AUTO_SET(file_body["mode_param"], filename_tokenizer_model);
-            CONFIG_AUTO_SET(file_body["mode_param"], filename_tokens_embed);
-            CONFIG_AUTO_SET(file_body["mode_param"], filename_post_axmodel);
-            CONFIG_AUTO_SET(file_body["mode_param"], filename_vpm_resampler_axmodedl);
-            CONFIG_AUTO_SET(file_body["mode_param"], template_filename_axmodel);
-            CONFIG_AUTO_SET(file_body["mode_param"], b_use_topk);
-            CONFIG_AUTO_SET(file_body["mode_param"], b_vpm_two_stage);
-            CONFIG_AUTO_SET(file_body["mode_param"], b_bos);
-            CONFIG_AUTO_SET(file_body["mode_param"], b_eos);
-            CONFIG_AUTO_SET(file_body["mode_param"], axmodel_num);
-            CONFIG_AUTO_SET(file_body["mode_param"], tokens_embed_num);
-            CONFIG_AUTO_SET(file_body["mode_param"], tokens_embed_size);
-            CONFIG_AUTO_SET(file_body["mode_param"], b_use_mmap_load_embed);
-            CONFIG_AUTO_SET(file_body["mode_param"], b_dynamic_load_axmodel_layer);
-            CONFIG_AUTO_SET(file_body["mode_param"], max_token_len);
-
-            if (mode_config_.filename_tokenizer_model.find("http:") != std::string::npos) {
-                if (!tokenizer_server_flage_) {
-                    pid_t pid = fork();
-                    if (pid == 0) {
-                        execl("/usr/bin/python3", "python3",
-                              ("/opt/m5stack/scripts/" + model_ + "_tokenizer.py").c_str(), "--host", "localhost",
-                              "--port", std::to_string(port_).c_str(), "--model_id", (base_model + "tokenizer").c_str(),
-                              "--content", ("'" + prompt_ + "'").c_str(), nullptr);
-                        perror("execl failed");
-                        exit(1);
-                    }
-                    tokenizer_server_flage_ = true;
-                    SLOGI("port_=%s model_id=%s content=%s", std::to_string(port_).c_str(),
-                          (base_model + "tokenizer").c_str(), ("'" + prompt_ + "'").c_str());
-                    std::this_thread::sleep_for(std::chrono::seconds(10));
-                }
-            } else {
-                mode_config_.filename_tokenizer_model = base_model + mode_config_.filename_tokenizer_model;
+            CONFIG_AUTO_SET(file_body["mode_param"], cv_model);
+            CONFIG_AUTO_SET(file_body["mode_param"], img_h);
+            CONFIG_AUTO_SET(file_body["mode_param"], img_w);
+            CONFIG_AUTO_SET(file_body["mode_param"], pron_threshold);
+            CONFIG_AUTO_SET(file_body["mode_param"], nms_threshold);
+            mode_config_.cv_model = base_model + mode_config_.cv_model;
+            cv_                   = std::make_unique<EngineWrapper>();
+            if (0 != cv_->Init(mode_config_.cv_model.c_str())) {
+                SLOGE("Init cv_model model failed!\n");
+                return -5;
             }
-            SLOGI("filename_tokenizer_model: %s", mode_config_.filename_tokenizer_model.c_str());
-            mode_config_.filename_tokens_embed           = base_model + mode_config_.filename_tokens_embed;
-            mode_config_.filename_post_axmodel           = base_model + mode_config_.filename_post_axmodel;
-            mode_config_.filename_vpm_resampler_axmodedl = base_model + mode_config_.filename_vpm_resampler_axmodedl;
-            mode_config_.template_filename_axmodel       = base_model + mode_config_.template_filename_axmodel;
-
-            mode_config_.runing_callback = [this](int *p_token, int n_token, const char *p_str, float token_per_sec,
-                                                  void *reserve) {
-                if (this->out_callback_) {
-                    this->out_callback_(std::string(p_str), false);
-                }
-            };
-            lLaMa_ = std::make_unique<LLM>();
-            if (!lLaMa_->Init(mode_config_)) return -2;
-
         } catch (...) {
             SLOGE("config false");
-            return -3;
+            return -6;
         }
         return 0;
     }
 
-    std::string prompt_complete(const std::string &input)
+    std::string format_float(double value, int decimal_places)
     {
-        std::ostringstream oss_prompt;
-        switch (mode_config_.tokenizer_type) {
-            case TKT_LLaMa:
-                oss_prompt << "<|user|>\n" << input << "</s><|assistant|>\n";
-                break;
-            case TKT_MINICPM:
-                oss_prompt << "<用户>" << input << "<AI>";
-                break;
-            case TKT_Phi3:
-                oss_prompt << input << " ";
-                break;
-            case TKT_Qwen:
-                oss_prompt << "<|im_start|>system\n" << prompt_ << ".<|im_end|>";
-                oss_prompt << "\n<|im_start|>user\n" << input << "<|im_end|>\n<|im_start|>assistant\n";
-                break;
-            case TKT_HTTP:
-            default:
-                oss_prompt << input;
-                break;
-        }
-        SLOGI("prompt_complete:%s", oss_prompt.str().c_str());
-        return oss_prompt.str();
+        std::ostringstream out;
+        out << std::fixed << std::setprecision(decimal_places) << value;
+        return out.str();
+    }
+
+    void set_output(task_callback_t out_callback)
+    {
+        out_callback_ = out_callback;
     }
 
     void inference(const std::string &msg)
     {
         try {
-            if (image_data_.empty()) {
-                lLaMa_->Encode(prompt_data_, prompt_complete(msg));
-                std::string out = lLaMa_->Run(prompt_data_);
-                if (out_callback_) out_callback_(out, true);
-            } else {
-                cv::Mat src = cv::imdecode(image_data_, cv::IMREAD_COLOR);
-                if (src.empty()) return;
-                image_data_.clear();
-                lLaMa_->Encode(src, img_embed);
-                lLaMa_->Encode(img_embed, prompt_data_, prompt_complete(msg));
-                std::string out = lLaMa_->Run(prompt_data_);
+            if ((image_data_.empty())) return;
+            cv::Mat src = cv::imdecode(image_data_, cv::IMREAD_COLOR);
+            if (src.empty()) return;
+
+            std::vector<uint8_t> image(mode_config_.img_w * mode_config_.img_h * 3, 0);
+            common::get_input_data_letterbox(src, image, mode_config_.img_w, mode_config_.img_h, true);
+            int ret = -1;
+            cv_->SetInput(image.data(), 0);
+            if (0 != cv_->RunSync()) {
+                SLOGE("Run cv model failed!\n");
+                throw std::string("cv_ RunSync error");
             }
+            std::vector<detection::Object> objects;
+            cv_->Post_Process(src, mode_config_.img_w, mode_config_.img_h, mode_config_.cls_num,
+                              mode_config_.pron_threshold, mode_config_.nms_threshold, objects);
+            std::vector<nlohmann::json> yolo_output;
+            for (size_t i = 0; i < objects.size(); i++) {
+                const detection::Object &obj = objects[i];
+                nlohmann::json output;
+                output["class"]      = obj.label;
+                output["confidence"] = format_float(obj.prob * 100, 2);
+                output["bbox"]       = nlohmann::json::array();
+                output["bbox"].push_back(format_float(obj.rect.x, 0));
+                output["bbox"].push_back(format_float(obj.rect.y, 0));
+                output["bbox"].push_back(format_float(obj.rect.x + obj.rect.width, 0));
+                output["bbox"].push_back(format_float(obj.rect.y + obj.rect.height, 0));
+                yolo_output.push_back(output);
+                if (out_callback_) out_callback_(yolo_output, false);
+            }
+            if (out_callback_) out_callback_(yolo_output, true);
         } catch (...) {
-            SLOGW("lLaMa_->Run have error!");
+            SLOGW("CV_->Run have error!");
         }
     }
 
-    bool pause()
+    void _ax_init()
     {
-        lLaMa_->Stop();
-        return true;
+        if (!ax_init_flage_) {
+            int ret = AX_SYS_Init();
+            if (0 != ret) {
+                fprintf(stderr, "AX_SYS_Init failed! ret = 0x%x\n", ret);
+            }
+            AX_ENGINE_NPU_ATTR_T npu_attr;
+            memset(&npu_attr, 0, sizeof(npu_attr));
+            ret = AX_ENGINE_Init(&npu_attr);
+            if (0 != ret) {
+                fprintf(stderr, "Init ax-engine failed{0x%8x}.\n", ret);
+            }
+        }
+        ax_init_flage_++;
     }
 
-    bool delete_model()
+    void _ax_deinit()
     {
-        lLaMa_->Deinit();
-        lLaMa_.reset();
-        return true;
+        if (ax_init_flage_ > 0) {
+            --ax_init_flage_;
+            if (!ax_init_flage_) {
+                AX_ENGINE_Deinit();
+                AX_SYS_Deinit();
+            }
+        }
     }
 
     llm_task(const std::string &workid)
     {
+        _ax_init();
     }
 
     ~llm_task()
     {
+        _ax_deinit();
     }
 };
-
+int llm_task::ax_init_flage_ = 0;
 #undef CONFIG_AUTO_SET
 
-class llm_llm : public StackFlow {
+class llm_cv : public StackFlow {
 private:
     int task_count_;
     std::unordered_map<int, std::shared_ptr<llm_task>> llm_task_;
@@ -253,39 +230,40 @@ private:
         if (base_model_path_.empty() || base_model_config_path_.empty()) {
             return -1;
         } else {
-            SLOGI("llm_llm::_load_config success");
+            SLOGI("llm_cv::_load_config success");
             return 0;
         }
     }
 
 public:
-    llm_llm() : StackFlow("vlm")
+    llm_cv() : StackFlow("cv")
     {
-        task_count_ = 2;
-        repeat_event(1000, std::bind(&llm_llm::_load_config, this));
+        task_count_ = 1;
+        repeat_event(1000, std::bind(&llm_cv::_load_config, this));
     }
 
     void task_output(const std::weak_ptr<llm_task> llm_task_obj_weak,
-                     const std::weak_ptr<llm_channel_obj> llm_channel_weak, const std::string &data, bool finish)
+                     const std::weak_ptr<llm_channel_obj> llm_channel_weak, const std::vector<nlohmann::json> &data,
+                     bool finish)
     {
         auto llm_task_obj = llm_task_obj_weak.lock();
         auto llm_channel  = llm_channel_weak.lock();
         if (!(llm_task_obj && llm_channel)) {
             return;
         }
-        SLOGI("send:%s", data.c_str());
         if (llm_channel->enstream_) {
             static int count = 0;
             nlohmann::json data_body;
             data_body["index"] = count++;
-            data_body["delta"] = data;
+            for (const auto &jsonObj : data) {
+                data_body["delta"].push_back(jsonObj);
+            }
             if (!finish)
                 data_body["delta"] = data;
             else
                 data_body["delta"] = std::string("");
             data_body["finish"] = finish;
             if (finish) count = 0;
-            SLOGI("send stream");
             llm_channel->send(llm_task_obj->response_format_, data_body, LLM_NO_ERROR);
         } else if (finish) {
             SLOGI("send utf-8");
@@ -302,16 +280,20 @@ public:
         if (!(llm_task_obj && llm_channel)) {
             return;
         }
+        if (data.empty() || (data == "None")) return;
+        nlohmann::json error_body;
         const std::string *next_data = &data;
+        bool enbase64                = (object.find("base64") == std::string::npos) ? false : true;
+        bool enstream                = (object.find("stream") == std::string::npos) ? false : true;
         int ret;
         std::string tmp_msg1;
-        if (object.find("stream") != std::string::npos) {
+        if (enstream) {
             static std::unordered_map<int, std::string> stream_buff;
             if (decode_stream(data, tmp_msg1, stream_buff)) return;
             next_data = &tmp_msg1;
         }
         std::string tmp_msg2;
-        if (object.find("base64") != std::string::npos) {
+        if (enbase64) {
             ret = decode_base64((*next_data), tmp_msg2);
             if (!ret) {
                 return;
@@ -320,39 +302,8 @@ public:
         }
         if (object.find("jpeg") != std::string::npos) {
             llm_task_obj->image_data_.assign(next_data->begin(), next_data->end());
-            return;
+            llm_task_obj->inference((*next_data));
         }
-        llm_task_obj->inference((*next_data));
-    }
-
-    void task_asr_data(const std::weak_ptr<llm_task> llm_task_obj_weak,
-                       const std::weak_ptr<llm_channel_obj> llm_channel_weak, const std::string &object,
-                       const std::string &data)
-    {
-        auto llm_task_obj = llm_task_obj_weak.lock();
-        auto llm_channel  = llm_channel_weak.lock();
-        if (!(llm_task_obj && llm_channel)) {
-            return;
-        }
-        if (object.find("stream") != std::string::npos) {
-            if (sample_json_str_get(data, "finish") == "true") {
-                llm_task_obj->inference(sample_json_str_get(data, "delta"));
-            }
-        } else {
-            llm_task_obj->inference(data);
-        }
-    }
-
-    void kws_awake(const std::weak_ptr<llm_task> llm_task_obj_weak,
-                   const std::weak_ptr<llm_channel_obj> llm_channel_weak, const std::string &object,
-                   const std::string &data)
-    {
-        auto llm_task_obj = llm_task_obj_weak.lock();
-        auto llm_channel  = llm_channel_weak.lock();
-        if (!(llm_task_obj && llm_channel)) {
-            return;
-        }
-        llm_task_obj->lLaMa_->Stop();
     }
 
     int setup(const std::string &work_id, const std::string &object, const std::string &data) override
@@ -361,7 +312,7 @@ public:
         if ((llm_task_channel_.size() - 1) == task_count_) {
             error_body["code"]    = -21;
             error_body["message"] = "task full";
-            send("None", "None", error_body, "vlm");
+            send("None", "None", error_body, "cv");
             return -1;
         }
 
@@ -376,7 +327,7 @@ public:
             SLOGE("setup json format error.");
             error_body["code"]    = -2;
             error_body["message"] = "json format error.";
-            send("None", "None", error_body, "kws");
+            send("None", "None", error_body, "cv");
             return -2;
         }
         int ret = llm_task_obj->load_model(config_body);
@@ -384,26 +335,15 @@ public:
             llm_channel->set_output(llm_task_obj->enoutput_);
             llm_channel->set_stream(llm_task_obj->enstream_);
 
-            llm_task_obj->set_output(std::bind(&llm_llm::task_output, this, std::weak_ptr<llm_task>(llm_task_obj),
-                                               std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1,
-                                               std::placeholders::_2));
+            llm_task_obj->set_output(std::bind(&llm_cv::task_output, this, llm_task_obj, llm_channel,
+                                               std::placeholders::_1, std::placeholders::_2));
 
             for (const auto input : llm_task_obj->inputs_) {
-                if (input.find("vlm") != std::string::npos) {
+                if (input.find("cv") != std::string::npos) {
                     llm_channel->subscriber_work_id(
-                        "", std::bind(&llm_llm::task_user_data, this, std::weak_ptr<llm_task>(llm_task_obj),
+                        "", std::bind(&llm_cv::task_user_data, this, std::weak_ptr<llm_task>(llm_task_obj),
                                       std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1,
                                       std::placeholders::_2));
-                } else if (input.find("asr") != std::string::npos) {
-                    llm_channel->subscriber_work_id(
-                        input, std::bind(&llm_llm::task_asr_data, this, std::weak_ptr<llm_task>(llm_task_obj),
-                                         std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1,
-                                         std::placeholders::_2));
-                } else if (input.find("kws") != std::string::npos) {
-                    llm_channel->subscriber_work_id(
-                        input, std::bind(&llm_llm::kws_awake, this, std::weak_ptr<llm_task>(llm_task_obj),
-                                         std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1,
-                                         std::placeholders::_2));
                 }
             }
             llm_task_[work_id_num] = llm_task_obj;
@@ -414,14 +354,14 @@ public:
             SLOGE("load_mode Failed");
             error_body["code"]    = -5;
             error_body["message"] = "Model loading failed.";
-            send("None", "None", error_body, "vlm");
+            send("None", "None", error_body, "cv");
             return -1;
         }
     }
 
     void link(const std::string &work_id, const std::string &object, const std::string &data) override
     {
-        SLOGI("llm_llm::link:%s", data.c_str());
+        SLOGI("llm_cv::link:%s", data.c_str());
         int ret = 1;
         nlohmann::json error_body;
         int work_id_num = sample_get_work_id_num(work_id);
@@ -433,16 +373,10 @@ public:
         }
         auto llm_channel  = get_channel(work_id);
         auto llm_task_obj = llm_task_[work_id_num];
-        if (data.find("asr") != std::string::npos) {
+        if (data.find("cv") != std::string::npos) {
             ret = llm_channel->subscriber_work_id(
                 data,
-                std::bind(&llm_llm::task_asr_data, this, std::weak_ptr<llm_task>(llm_task_obj),
-                          std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1, std::placeholders::_2));
-            llm_task_obj->inputs_.push_back(data);
-        } else if (data.find("kws") != std::string::npos) {
-            ret = llm_channel->subscriber_work_id(
-                data,
-                std::bind(&llm_llm::kws_awake, this, std::weak_ptr<llm_task>(llm_task_obj),
+                std::bind(&llm_cv::task_user_data, this, std::weak_ptr<llm_task>(llm_task_obj),
                           std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1, std::placeholders::_2));
             llm_task_obj->inputs_.push_back(data);
         }
@@ -458,7 +392,7 @@ public:
 
     void unlink(const std::string &work_id, const std::string &object, const std::string &data) override
     {
-        SLOGI("llm_llm::unlink:%s", data.c_str());
+        SLOGI("llm_cv::unlink:%s", data.c_str());
         int ret = 0;
         nlohmann::json error_body;
         int work_id_num = sample_get_work_id_num(work_id);
@@ -483,7 +417,7 @@ public:
 
     void taskinfo(const std::string &work_id, const std::string &object, const std::string &data) override
     {
-        SLOGI("llm_llm::taskinfo:%s", data.c_str());
+        SLOGI("llm_cv::taskinfo:%s", data.c_str());
         nlohmann::json req_body;
         int work_id_num = sample_get_work_id_num(work_id);
         if (WORK_ID_NONE == work_id_num) {
@@ -491,7 +425,7 @@ public:
             std::transform(llm_task_channel_.begin(), llm_task_channel_.end(), std::back_inserter(task_list),
                            [](const auto task_channel) { return task_channel.second->work_id_; });
             req_body = task_list;
-            send("vlm.tasklist", req_body, LLM_NO_ERROR, work_id);
+            send("cv.tasklist", req_body, LLM_NO_ERROR, work_id);
         } else {
             if (llm_task_.find(work_id_num) == llm_task_.end()) {
                 req_body["code"]    = -6;
@@ -504,13 +438,13 @@ public:
             req_body["response_format"] = llm_task_obj->response_format_;
             req_body["enoutput"]        = llm_task_obj->enoutput_;
             req_body["inputs_"]         = llm_task_obj->inputs_;
-            send("vlm.taskinfo", req_body, LLM_NO_ERROR, work_id);
+            send("cv.taskinfo", req_body, LLM_NO_ERROR, work_id);
         }
     }
 
     int exit(const std::string &work_id, const std::string &object, const std::string &data) override
     {
-        SLOGI("llm_llm::exit:%s", data.c_str());
+        SLOGI("llm_cv::exit:%s", data.c_str());
 
         nlohmann::json error_body;
         int work_id_num = sample_get_work_id_num(work_id);
@@ -527,7 +461,7 @@ public:
         return 0;
     }
 
-    ~llm_llm()
+    ~llm_cv()
     {
         while (1) {
             auto iteam = llm_task_.begin();
@@ -541,12 +475,12 @@ public:
     }
 };
 
-int main(int argc, char *argv[])
+int main()
 {
     signal(SIGTERM, __sigint);
     signal(SIGINT, __sigint);
     mkdir("/tmp/llm", 0777);
-    llm_llm llm;
+    llm_cv llm;
     while (!main_exit_flage) {
         sleep(1);
     }
