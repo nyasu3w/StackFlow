@@ -33,7 +33,7 @@ LDFLAGS += ['-l:libcargs.a', '-l:libonnxruntime.a',
 
 STATIC_FILES += [AFile('sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01.json'),
                  AFile('sherpa-onnx-kws-zipformer-wenetspeech-3.3M-2024-01-01.json')]
-REQUIREMENTS += ['simdjson_component']
+
 env['COMPONENTS'].append({'target':'llm_kws',
                           'SRCS':SRCS,
                           'INCLUDE':INCLUDE,

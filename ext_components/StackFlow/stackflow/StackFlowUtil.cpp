@@ -6,7 +6,6 @@
 #include "StackFlowUtil.h"
 #include <vector>
 #include "pzmq.hpp"
-#include <simdjson.h>
 
 std::string StackFlows::sample_json_str_get(const std::string &json_str, const std::string &json_key)
 {
@@ -185,9 +184,9 @@ bool StackFlows::decode_stream(const std::string &in, std::string &out,
 {
     int index          = std::stoi(StackFlows::sample_json_str_get(in, "index"));
     std::string finish = StackFlows::sample_json_str_get(in, "finish");
-    std::string delta  = StackFlows::sample_json_str_get(in, "delta");
-    stream_buff[index] = delta;
-    if (finish.find("true") != std::string::npos) {
+    stream_buff[index] = StackFlows::sample_json_str_get(in, "delta");
+    // sample find flage: false:true
+    if (finish.find("f") == std::string::npos) {
         for (size_t i = 0; i < stream_buff.size(); i++) {
             out += stream_buff.at(i);
         }

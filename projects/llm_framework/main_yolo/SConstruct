@@ -29,7 +29,7 @@ STATIC_LIB += static_file * 2
 
 STATIC_FILES += [AFile('yolo11s.json'), AFile('yolo11s-seg.json'), AFile('yolo11s-pose.json')]
 
-REQUIREMENTS += ['simdjson_component']
+
 env['COMPONENTS'].append({'target':'llm_yolo',
                           'SRCS':SRCS,
                           'INCLUDE':INCLUDE,

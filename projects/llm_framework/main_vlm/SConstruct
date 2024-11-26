@@ -52,7 +52,7 @@ STATIC_LIB += static_file * 4
 STATIC_FILES += [AFile('internvl2-1b-ax630c.json'),
                  AFile('internvl2-1b-ax630c_tokenizer.py')
                  ]
-REQUIREMENTS += ['simdjson_component']
+
 env['COMPONENTS'].append({'target':'llm_vlm',
                           'SRCS':SRCS,
                           'INCLUDE':INCLUDE,

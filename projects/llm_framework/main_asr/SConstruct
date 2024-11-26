@@ -26,7 +26,6 @@ REQUIREMENTS += ['ncnn', 'sherpa-ncnn-core']
 
 STATIC_FILES += [AFile('sherpa-ncnn-streaming-zipformer-20M-2023-02-17.json'), AFile('sherpa-ncnn-streaming-zipformer-zh-14M-2023-02-23.json')]
 
-REQUIREMENTS += ['simdjson_component']
 
 env['COMPONENTS'].append({'target':'llm_asr',
                           'SRCS':SRCS,

@@ -321,7 +321,7 @@ public:
         // must encode base64
         std::string tmp_msg2;
         ret = decode_base64((*next_data), tmp_msg2);
-        if (!ret) {
+        if (ret == -1) {
             error_body["code"]    = -23;
             error_body["message"] = "Base64 decoding error.";
             send("None", "None", error_body, unit_name_);

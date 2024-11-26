@@ -27,7 +27,7 @@ INCLUDE += [ADir('../include')]
 INCLUDE += [ADir('src/runner'), ADir('../include/onnxruntime/core/session')]
 
 STATIC_FILES += [AFile('melotts_zh-cn.json')]
-REQUIREMENTS += ['simdjson_component']
+
 env['COMPONENTS'].append({'target':'llm_melotts',
                           'SRCS':SRCS,
                           'INCLUDE':INCLUDE,

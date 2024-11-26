@@ -42,7 +42,7 @@ STATIC_FILES += [AFile('qwen2.5-0.5B-prefill-20e.json'),
                  AFile('openbuddy-llama3.2-1b-ax630c_tokenizer.py'),
                  AFile('qwen2.5-coder-0.5B-ax630c_tokenizer.py')
                  ]
-REQUIREMENTS += ['simdjson_component']
+
 env['COMPONENTS'].append({'target':'llm_llm',
                           'SRCS':SRCS,
                           'INCLUDE':INCLUDE,

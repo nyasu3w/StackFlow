@@ -27,7 +27,7 @@ REQUIREMENTS += ['ax_sys', 'ax_interpreter', 'ax_audio', 'ax_audio_3a', 'ax_fdk'
 REQUIREMENTS += ['tinyalsa', 'opus', 'samplerate', 'fdk-aac']
 
 STATIC_FILES += [AFile('audio.json')]
-REQUIREMENTS += ['simdjson_component']
+
 env['COMPONENTS'].append({'target':'llm_audio',
                           'SRCS':SRCS,
                           'INCLUDE':INCLUDE,

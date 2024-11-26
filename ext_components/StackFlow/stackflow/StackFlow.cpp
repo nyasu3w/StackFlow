@@ -5,7 +5,6 @@
  */
 #include "StackFlow.h"
 #include "sample_log.h"
-#include <simdjson.h>
 
 using namespace StackFlows;
 
@@ -33,34 +32,21 @@ llm_channel_obj::~llm_channel_obj()
 void llm_channel_obj::subscriber_event_call(const std::function<void(const std::string &, const std::string &)> &call,
                                             pzmq *_pzmq, const std::string &raw)
 {
-    try {
-        simdjson::padded_string json_string(raw);
-        simdjson::ondemand::document doc;
-        auto parser = _pzmq->getContextPtr<simdjson::ondemand::parser>();
-        auto error  = parser->iterate(json_string).get(doc);
-        if (error) {
-            return;
-        }
-        std::string action;
-        error = doc["action"].get_string(action);
-        if (action == "inference") {
-            std::string zmq_com;
-            error = doc["zmq_com"].get_string(zmq_com);
+    const char *user_inference_flage_str = "\"action\"";
+    std::size_t pos                      = raw.find(user_inference_flage_str);
+    while (true) {
+        if (pos == std::string::npos) {
+            break;
+        } else if ((pos > 0) && (raw[pos - 1] != '\\')) {
+            std::string zmq_com = sample_json_str_get(raw, "zmq_com");
             if (!zmq_com.empty()) set_push_url(zmq_com);
-            error = doc["request_id"].get_string(request_id_);
-            error = doc["work_id"].get_string(work_id_);
+            request_id_ = sample_json_str_get(raw, "request_id");
+            work_id_    = sample_json_str_get(raw, "work_id");
+            break;
         }
-        std::string object;
-        error       = doc["object"].get_string(object);
-        auto result = doc["data"].raw_json();
-        if (result.error() == simdjson::SUCCESS) {
-            call(object, result.value().data());
-        } else {
-            std::cerr << "result: " << result.value() << "error mesg:" << result.error() << std::endl;
-        }
-    } catch (simdjson::simdjson_error &e) {
-        std::cerr << "Error: " << simdjson::error_message(e.error()) << std::endl;
+        pos = raw.find(user_inference_flage_str, pos + sizeof(user_inference_flage_str));
     }
+    call(sample_json_str_get(raw, "object"), sample_json_str_get(raw, "data"));
 }
 
 int llm_channel_obj::subscriber_work_id(const std::string &work_id,
@@ -88,7 +74,6 @@ int llm_channel_obj::subscriber_work_id(const std::string &work_id,
     zmq_[id_num] = std::make_shared<pzmq>(
         subscriber_url, ZMQ_SUB,
         std::bind(&llm_channel_obj::subscriber_event_call, this, call, std::placeholders::_1, std::placeholders::_2));
-    zmq_[id_num]->newContextPtr<simdjson::ondemand::parser>();
     return 0;
 }
 

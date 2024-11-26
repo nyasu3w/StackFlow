@@ -273,7 +273,7 @@ public:
         std::string tmp_msg2;
         if (enbase64) {
             ret = decode_base64((*next_data), tmp_msg2);
-            if (!ret) {
+            if (ret == -1) {
                 return;
             }
             next_data = &tmp_msg2;
