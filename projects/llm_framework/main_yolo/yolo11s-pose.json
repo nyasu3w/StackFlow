@@ -5,17 +5,17 @@
         "object detect"
     ],
     "input_type":[
-        "yolo.jpeg.base64"
+        "cv.jpeg.base64"
     ],
     "output_type":[
-        "yolo.yolobox"
+        "cv.yolobox"
     ],
     "mode_param":{
-        "yolo_model":"yolo11s.axmodel",
-        "model_type":"detect",
+        "yolo_model":"yolo11s-pose.axmodel",
+        "model_type":"pose",
         "img_h":640,
         "img_w":640,
-        "cls_num":80,
+        "cls_num":1,
         "pron_threshold":0.45,
         "nms_threshold":0.45,
         "cls_name":[

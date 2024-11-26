@@ -2,17 +2,17 @@
     "mode":"yolo11s",
     "type":"cv",
     "capabilities":[
-        "object detect"
+        "segment"
     ],
     "input_type":[
-        "yolo.jpeg.base64"
+        "cv.jpeg.base64"
     ],
     "output_type":[
-        "yolo.yolobox"
+        "cv.yolobox"
     ],
     "mode_param":{
-        "yolo_model":"yolo11s.axmodel",
-        "model_type":"detect",
+        "yolo_model":"yolo11s-seg.axmodel",
+        "model_type":"segment",
         "img_h":640,
         "img_w":640,
         "cls_num":80,

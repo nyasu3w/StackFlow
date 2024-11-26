@@ -50,7 +50,7 @@ public:
     int RunSync();
 
     int Post_Process(cv::Mat& mat, int& input_w, int& input_, int& cls_num, float& pron_threshold, float& nms_threshold,
-                     std::vector<detection::Object>& objects);
+                     std::vector<detection::Object>& objects, std::string& model_type);
 
     int GetOutput(void* pOutput, int index);
 
