@@ -73,6 +73,8 @@ public:
 
     void stop()
     {
+        exit_flage = false;
+        reace_data_event_thread->join();
         zmq_bus_com::stop();
         linux_uart_deinit(uart_fd);
     }
@@ -111,8 +113,8 @@ void serial_work()
         out_str += ",\"error\":{\"code\":0, \"message\":\"upgrade over\"}}";
         serial_con_->send_data(out_str);
     }
-    if (access("/tmp/llm/reset.lock", F_OK) == 0) {
-        remove("/tmp/llm/reset.lock");
+    if (access("/tmp/llm_reset.lock", F_OK) == 0) {
+        remove("/tmp/llm_reset.lock");
         sync();
         std::string out_str;
         out_str += "{\"request_id\": \"0\",\"work_id\": \"sys\",\"created\": ";
