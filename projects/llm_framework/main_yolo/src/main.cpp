@@ -26,6 +26,7 @@ static std::string base_model_config_path_;
 
 typedef struct {
     std::string yolo_model;
+    std::string model_type = "detect";
     std::vector<std::string> cls_name;
     int img_h            = 640;
     int img_w            = 640;
@@ -112,6 +113,8 @@ public:
             CONFIG_AUTO_SET(file_body["mode_param"], pron_threshold);
             CONFIG_AUTO_SET(file_body["mode_param"], nms_threshold);
             CONFIG_AUTO_SET(file_body["mode_param"], cls_name);
+            CONFIG_AUTO_SET(file_body["mode_param"], cls_num);
+            CONFIG_AUTO_SET(file_body["mode_param"], model_type);
             mode_config_.yolo_model = base_model + mode_config_.yolo_model;
             yolo_                   = std::make_unique<EngineWrapper>();
             if (0 != yolo_->Init(mode_config_.yolo_model.c_str())) {
@@ -153,7 +156,8 @@ public:
             }
             std::vector<detection::Object> objects;
             yolo_->Post_Process(src, mode_config_.img_w, mode_config_.img_h, mode_config_.cls_num,
-                                mode_config_.pron_threshold, mode_config_.nms_threshold, objects);
+                                mode_config_.pron_threshold, mode_config_.nms_threshold, objects,
+                                mode_config_.model_type);
             std::vector<nlohmann::json> yolo_output;
             for (size_t i = 0; i < objects.size(); i++) {
                 const detection::Object &obj = objects[i];
@@ -165,6 +169,9 @@ public:
                 output["bbox"].push_back(format_float(obj.rect.y, 0));
                 output["bbox"].push_back(format_float(obj.rect.x + obj.rect.width, 0));
                 output["bbox"].push_back(format_float(obj.rect.y + obj.rect.height, 0));
+                if (mode_config_.model_type == "segment") output["mask"] = obj.mask_feat;
+                if (mode_config_.model_type == "pose") output["kps"] = obj.kps_feat;
+                if (mode_config_.model_type == "obb") output["angle"] = obj.angle;
                 yolo_output.push_back(output);
                 if (out_callback_) out_callback_(yolo_output, false);
             }
