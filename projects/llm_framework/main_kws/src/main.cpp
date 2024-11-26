@@ -203,7 +203,7 @@ public:
         out_callback_ = out_callback;
     }
 
-    void sys_pcm_on_data(const std::string &raw)
+    void sys_pcm_on_data(pzmq *_pzmq, const std::string &raw)
     {
         static int count = 0;
         if (count < delay_audio_frame_) {
@@ -337,8 +337,8 @@ public:
             return;
         }
         if ((!audio_url_.empty()) && (llm_task_obj->audio_flage_ == false)) {
-            llm_channel->subscriber(audio_url_,
-                                    std::bind(&llm_task::sys_pcm_on_data, llm_task_obj.get(), std::placeholders::_1));
+            llm_channel->subscriber(audio_url_, std::bind(&llm_task::sys_pcm_on_data, llm_task_obj.get(),
+                                                          std::placeholders::_1, std::placeholders::_2));
             llm_task_obj->audio_flage_ = true;
         }
     }
@@ -417,7 +417,7 @@ public:
             }
             next_data = &tmp_msg2;
         }
-        llm_task_obj->sys_pcm_on_data((*next_data));
+        llm_task_obj->sys_pcm_on_data(nullptr, (*next_data));
     }
 
     int setup(const std::string &work_id, const std::string &object, const std::string &data) override
@@ -455,8 +455,8 @@ public:
             for (const auto input : llm_task_obj->inputs_) {
                 if (input.find("sys") != std::string::npos) {
                     audio_url_ = unit_call("audio", "cap", "None");
-                    llm_channel->subscriber(
-                        audio_url_, std::bind(&llm_task::sys_pcm_on_data, llm_task_obj.get(), std::placeholders::_1));
+                    llm_channel->subscriber(audio_url_, std::bind(&llm_task::sys_pcm_on_data, llm_task_obj.get(),
+                                                                  std::placeholders::_1, std::placeholders::_2));
                     llm_task_obj->audio_flage_ = true;
                 } else if (input.find("kws") != std::string::npos) {
                     llm_channel->subscriber_work_id(

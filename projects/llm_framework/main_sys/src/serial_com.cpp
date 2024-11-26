@@ -41,7 +41,6 @@ public:
 
     void send_data(const std::string &data)
     {
-        SLOGD("serial send:%s", data.c_str());
         linux_uart_write(uart_fd, data.length(), (void *)data.c_str());
     }
 
@@ -58,29 +57,15 @@ public:
             if ((select(uart_fd + 1, &readfds, NULL, NULL, &timeout) <= 0) || (!FD_ISSET(uart_fd, &readfds))) continue;
             int len = linux_uart_read(uart_fd, 128, reace_buf);
             {
-                char *data = reace_buf;
-                for (int i = 0; i < len; i++) {
-                    json_str += data[i];
-                    if (data[i] == '{') flage++;
-                    if (data[i] == '}') flage--;
-                    if (flage == 0) {
-                        if (json_str[0] == '{') {
-                            SLOGD("uart reace:%s", json_str.c_str());
-                            on_data(json_str);
-                        }
-                        json_str.clear();
-                    }
-                    if (flage < 0) {
-                        flage = 0;
-                        json_str.clear();
-                        {
-                            std::string out_str;
-                            out_str += "{\"request_id\": \"0\",\"work_id\": \"sys\",\"created\": ";
-                            out_str += std::to_string(time(NULL));
-                            out_str += ",\"error\":{\"code\":-1, \"message\":\"reace reset\"}}";
-                            send_data(out_str);
-                        }
-                    }
+                try {
+                    select_json_str(std::string(reace_buf, len),
+                                    std::bind(&serial_com::on_data, this, std::placeholders::_1));
+                } catch (...) {
+                    std::string out_str;
+                    out_str += "{\"request_id\": \"0\",\"work_id\": \"sys\",\"created\": ";
+                    out_str += std::to_string(time(NULL));
+                    out_str += ",\"error\":{\"code\":-1, \"message\":\"reace reset\"}}";
+                    send_data(out_str);
                 }
             }
         }

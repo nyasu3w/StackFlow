@@ -64,7 +64,7 @@ private:
 
 class llm_channel_obj {
 private:
-    std::unordered_map<int, std::unique_ptr<pzmq>> zmq_;
+    std::unordered_map<int, std::shared_ptr<pzmq>> zmq_;
     std::atomic<int> zmq_url_index_;
     std::unordered_map<std::string, int> zmq_url_map_;
 
@@ -97,12 +97,12 @@ public:
     {
         return enstream_;
     }
-    void subscriber_event_call(const std::function<void(const std::string &, const std::string &)> &call,
+    void subscriber_event_call(const std::function<void(const std::string &, const std::string &)> &call, pzmq *_pzmq,
                                const std::string &raw);
     int subscriber_work_id(const std::string &work_id,
                            const std::function<void(const std::string &, const std::string &)> &call);
     void stop_subscriber_work_id(const std::string &work_id);
-    void subscriber(const std::string &zmq_url, const std::function<void(const std::string &)> &call);
+    void subscriber(const std::string &zmq_url, const pzmq::msg_callback_fun &call);
     void stop_subscriber(const std::string &zmq_url);
     int check_zmq_errno(void *ctx, void *com, int code);
     int send_raw_to_pub(const std::string &raw);
@@ -249,7 +249,7 @@ public:
         return llm_task_channel_.at(_work_id_num);
     }
 
-    std::string _rpc_setup(const std::string &data);
+    std::string _rpc_setup(pzmq *_pzmq, const std::string &data);
     void _setup(const std::string &zmq_url, const std::string &data)
     {
         // printf("void _setup run \n");
@@ -260,7 +260,7 @@ public:
     virtual int setup(const std::string &zmq_url, const std::string &raw);
     virtual int setup(const std::string &work_id, const std::string &object, const std::string &data);
 
-    std::string _rpc_link(const std::string &data);
+    std::string _rpc_link(pzmq *_pzmq, const std::string &data);
     void _link(const std::string &zmq_url, const std::string &data)
     {
         // printf("void _link run \n");
@@ -271,7 +271,7 @@ public:
     virtual void link(const std::string &zmq_url, const std::string &raw);
     virtual void link(const std::string &work_id, const std::string &object, const std::string &data);
 
-    std::string _rpc_unlink(const std::string &data);
+    std::string _rpc_unlink(pzmq *_pzmq, const std::string &data);
     void _unlink(const std::string &zmq_url, const std::string &data)
     {
         // printf("void _unlink run \n");
@@ -282,7 +282,7 @@ public:
     virtual void unlink(const std::string &zmq_url, const std::string &raw);
     virtual void unlink(const std::string &work_id, const std::string &object, const std::string &data);
 
-    std::string _rpc_exit(const std::string &data);
+    std::string _rpc_exit(pzmq *_pzmq, const std::string &data);
     void _exit(const std::string &zmq_url, const std::string &data)
     {
         request_id_  = sample_json_str_get(data, "request_id");
@@ -292,7 +292,7 @@ public:
     virtual int exit(const std::string &zmq_url, const std::string &raw);
     virtual int exit(const std::string &work_id, const std::string &object, const std::string &data);
 
-    std::string _rpc_work(const std::string &data);
+    std::string _rpc_work(pzmq *_pzmq, const std::string &data);
     void _work(const std::string &zmq_url, const std::string &data)
     {
         request_id_  = sample_json_str_get(data, "request_id");
@@ -302,7 +302,7 @@ public:
     virtual void work(const std::string &zmq_url, const std::string &raw);
     virtual void work(const std::string &work_id, const std::string &object, const std::string &data);
 
-    std::string _rpc_pause(const std::string &data);
+    std::string _rpc_pause(pzmq *_pzmq, const std::string &data);
     void _pause(const std::string &zmq_url, const std::string &data)
     {
         request_id_  = sample_json_str_get(data, "request_id");
@@ -312,7 +312,7 @@ public:
     virtual void pause(const std::string &zmq_url, const std::string &raw);
     virtual void pause(const std::string &work_id, const std::string &object, const std::string &data);
 
-    std::string _rpc_taskinfo(const std::string &data);
+    std::string _rpc_taskinfo(pzmq *_pzmq, const std::string &data);
     void _taskinfo(const std::string &zmq_url, const std::string &data)
     {
         request_id_  = sample_json_str_get(data, "request_id");
@@ -372,7 +372,7 @@ public:
             return false;
         }
         pzmq _call("sys");
-        _call.call_rpc_action("release_unit", _work_id, [](const std::string &data) {});
+        _call.call_rpc_action("release_unit", _work_id, [](pzmq *_pzmq, const std::string &data) {});
         llm_task_channel_[_work_id_num].reset();
         llm_task_channel_.erase(_work_id_num);
         // SLOGI("release work_id %s success", _work_id.c_str());

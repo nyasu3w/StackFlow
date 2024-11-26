@@ -20,7 +20,7 @@ if 'CONFIG_STACKFLOW_ENABLED' in os.environ:
     INCLUDE.append(ADir("stackflow"))
     PRIVATE_INCLUDE.append(ADir("stackflow/libzmq"))
 
-    REQUIREMENTS += ['eventpp', 'utilities', 'zmq']
+    REQUIREMENTS += ['eventpp', 'utilities', 'zmq', 'simdjson_component']
 
     env['COMPONENTS'].append({'target':os.path.basename(env['component_dir']),
                             'SRCS':SRCS,

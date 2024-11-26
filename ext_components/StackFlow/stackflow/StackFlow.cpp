@@ -5,6 +5,7 @@
  */
 #include "StackFlow.h"
 #include "sample_log.h"
+#include <simdjson.h>
 
 using namespace StackFlows;
 
@@ -21,7 +22,7 @@ llm_channel_obj::llm_channel_obj(const std::string &_publisher_url, const std::s
     : unit_name_(unit_name), inference_url_(inference_url)
 {
     zmq_url_index_ = -1000;
-    zmq_[-1]       = std::make_unique<pzmq>(_publisher_url, ZMQ_PUB);
+    zmq_[-1]       = std::make_shared<pzmq>(_publisher_url, ZMQ_PUB);
     zmq_[-2].reset();
 }
 
@@ -30,15 +31,36 @@ llm_channel_obj::~llm_channel_obj()
 }
 
 void llm_channel_obj::subscriber_event_call(const std::function<void(const std::string &, const std::string &)> &call,
-                                            const std::string &raw)
+                                            pzmq *_pzmq, const std::string &raw)
 {
-    if (sample_json_str_get(raw, "action") == "inference") {
-        std::string zmq_com = sample_json_str_get(raw, "zmq_com");
-        if (!zmq_com.empty()) set_push_url(zmq_com);
-        request_id_ = sample_json_str_get(raw, "request_id");
-        work_id_    = sample_json_str_get(raw, "work_id");
+    try {
+        simdjson::padded_string json_string(raw);
+        simdjson::ondemand::document doc;
+        auto parser = _pzmq->getContextPtr<simdjson::ondemand::parser>();
+        auto error  = parser->iterate(json_string).get(doc);
+        if (error) {
+            return;
+        }
+        std::string action;
+        error = doc["action"].get_string(action);
+        if (action == "inference") {
+            std::string zmq_com;
+            error = doc["zmq_com"].get_string(zmq_com);
+            if (!zmq_com.empty()) set_push_url(zmq_com);
+            error = doc["request_id"].get_string(request_id_);
+            error = doc["work_id"].get_string(work_id_);
+        }
+        std::string object;
+        error       = doc["object"].get_string(object);
+        auto result = doc["data"].raw_json();
+        if (result.error() == simdjson::SUCCESS) {
+            call(object, result.value().data());
+        } else {
+            std::cerr << "result: " << result.value() << "error mesg:" << result.error() << std::endl;
+        }
+    } catch (simdjson::simdjson_error &e) {
+        std::cerr << "Error: " << simdjson::error_message(e.error()) << std::endl;
     }
-    call(sample_json_str_get(raw, "object"), sample_json_str_get(raw, "data"));
 }
 
 int llm_channel_obj::subscriber_work_id(const std::string &work_id,
@@ -63,8 +85,10 @@ int llm_channel_obj::subscriber_work_id(const std::string &work_id,
         id_num         = 0;
         subscriber_url = inference_url_;
     }
-    zmq_[id_num] = std::make_unique<pzmq>(
-        subscriber_url, ZMQ_SUB, std::bind(&llm_channel_obj::subscriber_event_call, this, call, std::placeholders::_1));
+    zmq_[id_num] = std::make_shared<pzmq>(
+        subscriber_url, ZMQ_SUB,
+        std::bind(&llm_channel_obj::subscriber_event_call, this, call, std::placeholders::_1, std::placeholders::_2));
+    zmq_[id_num]->newContextPtr<simdjson::ondemand::parser>();
     return 0;
 }
 
@@ -84,10 +108,10 @@ void llm_channel_obj::stop_subscriber_work_id(const std::string &work_id)
     if (zmq_.find(id_num) != zmq_.end()) zmq_.erase(id_num);
 }
 
-void llm_channel_obj::subscriber(const std::string &zmq_url, const std::function<void(const std::string &)> &call)
+void llm_channel_obj::subscriber(const std::string &zmq_url, const pzmq::msg_callback_fun &call)
 {
     zmq_url_map_[zmq_url]       = zmq_url_index_--;
-    zmq_[zmq_url_map_[zmq_url]] = std::make_unique<pzmq>(zmq_url, ZMQ_SUB, call);
+    zmq_[zmq_url_map_[zmq_url]] = std::make_shared<pzmq>(zmq_url, ZMQ_SUB, call);
 }
 
 void llm_channel_obj::stop_subscriber(const std::string &zmq_url)
@@ -162,13 +186,20 @@ StackFlow::StackFlow::StackFlow(const std::string &unit_name)
                                 std::bind(&StackFlow::_sys_init, this, std::placeholders::_1, std::placeholders::_2));
     event_queue_.appendListener(
         EVENT_REPEAT_EVENT, std::bind(&StackFlow::_repeat_loop, this, std::placeholders::_1, std::placeholders::_2));
-    rpc_ctx_->register_rpc_action("setup", std::bind(&StackFlow::_rpc_setup, this, std::placeholders::_1));
-    rpc_ctx_->register_rpc_action("pause", std::bind(&StackFlow::_rpc_pause, this, std::placeholders::_1));
-    rpc_ctx_->register_rpc_action("work", std::bind(&StackFlow::_rpc_work, this, std::placeholders::_1));
-    rpc_ctx_->register_rpc_action("exit", std::bind(&StackFlow::_rpc_exit, this, std::placeholders::_1));
-    rpc_ctx_->register_rpc_action("link", std::bind(&StackFlow::_rpc_link, this, std::placeholders::_1));
-    rpc_ctx_->register_rpc_action("unlink", std::bind(&StackFlow::_rpc_unlink, this, std::placeholders::_1));
-    rpc_ctx_->register_rpc_action("taskinfo", std::bind(&StackFlow::_rpc_taskinfo, this, std::placeholders::_1));
+    rpc_ctx_->register_rpc_action(
+        "setup", std::bind(&StackFlow::_rpc_setup, this, std::placeholders::_1, std::placeholders::_2));
+    rpc_ctx_->register_rpc_action(
+        "pause", std::bind(&StackFlow::_rpc_pause, this, std::placeholders::_1, std::placeholders::_2));
+    rpc_ctx_->register_rpc_action("work",
+                                  std::bind(&StackFlow::_rpc_work, this, std::placeholders::_1, std::placeholders::_2));
+    rpc_ctx_->register_rpc_action("exit",
+                                  std::bind(&StackFlow::_rpc_exit, this, std::placeholders::_1, std::placeholders::_2));
+    rpc_ctx_->register_rpc_action("link",
+                                  std::bind(&StackFlow::_rpc_link, this, std::placeholders::_1, std::placeholders::_2));
+    rpc_ctx_->register_rpc_action(
+        "unlink", std::bind(&StackFlow::_rpc_unlink, this, std::placeholders::_1, std::placeholders::_2));
+    rpc_ctx_->register_rpc_action(
+        "taskinfo", std::bind(&StackFlow::_rpc_taskinfo, this, std::placeholders::_1, std::placeholders::_2));
 
     status_.store(0);
     exit_flage_.store(false);
@@ -219,7 +250,7 @@ void StackFlow::_sys_init(const std::string &zmq_url, const std::string &data)
     }
 }
 
-std::string StackFlow::_rpc_setup(const std::string &data)
+std::string StackFlow::_rpc_setup(pzmq *_pzmq, const std::string &data)
 {
     event_queue_.enqueue(EVENT_SETUP, RPC_PARSE_TO_PARAM(data));
     return std::string("None");
@@ -253,7 +284,7 @@ int StackFlow::setup(const std::string &work_id, const std::string &object, cons
     return -1;
 }
 
-std::string StackFlow::_rpc_link(const std::string &data)
+std::string StackFlow::_rpc_link(pzmq *_pzmq, const std::string &data)
 {
     event_queue_.enqueue(EVENT_LINK, RPC_PARSE_TO_PARAM(data));
     return std::string("None");
@@ -284,7 +315,7 @@ void StackFlow::link(const std::string &work_id, const std::string &object, cons
     send("None", "None", error_body, work_id);
 }
 
-std::string StackFlow::_rpc_unlink(const std::string &data)
+std::string StackFlow::_rpc_unlink(pzmq *_pzmq, const std::string &data)
 {
     event_queue_.enqueue(EVENT_UNLINK, RPC_PARSE_TO_PARAM(data));
     return std::string("None");
@@ -315,7 +346,7 @@ void StackFlow::unlink(const std::string &work_id, const std::string &object, co
     send("None", "None", error_body, work_id);
 }
 
-std::string StackFlow::_rpc_work(const std::string &data)
+std::string StackFlow::_rpc_work(pzmq *_pzmq, const std::string &data)
 {
     event_queue_.enqueue(EVENT_WORK, RPC_PARSE_TO_PARAM(data));
     return std::string("None");
@@ -346,7 +377,7 @@ void StackFlow::work(const std::string &work_id, const std::string &object, cons
     send("None", "None", error_body, work_id);
 }
 
-std::string StackFlow::_rpc_exit(const std::string &data)
+std::string StackFlow::_rpc_exit(pzmq *_pzmq, const std::string &data)
 {
     event_queue_.enqueue(EVENT_EXIT, RPC_PARSE_TO_PARAM(data));
     return std::string("None");
@@ -380,7 +411,7 @@ int StackFlow::exit(const std::string &work_id, const std::string &object, const
     return 0;
 }
 
-std::string StackFlow::_rpc_pause(const std::string &data)
+std::string StackFlow::_rpc_pause(pzmq *_pzmq, const std::string &data)
 {
     event_queue_.enqueue(EVENT_PAUSE, RPC_PARSE_TO_PARAM(data));
     return std::string("None");
@@ -411,7 +442,7 @@ void StackFlow::pause(const std::string &work_id, const std::string &object, con
     send("None", "None", error_body, work_id);
 }
 
-std::string StackFlow::_rpc_taskinfo(const std::string &data)
+std::string StackFlow::_rpc_taskinfo(pzmq *_pzmq, const std::string &data)
 {
     event_queue_.enqueue(EVENT_TASKINFO, RPC_PARSE_TO_PARAM(data));
     return std::string("None");
@@ -445,8 +476,8 @@ void StackFlow::taskinfo(const std::string &work_id, const std::string &object, 
 int StackFlow::sys_register_unit(const std::string &unit_name)
 {
     int work_id_number;
-    std::string component_msg = unit_call("sys", "register_unit", unit_name);
-    std::string str_port = RPC_PARSE_TO_FIRST(component_msg);
+    std::string component_msg  = unit_call("sys", "register_unit", unit_name);
+    std::string str_port       = RPC_PARSE_TO_FIRST(component_msg);
     work_id_number             = std::stoi(str_port);
     std::string tmp_buf        = RPC_PARSE_TO_SECOND(component_msg);
     std::string out_port       = RPC_PARSE_TO_FIRST(tmp_buf);

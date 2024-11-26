@@ -115,16 +115,24 @@ public:
         setup("", "audio.cap", "{\"None\":\"None\"}");
         self        = this;
         cap_status_ = 0;
-        rpc_ctx_->register_rpc_action("play", std::bind(&llm_audio::play, this, std::placeholders::_1));
-        rpc_ctx_->register_rpc_action("play_raw", std::bind(&llm_audio::play_raw, this, std::placeholders::_1));
-        rpc_ctx_->register_rpc_action("queue_play", std::bind(&llm_audio::enqueue_play, this, std::placeholders::_1));
-        rpc_ctx_->register_rpc_action("play_stop", std::bind(&llm_audio::play_stop, this, std::placeholders::_1));
-        rpc_ctx_->register_rpc_action("queue_play_stop",
-                                      std::bind(&llm_audio::queue_play_stop, this, std::placeholders::_1));
-        rpc_ctx_->register_rpc_action("audio_status", std::bind(&llm_audio::audio_status, this, std::placeholders::_1));
-        rpc_ctx_->register_rpc_action("cap", std::bind(&llm_audio::cap, this, std::placeholders::_1));
-        rpc_ctx_->register_rpc_action("cap_stop", std::bind(&llm_audio::cap_stop, this, std::placeholders::_1));
-        rpc_ctx_->register_rpc_action("cap_stop_all", std::bind(&llm_audio::cap_stop_all, this, std::placeholders::_1));
+        rpc_ctx_->register_rpc_action("play",
+                                      std::bind(&llm_audio::play, this, std::placeholders::_1, std::placeholders::_2));
+        rpc_ctx_->register_rpc_action(
+            "play_raw", std::bind(&llm_audio::play_raw, this, std::placeholders::_1, std::placeholders::_2));
+        rpc_ctx_->register_rpc_action(
+            "queue_play", std::bind(&llm_audio::enqueue_play, this, std::placeholders::_1, std::placeholders::_2));
+        rpc_ctx_->register_rpc_action(
+            "play_stop", std::bind(&llm_audio::play_stop, this, std::placeholders::_1, std::placeholders::_2));
+        rpc_ctx_->register_rpc_action("queue_play_stop", std::bind(&llm_audio::queue_play_stop, this,
+                                                                   std::placeholders::_1, std::placeholders::_2));
+        rpc_ctx_->register_rpc_action(
+            "audio_status", std::bind(&llm_audio::audio_status, this, std::placeholders::_1, std::placeholders::_2));
+        rpc_ctx_->register_rpc_action("cap",
+                                      std::bind(&llm_audio::cap, this, std::placeholders::_1, std::placeholders::_2));
+        rpc_ctx_->register_rpc_action(
+            "cap_stop", std::bind(&llm_audio::cap_stop, this, std::placeholders::_1, std::placeholders::_2));
+        rpc_ctx_->register_rpc_action(
+            "cap_stop_all", std::bind(&llm_audio::cap_stop_all, this, std::placeholders::_1, std::placeholders::_2));
     }
     int setup(const std::string &work_id, const std::string &object, const std::string &data) override
     {
@@ -368,32 +376,32 @@ public:
         return LLM_NONE;
     }
 
-    std::string play(const std::string &rawdata)
+    std::string play(pzmq *_pzmq, const std::string &rawdata)
     {
-        std::string zmq_url = RPC_PARSE_TO_FIRST(rawdata);
+        std::string zmq_url    = RPC_PARSE_TO_FIRST(rawdata);
         std::string audio_json = RPC_PARSE_TO_SECOND(rawdata);
-        std::string ret_val = parse_data(sample_json_str_get(audio_json, "object"), sample_json_str_get(audio_json, "data"));
-        request_id_  = sample_json_str_get(audio_json, "request_id");
+        std::string ret_val =
+            parse_data(sample_json_str_get(audio_json, "object"), sample_json_str_get(audio_json, "data"));
+        request_id_ = sample_json_str_get(audio_json, "request_id");
         send(LLM_NONE, LLM_NONE, LLM_NO_ERROR, sample_json_str_get(audio_json, "work_id"), zmq_url);
         return ret_val;
     }
 
-    std::string play_raw(const std::string &rawdata)
+    std::string play_raw(pzmq *_pzmq, const std::string &rawdata)
     {
-        if(rawdata.empty())
-            return std::string("rawdata empty");
+        if (rawdata.empty()) return std::string("rawdata empty");
         _play(rawdata);
         return LLM_NONE;
     }
 
-    std::string enqueue_play(const std::string &rawdata)
+    std::string enqueue_play(pzmq *_pzmq, const std::string &rawdata)
     {
         audio_clear_flage_ = false;
         event_queue_.enqueue(EVENT_QUEUE_PLAY, rawdata, "");
         return LLM_NONE;
     }
 
-    std::string audio_status(const std::string &rawdata)
+    std::string audio_status(pzmq *_pzmq, const std::string &rawdata)
     {
         if (rawdata == "play") {
             if (ax_play_status()) {
@@ -426,19 +434,19 @@ public:
         }
     }
 
-    std::string play_stop(const std::string &rawdata)
+    std::string play_stop(pzmq *_pzmq, const std::string &rawdata)
     {
         _play_stop();
         return LLM_NONE;
     }
 
-    std::string queue_play_stop(const std::string &rawdata)
+    std::string queue_play_stop(pzmq *_pzmq, const std::string &rawdata)
     {
         audio_clear_flage_ = true;
         return LLM_NONE;
     }
 
-    std::string cap(const std::string &rawdata)
+    std::string cap(pzmq *_pzmq, const std::string &rawdata)
     {
         if (cap_status_ == 0) {
             _cap();
@@ -447,7 +455,7 @@ public:
         return sys_pcm_cap_channel;
     }
 
-    std::string cap_stop(const std::string &rawdata)
+    std::string cap_stop(pzmq *_pzmq, const std::string &rawdata)
     {
         if (cap_status_ > 0) {
             cap_status_--;
@@ -458,7 +466,7 @@ public:
         return LLM_NONE;
     }
 
-    std::string cap_stop_all(const std::string &rawdata)
+    std::string cap_stop_all(pzmq *_pzmq, const std::string &rawdata)
     {
         cap_status_ = 0;
         _cap_stop();

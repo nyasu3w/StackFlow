@@ -16,14 +16,19 @@
 #include <vector>
 #define ZMQ_RPC_FUN  (ZMQ_REP | 0x80)
 #define ZMQ_RPC_CALL (ZMQ_REQ | 0x80)
+
 namespace StackFlows {
 class pzmq {
+public:
+    typedef std::function<std::string(pzmq *, const std::string &)> rpc_callback_fun;
+    typedef std::function<void(pzmq *, const std::string &)> msg_callback_fun;
+
 private:
     const int rpc_url_head_length = 6;
     std::string rpc_url_head_     = "ipc:///tmp/rpc.";
     void *zmq_ctx_;
     void *zmq_socket_;
-    std::unordered_map<std::string, std::function<std::string(const std::string &)>> zmq_fun_;
+    std::unordered_map<std::string, rpc_callback_fun> zmq_fun_;
     std::mutex zmq_fun_mtx_;
     std::atomic<bool> flage_;
     std::unique_ptr<std::thread> zmq_thread_;
@@ -51,7 +56,7 @@ public:
             rpc_url_head_.clear();
         }
     }
-    pzmq(const std::string &url, int mode, const std::function<void(const std::string &)> &raw_call = nullptr)
+    pzmq(const std::string &url, int mode, const msg_callback_fun &raw_call = nullptr)
         : zmq_ctx_(NULL), zmq_socket_(NULL), mode_(mode), flage_(true), timeout_(3000)
     {
         if (mode_ != ZMQ_RPC_FUN) creat(url, raw_call);
@@ -77,7 +82,7 @@ public:
         }
         return zmq_url_;
     }
-    std::string _rpc_list_action(const std::string &_None)
+    std::string _rpc_list_action(pzmq *self, const std::string &_None)
     {
         std::string action_list;
         action_list.reserve(128);
@@ -95,7 +100,7 @@ public:
         }
         return action_list;
     }
-    int register_rpc_action(const std::string &action, const std::function<std::string(const std::string &)> &raw_call)
+    int register_rpc_action(const std::string &action, const rpc_callback_fun &raw_call)
     {
         int ret = 0;
         std::unique_lock<std::mutex> lock(zmq_fun_mtx_);
@@ -104,10 +109,11 @@ public:
             return ret;
         }
         if (zmq_fun_.empty()) {
-            std::string url         = rpc_url_head_ + rpc_server_;
-            mode_                   = ZMQ_RPC_FUN;
-            zmq_fun_["list_action"] = std::bind(&pzmq::_rpc_list_action, this, std::placeholders::_1);
-            ret                     = creat(url);
+            std::string url = rpc_url_head_ + rpc_server_;
+            mode_           = ZMQ_RPC_FUN;
+            zmq_fun_["list_action"] =
+                std::bind(&pzmq::_rpc_list_action, this, std::placeholders::_1, std::placeholders::_2);
+            ret = creat(url);
         }
         zmq_fun_[action] = raw_call;
         return ret;
@@ -119,8 +125,7 @@ public:
             zmq_fun_.erase(action);
         }
     }
-    int call_rpc_action(const std::string &action, const std::string &data,
-                        const std::function<void(const std::string &)> &raw_call)
+    int call_rpc_action(const std::string &action, const std::string &data, const msg_callback_fun &raw_call)
     {
         int ret;
         zmq_msg_t msg;
@@ -144,7 +149,7 @@ public:
             {
                 zmq_msg_recv(&msg, zmq_socket_, 0);
             }
-            raw_call(std::string((const char *)zmq_msg_data(&msg), zmq_msg_size(&msg)));
+            raw_call(this, std::string((const char *)zmq_msg_data(&msg), zmq_msg_size(&msg)));
         } catch (int e) {
             ret = e;
         }
@@ -152,7 +157,7 @@ public:
         close_zmq();
         return ret;
     }
-    int creat(const std::string &url, const std::function<void(const std::string &)> &raw_call = nullptr)
+    int creat(const std::string &url, const msg_callback_fun &raw_call = nullptr)
     {
         zmq_url_ = url;
         do {
@@ -243,14 +248,14 @@ public:
         zmq_setsockopt(zmq_socket_, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
         return zmq_connect(zmq_socket_, url.c_str());
     }
-    inline int creat_pull(const std::string &url, const std::function<void(const std::string &)> &raw_call)
+    inline int creat_pull(const std::string &url, const msg_callback_fun &raw_call)
     {
         int ret     = zmq_bind(zmq_socket_, url.c_str());
         flage_      = false;
         zmq_thread_ = std::make_unique<std::thread>(std::bind(&pzmq::zmq_event_loop, this, raw_call));
         return ret;
     }
-    inline int subscriber_url(const std::string &url, const std::function<void(const std::string &)> &raw_call)
+    inline int subscriber_url(const std::string &url, const msg_callback_fun &raw_call)
     {
         int ret = zmq_connect(zmq_socket_, url.c_str());
         zmq_setsockopt(zmq_socket_, ZMQ_SUBSCRIBE, "", 0);
@@ -258,7 +263,7 @@ public:
         zmq_thread_ = std::make_unique<std::thread>(std::bind(&pzmq::zmq_event_loop, this, raw_call));
         return ret;
     }
-    inline int creat_rep(const std::string &url, const std::function<void(const std::string &)> &raw_call)
+    inline int creat_rep(const std::string &url, const msg_callback_fun &raw_call)
     {
         int ret     = zmq_bind(zmq_socket_, url.c_str());
         flage_      = false;
@@ -277,7 +282,7 @@ public:
         zmq_setsockopt(zmq_socket_, ZMQ_RCVTIMEO, &timeout_, sizeof(timeout_));
         return zmq_connect(zmq_socket_, url.c_str());
     }
-    void zmq_event_loop(const std::function<void(const std::string &)> &raw_call)
+    void zmq_event_loop(const msg_callback_fun &raw_call)
     {
         int ret;
         zmq_pollitem_t items[1];
@@ -314,14 +319,14 @@ public:
                 std::string retval;
                 try {
                     std::unique_lock<std::mutex> lock(zmq_fun_mtx_);
-                    retval = zmq_fun_.at(raw_data)(_raw_data);
+                    retval = zmq_fun_.at(raw_data)(this, _raw_data);
                 } catch (...) {
                     retval = "NotAction";
                 }
                 zmq_send(zmq_socket_, retval.c_str(), retval.length(), 0);
                 zmq_msg_close(&msg1);
             } else {
-                raw_call(raw_data);
+                raw_call(this, raw_data);
             }
             zmq_msg_close(&msg);
         }
@@ -352,6 +357,89 @@ public:
             zmq_thread_->join();
         }
         close_zmq();
+    }
+
+private:
+    std::shared_ptr<void> context_ptr_;
+    std::weak_ptr<void> wcontext_ptr_;
+    void *ctx_;
+
+public:
+    // context
+    void *context()
+    {
+        return ctx_;
+    }
+    void setContext(void *ctx)
+    {
+        ctx_ = ctx;
+    }
+    template <class T>
+    T *newContext()
+    {
+        ctx_ = new T;
+        return (T *)ctx_;
+    }
+    template <class T>
+    T *getContext()
+    {
+        return (T *)ctx_;
+    }
+    template <class T>
+    void deleteContext()
+    {
+        if (ctx_) {
+            delete (T *)ctx_;
+            ctx_ = NULL;
+        }
+    }
+
+    // contextPtr
+    std::shared_ptr<void> contextPtr()
+    {
+        return context_ptr_;
+    }
+    void setContextPtr(const std::shared_ptr<void> &ctx)
+    {
+        context_ptr_ = ctx;
+    }
+    void setContextPtr(std::shared_ptr<void> &&ctx)
+    {
+        context_ptr_ = std::move(ctx);
+    }
+    template <class T>
+    std::shared_ptr<T> newContextPtr()
+    {
+        context_ptr_ = std::make_shared<T>();
+        return std::static_pointer_cast<T>(context_ptr_);
+    }
+    template <class T>
+    std::shared_ptr<T> getContextPtr()
+    {
+        return std::static_pointer_cast<T>(context_ptr_);
+    }
+    void deleteContextPtr()
+    {
+        context_ptr_.reset();
+    }
+
+    // wcontextPtr
+    std::shared_ptr<void> wcontextPtr()
+    {
+        return wcontext_ptr_.lock();
+    }
+    void wsetContextPtr(const std::shared_ptr<void> &ctx)
+    {
+        wcontext_ptr_ = ctx;
+    }
+    template <class T>
+    std::shared_ptr<T> wgetContextPtr()
+    {
+        return std::static_pointer_cast<T>(wcontext_ptr_.lock());
+    }
+    void wdeleteContextPtr()
+    {
+        wcontext_ptr_.reset();
     }
 };
 };  // namespace StackFlows

@@ -28,7 +28,7 @@ static_file = Glob('../static_lib/libopencv-4.6-aarch64-none/lib/lib*')
 STATIC_LIB += static_file * 2
 
 STATIC_FILES += [AFile('yolo11s.json')]
-
+REQUIREMENTS += ['simdjson_component']
 env['COMPONENTS'].append({'target':'llm_yolo',
                           'SRCS':SRCS,
                           'INCLUDE':INCLUDE,

@@ -28,7 +28,7 @@ INCLUDE += [ADir('src/runner/eigen-3.4.0'), ADir('src/runner/src/tn/header'), AD
 STATIC_FILES += [AFile('single_speaker_english_fast.json'),
                  AFile('single_speaker_fast.json')
                  ]
-
+REQUIREMENTS += ['simdjson_component']
 env['COMPONENTS'].append({'target':'llm_tts',
                           'SRCS':SRCS,
                           'INCLUDE':INCLUDE,

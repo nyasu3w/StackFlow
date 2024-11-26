@@ -171,7 +171,7 @@ int c_sys_release_unit(char const *unit)
     return sys_release_unit(unit);
 }
 
-std::string rpc_allocate_unit(const std::string &raw)
+std::string rpc_allocate_unit(pzmq *_pzmq, const std::string &raw)
 {
     unit_data *unit_info = sys_allocate_unit(raw);
     std::string send_data;
@@ -182,18 +182,18 @@ std::string rpc_allocate_unit(const std::string &raw)
     return send_data;
 }
 
-std::string rpc_release_unit(const std::string &raw)
+std::string rpc_release_unit(pzmq *_pzmq, const std::string &raw)
 {
     sys_release_unit(raw);
     return "Success";
 }
 
-std::string rpc_sql_select(const std::string &raw)
+std::string rpc_sql_select(pzmq *_pzmq, const std::string &raw)
 {
     return sys_sql_select(raw);
 }
 
-std::string rpc_sql_set(const std::string &raw)
+std::string rpc_sql_set(pzmq *_pzmq, const std::string &raw)
 {
     std::string key = sample_json_str_get(raw, "key");
     std::string val = sample_json_str_get(raw, "val");
@@ -202,7 +202,7 @@ std::string rpc_sql_set(const std::string &raw)
     return "Success";
 }
 
-std::string rpc_sql_unset(const std::string &raw)
+std::string rpc_sql_unset(pzmq *_pzmq, const std::string &raw)
 {
     sys_sql_unset(raw);
     return "Success";
@@ -217,11 +217,16 @@ void remote_server_work()
     port_list.resize(port_list_end - port_list_start, 0);
 
     sys_rpc_server_ = std::make_unique<pzmq>("sys");
-    sys_rpc_server_->register_rpc_action("sql_select", std::bind(rpc_sql_select, std::placeholders::_1));
-    sys_rpc_server_->register_rpc_action("register_unit", std::bind(rpc_allocate_unit, std::placeholders::_1));
-    sys_rpc_server_->register_rpc_action("release_unit", std::bind(rpc_release_unit, std::placeholders::_1));
-    sys_rpc_server_->register_rpc_action("sql_set", std::bind(rpc_sql_set, std::placeholders::_1));
-    sys_rpc_server_->register_rpc_action("sql_unset", std::bind(rpc_sql_unset, std::placeholders::_1));
+    sys_rpc_server_->register_rpc_action("sql_select",
+                                         std::bind(rpc_sql_select, std::placeholders::_1, std::placeholders::_2));
+    sys_rpc_server_->register_rpc_action("register_unit",
+                                         std::bind(rpc_allocate_unit, std::placeholders::_1, std::placeholders::_2));
+    sys_rpc_server_->register_rpc_action("release_unit",
+                                         std::bind(rpc_release_unit, std::placeholders::_1, std::placeholders::_2));
+    sys_rpc_server_->register_rpc_action("sql_set",
+                                         std::bind(rpc_sql_set, std::placeholders::_1, std::placeholders::_2));
+    sys_rpc_server_->register_rpc_action("sql_unset",
+                                         std::bind(rpc_sql_unset, std::placeholders::_1, std::placeholders::_2));
 }
 
 void remote_server_stop_work()

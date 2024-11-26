@@ -6,6 +6,7 @@
 #include "StackFlowUtil.h"
 #include <vector>
 #include "pzmq.hpp"
+#include <simdjson.h>
 
 std::string StackFlows::sample_json_str_get(const std::string &json_str, const std::string &json_key)
 {
@@ -182,17 +183,27 @@ std::string StackFlows::sample_unescapeString(const std::string &input)
 bool StackFlows::decode_stream(const std::string &in, std::string &out,
                                std::unordered_map<int, std::string> &stream_buff)
 {
-    int index          = std::stoi(StackFlows::sample_json_str_get(in, "index"));
-    std::string finish = StackFlows::sample_json_str_get(in, "finish");
-    std::string delta  = StackFlows::sample_json_str_get(in, "delta");
-    stream_buff[index] = delta;
-    if (finish == "true") {
-        for (size_t i = 0; i < stream_buff.size(); i++) {
-            out += stream_buff.at(i);
+    simdjson::ondemand::parser parser;
+    simdjson::padded_string json_string(in);
+    simdjson::ondemand::document doc;
+    auto error = parser.iterate(json_string).get(doc);
+    if (error) {
+        throw true;
+    }
+    int index   = doc["index"].get_int64();
+    bool finish = doc["finish"].get_bool();
+    auto result = doc["delta"].raw_json();
+    if (result.error() == simdjson::SUCCESS) {
+        stream_buff[index] = std::string(result.value().data());
+        if (finish) {
+            for (size_t i = 0; i < stream_buff.size(); i++) {
+                out += stream_buff.at(i);
+            }
+            stream_buff.clear();
+            return false;
         }
-        stream_buff.clear();
-        return false;
-    } else if (finish != "false") {
+    } else {
+        std::cerr << "result: " << result.value() << "error mesg:" << result.error() << std::endl;
         throw true;
     }
     return true;
@@ -402,6 +413,6 @@ std::string StackFlows::unit_call(const std::string &unit_name, const std::strin
 {
     std::string value;
     pzmq _call(unit_name);
-    _call.call_rpc_action(unit_action, data, [&value](const std::string &raw) { value = raw; });
+    _call.call_rpc_action(unit_action, data, [&value](pzmq *_pzmq, const std::string &raw) { value = raw; });
     return value;
 }

@@ -34,12 +34,9 @@ class tcp_com : public zmq_bus_com {
 private:
 public:
     SocketChannelPtr channel;
-    std::string json_str;
-    int flage;
     std::mutex tcp_server_mutex;
     tcp_com() : zmq_bus_com()
     {
-        flage = 0;
     }
 
     void send_data(const std::string& data)
@@ -75,27 +72,15 @@ void onMessage(const SocketChannelPtr& channel, Buffer* buf)
     char* data        = (char*)buf->data();
     tcp_com* con_data = (tcp_com*)channel->context();
     con_data->tcp_server_mutex.lock();
-    for (size_t i = 0; i < len; i++) {
-        con_data->json_str += data[i];
-        if (data[i] == '{') con_data->flage++;
-        if (data[i] == '}') con_data->flage--;
-        if (con_data->flage == 0) {
-            if (con_data->json_str[0] == '{') {
-                con_data->on_data(con_data->json_str);
-            }
-            con_data->json_str.clear();
-        }
-        if (con_data->flage < 0) {
-            con_data->flage = 0;
-            con_data->json_str.clear();
-            {
-                std::string out_str;
-                out_str += "{\"request_id\": \"0\",\"work_id\": \"sys\",\"created\": ";
-                out_str += std::to_string(time(NULL));
-                out_str += ",\"error\":{\"code\":-1, \"message\":\"reace reset\"}}";
-                channel->write(out_str);
-            }
-        }
+    try {
+        con_data->select_json_str(std::string(data, len),
+                                  std::bind(&tcp_com::on_data, con_data, std::placeholders::_1));
+    } catch (...) {
+        std::string out_str;
+        out_str += "{\"request_id\": \"0\",\"work_id\": \"sys\",\"created\": ";
+        out_str += std::to_string(time(NULL));
+        out_str += ",\"error\":{\"code\":-1, \"message\":\"reace reset\"}}";
+        channel->write(out_str);
     }
     con_data->tcp_server_mutex.unlock();
 }

@@ -46,6 +46,8 @@ protected:
     int exit_flage;
     int err_count;
     int _port;
+    std::string json_str_;
+    int json_str_flage_;
     std::unique_ptr<std::thread> reace_data_event_thread;
 
 public:
@@ -53,11 +55,11 @@ public:
     zmq_bus_com();
     void work(const std::string &zmq_url_format, int port);
     void stop();
+    void select_json_str(const std::string &json_src, std::function<void(const std::string &)> out_fun);
     virtual void on_data(const std::string &data);
     virtual void send_data(const std::string &data);
     virtual void reace_data_event();
     virtual void send_data_event();
     ~zmq_bus_com();
 };
-
 #endif

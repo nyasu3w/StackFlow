@@ -34,6 +34,7 @@
 #include "subprocess.h"
 #include "zmq_bus.h"
 #include "remote_action.h"
+#include <simdjson.h>
 
 void usr_print_error(const std::string &request_id, const std::string &work_id, const std::string &error_msg,
                      int zmq_out)
@@ -501,27 +502,42 @@ void server_work()
 void server_stop_work()
 {
 }
-
+std::mutex unit_action_match_mtx;
+simdjson::ondemand::parser parser;
 typedef int (*sys_fun_call)(int, const nlohmann::json &);
 void unit_action_match(int com_id, const std::string &json_str)
 {
-    int ret;
-    std::string out_str;
-    nlohmann::json req_body;
-
-    std::string action;
-    std::string request_id;
-    std::string work_id;
-    try {
-        req_body   = nlohmann::json::parse(json_str);
-        action     = req_body["action"];
-        request_id = req_body["request_id"];
-        work_id    = req_body["work_id"];
-    } catch (...) {
+    std::lock_guard<std::mutex> guard(unit_action_match_mtx);
+    simdjson::padded_string json_string(json_str);
+    simdjson::ondemand::document doc;
+    auto error = parser.iterate(json_string).get(doc);
+    if (error) {
         SLOGE("json format error:%s", json_str.c_str());
         usr_print_error("0", "sys", "{\"code\":-2, \"message\":\"json format error\"}", com_id);
         return;
     }
+    std::string request_id;
+    error = doc["request_id"].get_string(request_id);
+    if (error) {
+        SLOGE("miss request_id");
+        usr_print_error("0", "sys", "{\"code\":-2, \"message\":\"json format error\"}", com_id);
+        return;
+    }
+    std::string work_id;
+    error = doc["work_id"].get_string(work_id);
+    if (error) {
+        SLOGE("miss work_id");
+        usr_print_error("0", "sys", "{\"code\":-2, \"message\":\"json format error\"}", com_id);
+        return;
+    }
+    std::string action;
+    error = doc["action"].get_string(action);
+    if (error) {
+        SLOGE("miss action");
+        usr_print_error("0", "sys", "{\"code\":-2, \"message\":\"json format error\"}", com_id);
+        return;
+    }
+    // SLOGI("request_id:%s work_id:%s action:%s", request_id.c_str(), work_id.c_str(), action.c_str());
     std::vector<std::string> work_id_fragment;
     std::string fragment;
     for (auto c : work_id) {
@@ -533,22 +549,29 @@ void unit_action_match(int com_id, const std::string &json_str)
         }
     }
     if (fragment.length()) work_id_fragment.push_back(fragment);
-
-    if ((work_id_fragment.size() > 0) && (work_id_fragment[0] == "sys")) {
+    if (action == "inference") {
+        char zmq_push_url[128];
+        int post = sprintf(zmq_push_url, zmq_c_format.c_str(), com_id);
+        std::string inference_raw_data;
+        inference_raw_data.resize(post + json_str.length() + 13);
+        post = sprintf(inference_raw_data.data(), "{\"zmq_com\":\"");
+        post += sprintf(inference_raw_data.data() + post, "%s", zmq_push_url);
+        post += sprintf(inference_raw_data.data() + post, "\",");
+        memcpy(inference_raw_data.data() + post, json_str.data() + 1, json_str.length() - 1);
+        // post += json_str.length() - 1;
+        // SLOGI("inference_raw_data:%s  size:%d  %d", inference_raw_data.c_str(), inference_raw_data.length(), post);
+        int ret = zmq_bus_publisher_push(work_id, inference_raw_data);
+        if (ret) {
+            usr_print_error(request_id, work_id, "{\"code\":-4, \"message\":\"inference data push false\"}", com_id);
+        }
+    } else if ((work_id_fragment.size() > 0) && (work_id_fragment[0] == "sys")) {
         std::string unit_action = "sys." + action;
         sys_fun_call call_fun   = NULL;
         SAFE_READING(call_fun, sys_fun_call, unit_action);
-        if (call_fun)
-            call_fun(com_id, req_body);
-        else
+        if (call_fun) {
+            call_fun(com_id, nlohmann::json::parse(json_str));
+        } else {
             usr_print_error(request_id, work_id, "{\"code\":-3, \"message\":\"action match false\"}", com_id);
-    } else if (action == "inference") {
-        char zmq_push_url[128];
-        sprintf(zmq_push_url, zmq_c_format.c_str(), com_id);
-        req_body["zmq_com"] = std::string(zmq_push_url);
-        int ret             = zmq_bus_publisher_push(work_id, req_body.dump());
-        if (ret) {
-            usr_print_error(request_id, work_id, "{\"code\":-4, \"message\":\"inference data push false\"}", com_id);
         }
     } else {
         if ((work_id_fragment[0].length() != 0) && (remote_call(com_id, json_str) != 0)) {
