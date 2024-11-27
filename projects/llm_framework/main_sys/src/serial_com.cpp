@@ -57,7 +57,7 @@ public:
             if(len <= 0) continue;
             {
                 try {
-                    select_json_str(std::string(buff.data(), buff.size()),
+                    select_json_str(std::string(buff.data(), len),
                                     std::bind(&serial_com::on_data, this, std::placeholders::_1));
                 } catch (...) {
                     std::string out_str;
