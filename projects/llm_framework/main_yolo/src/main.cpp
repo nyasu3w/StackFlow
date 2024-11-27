@@ -275,7 +275,7 @@ public:
             if (finish) count = 0;
             llm_channel->send(llm_task_obj->response_format_, data_body, LLM_NO_ERROR);
         } else if (finish) {
-            SLOGI("send utf-8");
+            // SLOGI("send utf-8");
             llm_channel->send(llm_task_obj->response_format_, data, LLM_NO_ERROR);
         }
     }

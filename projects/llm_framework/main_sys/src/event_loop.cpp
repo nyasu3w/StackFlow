@@ -519,21 +519,21 @@ void unit_action_match(int com_id, const std::string &json_str)
     std::string request_id;
     error = doc["request_id"].get_string(request_id);
     if (error) {
-        SLOGE("miss request_id");
+        SLOGE("miss request_id, error:%s", simdjson::error_message(error));
         usr_print_error("0", "sys", "{\"code\":-2, \"message\":\"json format error\"}", com_id);
         return;
     }
     std::string work_id;
     error = doc["work_id"].get_string(work_id);
     if (error) {
-        SLOGE("miss work_id");
+        SLOGE("miss work_id, error:%s", simdjson::error_message(error));
         usr_print_error("0", "sys", "{\"code\":-2, \"message\":\"json format error\"}", com_id);
         return;
     }
     std::string action;
     error = doc["action"].get_string(action);
     if (error) {
-        SLOGE("miss action");
+        SLOGE("miss action, error:%s", simdjson::error_message(error));
         usr_print_error("0", "sys", "{\"code\":-2, \"message\":\"json format error\"}", com_id);
         return;
     }

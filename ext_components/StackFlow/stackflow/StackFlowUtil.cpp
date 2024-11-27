@@ -386,14 +386,20 @@ static int base64_decode(const char *in, unsigned int inlen, unsigned char *out)
 
 int StackFlows::decode_base64(const std::string &in, std::string &out)
 {
-    out.resize(BASE64_DECODE_OUT_SIZE(in.length()));
-    return base64_decode((const char *)in.c_str(), in.length(), (unsigned char *)out.data());
+    int out_size = BASE64_DECODE_OUT_SIZE(in.length());
+    out.resize(out_size);
+    int ret = base64_decode((const char *)in.c_str(), in.length(), (unsigned char *)out.data());
+    if ((ret > 0) && (ret != out_size)) out.erase(ret);
+    return ret;
 }
 
 int StackFlows::encode_base64(const std::string &in, std::string &out)
 {
-    out.resize(BASE64_ENCODE_OUT_SIZE(in.length()));
-    return base64_encode((const unsigned char *)in.c_str(), in.length(), (char *)out.data());
+    int out_size = BASE64_ENCODE_OUT_SIZE(in.length());
+    out.resize(out_size);
+    int ret = base64_encode((const unsigned char *)in.c_str(), in.length(), (char *)out.data());
+    if ((ret > 0) && (ret != out_size)) out.erase(ret);
+    return ret;
 }
 
 std::string StackFlows::unit_call(const std::string &unit_name, const std::string &unit_action, const std::string &data)

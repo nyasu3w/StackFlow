@@ -324,7 +324,7 @@ void post_process(AX_ENGINE_IO_INFO_T* io_info, AX_ENGINE_IO_T* io_data, const c
                                                         cls_num);
         }
         detection::get_out_bbox(proposals, objects, nms_threshold, input_h, input_w, mat.rows, mat.cols);
-        detection::draw_objects(mat, objects, CLASS_NAMES, "yolo11_out");
+        // detection::draw_objects(mat, objects, CLASS_NAMES, "yolo11_out");
     } else if (model_type == "segment") {
         float* output_ptr[3]     = {(float*)io_data->pOutputs[0].pVirAddr, (float*)io_data->pOutputs[1].pVirAddr,
                                     (float*)io_data->pOutputs[2].pVirAddr};

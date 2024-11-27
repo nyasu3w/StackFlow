@@ -77,6 +77,7 @@ void zmq_bus_com::on_raw_data(const std::string &data)
     memcpy((void *)new_data.data(), json_str_.c_str(), json_str_.length());
     sprintf((char *)(new_data.data() + json_str_.length() - 1), ",\"data\":\"");
     memcpy((void *)(new_data.data() + json_str_.length() + 8), base64_data.c_str(), base64_data.length());
+    new_data[json_str_.length() + 8 + base64_data.length()] = '"';
     new_data[json_str_.length() + 9 + base64_data.length()] = '}';
     on_data(new_data);
 }

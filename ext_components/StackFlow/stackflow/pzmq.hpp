@@ -348,9 +348,9 @@ public:
         if (!zmq_socket_) {
             return;
         }
+        flage_ = true;
+        zmq_ctx_shutdown(zmq_ctx_);
         if (zmq_thread_) {
-            flage_ = true;
-            zmq_ctx_shutdown(zmq_ctx_);
             zmq_thread_->join();
         }
         close_zmq();
