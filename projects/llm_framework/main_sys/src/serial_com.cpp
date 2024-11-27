@@ -41,7 +41,8 @@ public:
 
     void send_data(const std::string &data)
     {
-        linux_uart_write(uart_fd, data.length(), (void *)data.c_str());
+        if(exit_flage)
+            linux_uart_write(uart_fd, data.length(), (void *)data.c_str());
     }
 
     void reace_data_event()

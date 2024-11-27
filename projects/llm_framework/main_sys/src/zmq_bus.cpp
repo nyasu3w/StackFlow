@@ -131,6 +131,10 @@ unit_data::~unit_data()
 
 int zmq_bus_publisher_push(const std::string &work_id, const std::string &json_str)
 {
+    if (work_id.empty()) {
+        SLOGW("work_id is empty");
+        return -1;
+    }
     unit_data *unit_p = NULL;
     SAFE_READING(unit_p, unit_data *, work_id);
     if (unit_p)
@@ -193,7 +197,7 @@ void zmq_bus_com::select_json_str(const std::string &json_src, std::function<voi
                     if ((data[i] == '{') && (data[last_index] != '\\')) json_str_flage_++;
                     if ((data[i] == '}') && (data[last_index] != '\\')) json_str_flage_--;
                     if (json_str_flage_ == 0) {
-                        if (json_str_[0] == '{') {
+                        if ((json_str_[0] == '{') && (json_str_[json_str_.length() - 1] == '}')) {
                             if ((json_str_.length() > 7) && (json_str_[1] == '\"') && (json_str_[2] == 'R') &&
                                 (json_str_[3] == 'A') && (json_str_[4] == 'W') && (json_str_[5] == '\"') &&
                                 (json_str_[6] == ':')) {

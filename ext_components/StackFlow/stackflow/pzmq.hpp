@@ -183,7 +183,6 @@ public:
             case ZMQ_PUSH: {
                 int reconnect_interval = 100;
                 zmq_setsockopt(zmq_socket_, ZMQ_RECONNECT_IVL, &reconnect_interval, sizeof(reconnect_interval));
-
                 int max_reconnect_interval = 1000;  // 5 seconds
                 zmq_setsockopt(zmq_socket_, ZMQ_RECONNECT_IVL_MAX, &max_reconnect_interval,
                                sizeof(max_reconnect_interval));
@@ -243,9 +242,7 @@ public:
     }
     inline int creat_push(const std::string &url)
     {
-        int timeout = 3000;
-        zmq_setsockopt(zmq_socket_, ZMQ_SNDTIMEO, &timeout, sizeof(timeout));
-        zmq_setsockopt(zmq_socket_, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
+        zmq_setsockopt(zmq_socket_, ZMQ_SNDTIMEO, &timeout_, sizeof(timeout_));
         return zmq_connect(zmq_socket_, url.c_str());
     }
     inline int creat_pull(const std::string &url, const msg_callback_fun &raw_call)
