@@ -33,7 +33,7 @@ TcpServer srv;
 class tcp_com : public zmq_bus_com {
 private:
 public:
-    SocketChannelPtr channel;
+    std::weak_ptr<hv::SocketChannel> channel;
     std::mutex tcp_server_mutex;
     tcp_com() : zmq_bus_com()
     {
@@ -41,28 +41,37 @@ public:
 
     void send_data(const std::string& data)
     {
-        tcp_server_mutex.lock();
-        if (exit_flage) channel->write(data);
-        tcp_server_mutex.unlock();
+        // tcp_server_mutex.lock();
+        // if (exit_flage) 
+        // {
+        //     auto tcp_channel = channel.lock();
+        //     if(tcp_channel)
+        //     {
+        //         tcp_channel->write(data);
+        //     }
+        // }
+        // tcp_server_mutex.unlock();
+        auto tcp_channel = channel.lock();
+        if(tcp_channel)
+        {
+            tcp_channel->write(data);
+        }
     }
 };
 
 void onConnection(const SocketChannelPtr& channel)
 {
-    std::string peeraddr = channel->peeraddr();
-    tcp_com* con_data;
     if (channel->isConnected()) {
-        con_data          = new tcp_com();
-        con_data->channel = channel;
-        con_data->work(zmq_s_format, counter_port.fetch_add(1));
+        auto p_com = channel->newContextPtr<tcp_com>();
+        p_com->channel = channel;
+        p_com->work(zmq_s_format, counter_port.fetch_add(1));
         if (counter_port.load() > 65535) counter_port.store(8000);
-        channel->setContext(con_data);
     } else {
-        con_data = (tcp_com*)channel->context();
-        con_data->tcp_server_mutex.lock();
-        con_data->stop();
-        con_data->tcp_server_mutex.unlock();
-        delete con_data;
+        auto p_com = channel->getContextPtr<tcp_com>();
+        // p_com->tcp_server_mutex.lock();
+        p_com->stop();
+        // p_com->tcp_server_mutex.unlock();
+        channel->deleteContextPtr();
     }
 }
 
@@ -70,11 +79,11 @@ void onMessage(const SocketChannelPtr& channel, Buffer* buf)
 {
     int len           = (int)buf->size();
     char* data        = (char*)buf->data();
-    tcp_com* con_data = (tcp_com*)channel->context();
-    con_data->tcp_server_mutex.lock();
+    auto p_com = channel->getContextPtr<tcp_com>();
+    p_com->tcp_server_mutex.lock();
     try {
-        con_data->select_json_str(std::string(data, len),
-                                  std::bind(&tcp_com::on_data, con_data, std::placeholders::_1));
+        p_com->select_json_str(std::string(data, len),
+                                  std::bind(&tcp_com::on_data, p_com, std::placeholders::_1));
     } catch (...) {
         std::string out_str;
         out_str += "{\"request_id\": \"0\",\"work_id\": \"sys\",\"created\": ";
@@ -82,7 +91,7 @@ void onMessage(const SocketChannelPtr& channel, Buffer* buf)
         out_str += ",\"error\":{\"code\":-1, \"message\":\"reace reset\"}}";
         channel->write(out_str);
     }
-    con_data->tcp_server_mutex.unlock();
+    p_com->tcp_server_mutex.unlock();
 }
 
 void tcp_work()
@@ -97,7 +106,7 @@ void tcp_work()
     printf("server listen on port %d, listenfd=%d ...\n", listenport, listenfd);
     srv.onConnection = onConnection;
     srv.onMessage    = onMessage;
-    srv.setThreadNum(1);
+    srv.setThreadNum(2);
     srv.start();
 }
 void tcp_stop_work()

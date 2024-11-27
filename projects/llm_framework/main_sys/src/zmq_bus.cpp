@@ -10,6 +10,7 @@
 #include <stdbool.h>
 #include <functional>
 #include <cstring>
+#include <StackFlowUtil.h>
 #if defined(__ARM_NEON) || defined(__ARM_NEON__)
 #include <arm_neon.h>
 #endif
@@ -23,6 +24,8 @@ zmq_bus_com::zmq_bus_com()
     exit_flage      = 1;
     err_count       = 0;
     json_str_flage_ = 0;
+    reace_event_    = 0;
+    raw_msg_len_    = 0;
 }
 
 void zmq_bus_com::work(const std::string &zmq_url_format, int port)
@@ -51,6 +54,33 @@ void zmq_bus_com::on_data(const std::string &data)
     unit_action_match(_port, data);
 }
 
+void zmq_bus_com::on_raw_data(const std::string &data)
+{
+    std::string base64_data;
+    int ret     = StackFlows::encode_base64(data, base64_data);
+    ssize_t pos = json_str_.find("\"data\"");
+    if (pos != std::string::npos) {
+        ssize_t end_pos = pos + 6;
+        int status      = 0;
+        for (ssize_t end_pos = pos + 6; end_pos < json_str_.length(); end_pos++) {
+            if ((json_str_[end_pos] == '\"') || (json_str_[end_pos] == ',') || (json_str_[end_pos] == '}')) {
+                status++;
+            }
+            if (status == 3) {
+                break;
+            }
+        }
+        json_str_.erase(pos, end_pos - pos);
+    }
+    std::string new_data;
+    new_data.resize(json_str_.length() + 10 + base64_data.length());
+    memcpy((void *)new_data.data(), json_str_.c_str(), json_str_.length());
+    sprintf((char *)(new_data.data() + json_str_.length() - 1), ",\"data\":\"");
+    memcpy((void *)(new_data.data() + json_str_.length() + 8), base64_data.c_str(), base64_data.length());
+    new_data[json_str_.length() + 9 + base64_data.length()] = '}';
+    on_data(new_data);
+}
+
 void zmq_bus_com::send_data(const std::string &data)
 {
     // printf("zmq_bus_com::send_data : send:%s\n", data.c_str());
@@ -74,6 +104,9 @@ void zmq_bus_com::send_data_event()
 
 zmq_bus_com::~zmq_bus_com()
 {
+    if (exit_flage) {
+        stop();
+    }
 }
 
 unit_data::unit_data()
@@ -129,40 +162,79 @@ void zmq_bus_stop_work()
 
 void zmq_bus_com::select_json_str(const std::string &json_src, std::function<void(const std::string &)> out_fun)
 {
-    json_str_.reserve(json_str_.length() + json_src.length());
-    const char *data = json_src.c_str();
-    for (int i = 0; i < json_src.length(); i++) {
+    bool enloop = false;
+    std::shared_ptr<std::string> src_str((std::string *)&json_src, [](std::string *pt) {});
+    do {
+        enloop = false;
+        switch (reace_event_) {
+            case 0: {
+                json_str_.reserve(json_str_.length() + src_str->length());
+                const char *data = src_str->c_str();
+                for (int i = 0; i < src_str->length(); i++) {
 #if defined(__ARM_NEON) || defined(__ARM_NEON__)
-        if (json_src.length() - i >= 16) {
-            uint8x16_t target_open  = vdupq_n_u8('{');
-            uint8x16_t target_close = vdupq_n_u8('}');
-            uint8x16_t input_vector = vld1q_u8((const uint8_t *)&data[i]);
-            uint8x16_t result_open  = vceqq_u8(input_vector, target_open);
-            uint8x16_t result_close = vceqq_u8(input_vector, target_close);
-            uint8x16_t result_mask  = vorrq_u8(result_open, result_close);
-            __uint128_t jflage;
-            vst1q_u8((uint8_t *)&jflage, result_mask);
-            if (jflage == 0) {
-                json_str_.append(data + i, 16);
-                i += 15;
-                continue;
-            }
-        }
+                    if (src_str->length() - i >= 16) {
+                        uint8x16_t target_open  = vdupq_n_u8('{');
+                        uint8x16_t target_close = vdupq_n_u8('}');
+                        uint8x16_t input_vector = vld1q_u8((const uint8_t *)&data[i]);
+                        uint8x16_t result_open  = vceqq_u8(input_vector, target_open);
+                        uint8x16_t result_close = vceqq_u8(input_vector, target_close);
+                        uint8x16_t result_mask  = vorrq_u8(result_open, result_close);
+                        __uint128_t jflage;
+                        vst1q_u8((uint8_t *)&jflage, result_mask);
+                        if (jflage == 0) {
+                            json_str_.append(data + i, 16);
+                            i += 15;
+                            continue;
+                        }
+                    }
 #endif
-        json_str_ += json_src[i];
-        int last_index = (i == 0) ? 0 : (i - 1);
-        if ((data[i] == '{') && (data[last_index] != '\\')) json_str_flage_++;
-        if ((data[i] == '}') && (data[last_index] != '\\')) json_str_flage_--;
-        if (json_str_flage_ == 0) {
-            if (json_str_[0] == '{') {
-                out_fun(json_str_);
-            }
-            json_str_.clear();
+                    json_str_ += data[i];
+                    int last_index = (i == 0) ? 0 : (i - 1);
+                    if ((data[i] == '{') && (data[last_index] != '\\')) json_str_flage_++;
+                    if ((data[i] == '}') && (data[last_index] != '\\')) json_str_flage_--;
+                    if (json_str_flage_ == 0) {
+                        if (json_str_[0] == '{') {
+                            if ((json_str_.length() > 7) && (json_str_[1] == '\"') && (json_str_[2] == 'R') &&
+                                (json_str_[3] == 'A') && (json_str_[4] == 'W') && (json_str_[5] == '\"') &&
+                                (json_str_[6] == ':')) {
+                                reace_event_ = 10;
+                                raw_msg_len_ = std::stoi(StackFlows::sample_json_str_get(json_str_, "RAW"));
+                                raw_msg_buff_.reserve(raw_msg_len_);
+                                if (json_src.length() > i) {
+                                    src_str = std::make_shared<std::string>(src_str->substr(i + 1));
+                                    enloop  = true;
+                                }
+                                break;
+                            }
+                            out_fun(json_str_);
+                        }
+                        json_str_.clear();
+                    }
+                    if (json_str_flage_ < 0) {
+                        json_str_flage_ = 0;
+                        json_str_.clear();
+                        throw std::runtime_error("json package error");
+                    }
+                }
+            } break;
+            case 10: {
+                if (raw_msg_len_ > src_str->length()) {
+                    raw_msg_buff_.append(src_str->c_str(), src_str->length());
+                    raw_msg_len_ -= src_str->length();
+                } else {
+                    reace_event_ = 0;
+                    raw_msg_buff_.append(src_str->c_str(), raw_msg_len_);
+                    on_raw_data(raw_msg_buff_);
+                    raw_msg_buff_.clear();
+                    json_str_.clear();
+                    if (src_str->length() > raw_msg_len_) {
+                        src_str = std::make_shared<std::string>(src_str->substr(raw_msg_len_ + 1));
+                        enloop  = true;
+                    }
+                }
+            } break;
+            default:
+                break;
         }
-        if (json_str_flage_ < 0) {
-            json_str_flage_ = 0;
-            json_str_.clear();
-            throw std::runtime_error("json package error");
-        }
-    }
+    } while (enloop);
 }

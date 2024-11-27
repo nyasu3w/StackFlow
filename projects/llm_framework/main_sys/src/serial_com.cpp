@@ -46,19 +46,18 @@ public:
 
     void reace_data_event()
     {
-        std::string json_str;
-        int flage = 0;
         fd_set readfds;
+        std::vector<char> buff(1024);
         while (exit_flage) {
-            char reace_buf[128] = {0};
             FD_ZERO(&readfds);
             FD_SET(uart_fd, &readfds);
             struct timeval timeout = {0, 500000};
             if ((select(uart_fd + 1, &readfds, NULL, NULL, &timeout) <= 0) || (!FD_ISSET(uart_fd, &readfds))) continue;
-            int len = linux_uart_read(uart_fd, 128, reace_buf);
+            ssize_t len = linux_uart_read(uart_fd, buff.size(), buff.data());
+            if(len <= 0) continue;
             {
                 try {
-                    select_json_str(std::string(reace_buf, len),
+                    select_json_str(std::string(buff.data(), buff.size()),
                                     std::bind(&serial_com::on_data, this, std::placeholders::_1));
                 } catch (...) {
                     std::string out_str;
@@ -73,8 +72,6 @@ public:
 
     void stop()
     {
-        exit_flage = false;
-        reace_data_event_thread->join();
         zmq_bus_com::stop();
         linux_uart_deinit(uart_fd);
     }
