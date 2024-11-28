@@ -163,7 +163,7 @@ public:
                 const detection::Object &obj = objects[i];
                 nlohmann::json output;
                 output["class"]      = mode_config_.cls_name[obj.label];
-                output["confidence"] = format_float(obj.prob * 100, 2);
+                output["confidence"] = format_float(obj.prob, 2);
                 output["bbox"]       = nlohmann::json::array();
                 output["bbox"].push_back(format_float(obj.rect.x, 0));
                 output["bbox"].push_back(format_float(obj.rect.y, 0));
