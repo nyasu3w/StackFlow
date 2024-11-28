@@ -1,20 +1,20 @@
 {
-    "mode":"yolo11s",
+    "mode":"yolo11s-seg",
     "type":"cv",
     "capabilities":[
-        "segment"
+        "Segmentation"
     ],
     "input_type":[
-        "cv.jpeg.base64"
+        "yolo.jpeg.base64"
     ],
     "output_type":[
-        "cv.yolobox"
+        "yolo.yolobox"
     ],
     "mode_param":{
-        "yolo_model":"yolo11s-seg.axmodel",
+        "yolo_model":"yolo11n-seg.axmodel",
         "model_type":"segment",
-        "img_h":640,
-        "img_w":640,
+        "img_h":320,
+        "img_w":320,
         "cls_num":80,
         "pron_threshold":0.45,
         "nms_threshold":0.45,

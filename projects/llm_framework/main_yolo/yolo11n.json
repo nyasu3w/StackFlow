@@ -1,8 +1,8 @@
 {
-    "mode":"yolo11s",
+    "mode":"yolo11n",
     "type":"cv",
     "capabilities":[
-        "object detect"
+        "Detection"
     ],
     "input_type":[
         "yolo.jpeg.base64"
@@ -11,10 +11,10 @@
         "yolo.yolobox"
     ],
     "mode_param":{
-        "yolo_model":"yolo11s.axmodel",
+        "yolo_model":"yolo11n.axmodel",
         "model_type":"detect",
-        "img_h":640,
-        "img_w":640,
+        "img_h":320,
+        "img_w":320,
         "cls_num":80,
         "pron_threshold":0.45,
         "nms_threshold":0.45,
