@@ -507,7 +507,7 @@ public:
             req_body["model"]           = llm_task_obj->model_;
             req_body["response_format"] = llm_task_obj->response_format_;
             req_body["enoutput"]        = llm_task_obj->enoutput_;
-            req_body["inputs_"]         = llm_task_obj->inputs_;
+            req_body["inputs"]         = llm_task_obj->inputs_;
             send("llm.taskinfo", req_body, LLM_NO_ERROR, work_id);
         }
     }

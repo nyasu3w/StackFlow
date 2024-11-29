@@ -56,6 +56,8 @@ public:
     bool enstream_;
     static int ax_init_flage_;
     task_callback_t out_callback_;
+    std::atomic_bool camera_flage_;
+    std::mutex inference_mtx_;
 
     bool parse_config(const nlohmann::json &config_body)
     {
@@ -140,16 +142,39 @@ public:
         out_callback_ = out_callback;
     }
 
-    bool inference(const std::string &msg)
+    bool inference_decode(const std::string &msg)
+    {
+        if (inference_mtx_.try_lock())
+            std::lock_guard<std::mutex> guard(inference_mtx_, std::adopt_lock);
+        else
+            return true;
+        cv::Mat src = cv::imdecode(std::vector<uint8_t>(msg.begin(), msg.end()), cv::IMREAD_COLOR);
+        if (src.empty()) return true;
+        return inference(src);
+    }
+
+    bool inference_raw_yuv(const std::string &msg)
+    {
+        if (inference_mtx_.try_lock())
+            std::lock_guard<std::mutex> guard(inference_mtx_, std::adopt_lock);
+        else
+            return true;
+        if (msg.size() != mode_config_.img_w * mode_config_.img_h * 2) {
+            throw std::string("img size error");
+        }
+        cv::Mat camera_data(mode_config_.img_h, mode_config_.img_w, CV_8UC2, (void *)msg.data());        
+        cv::Mat bgr;
+        cv::cvtColor(camera_data, bgr, cv::COLOR_YUV2BGR_YUYV);
+        return inference(bgr);
+    }
+
+    bool inference(cv::Mat &src)
     {
         try {
-            cv::Mat src = cv::imdecode(std::vector<uint8_t>(msg.begin(), msg.end()), cv::IMREAD_COLOR);
-            if (src.empty()) return true;
-
+            int ret = -1;
             std::vector<uint8_t> image(mode_config_.img_w * mode_config_.img_h * 3, 0);
             common::get_input_data_letterbox(src, image, mode_config_.img_w, mode_config_.img_h, true);
-            int ret = -1;
-            yolo_->SetInput(image.data(), 0);
+            yolo_->SetInput((void *)image.data(), 0);
             if (0 != yolo_->RunSync()) {
                 SLOGE("Run yolo model failed!\n");
                 throw std::string("yolo_ RunSync error");
@@ -328,10 +353,28 @@ public:
             return;
         }
         next_data = &tmp_msg2;
-        if (llm_task_obj->inference(*next_data)) {
+
+        if (llm_task_obj->inference_decode(*next_data)) {
             error_body["code"]    = -11;
             error_body["message"] = "Model run failed.";
             send("None", "None", error_body, unit_name_);
+        }
+    }
+
+    void task_camera_data(const std::weak_ptr<llm_task> llm_task_obj_weak,
+                          const std::weak_ptr<llm_channel_obj> llm_channel_weak, const std::string &data)
+    {
+        nlohmann::json error_body;
+        auto llm_task_obj = llm_task_obj_weak.lock();
+        auto llm_channel  = llm_channel_weak.lock();
+        if (!(llm_task_obj && llm_channel)) {
+            SLOGE("Model run failed.");
+            return;
+        }
+        try {
+            llm_task_obj->inference_raw_yuv(data);
+        } catch (...) {
+            SLOGE("data format error");
         }
     }
 
@@ -373,8 +416,17 @@ public:
                         "", std::bind(&llm_yolo::task_user_data, this, std::weak_ptr<llm_task>(llm_task_obj),
                                       std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1,
                                       std::placeholders::_2));
-                } else if (input.find("sys") != std::string::npos) {
-                    // TODO:...
+                } else {
+                    std::string input_url_name = input + ".out_port";
+                    std::string input_url      = unit_call("sys", "sql_select", input_url_name);
+                    if (!input_url.empty()) {
+                        std::weak_ptr<llm_task> _llm_task_obj = llm_task_obj;
+                        std::weak_ptr<llm_channel_obj> _llm_channel  = llm_channel;
+                        llm_channel->subscriber(
+                            input_url, [this, _llm_task_obj, _llm_channel](pzmq *_pzmq, const std::string &raw) {
+                                this->task_camera_data(_llm_task_obj, _llm_channel, raw);
+                            });
+                    }
                 }
                 llm_task_[work_id_num] = llm_task_obj;
                 SLOGI("load_mode success");
@@ -411,8 +463,18 @@ public:
                 std::bind(&llm_yolo::task_user_data, this, std::weak_ptr<llm_task>(llm_task_obj),
                           std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1, std::placeholders::_2));
             llm_task_obj->inputs_.push_back(data);
-        } else if (data.find("sys") != std::string::npos) {
-            // TODO:...
+        } else if (data.find("camera") != std::string::npos){
+            std::string input_url_name = data + ".out_port";
+            std::string input_url      = unit_call("sys", "sql_select", input_url_name);
+            if (!input_url.empty()) {
+                std::weak_ptr<llm_task> _llm_task_obj = llm_task_obj;
+                std::weak_ptr<llm_channel_obj> _llm_channel  = llm_channel;
+                llm_channel->subscriber(
+                    input_url, [this, _llm_task_obj, _llm_channel](pzmq *_pzmq, const std::string &raw) {
+                        this->task_camera_data(_llm_task_obj, _llm_channel, raw);
+                    });
+            }
+            llm_task_obj->inputs_.push_back(data);
         }
         if (ret) {
             error_body["code"]    = -20;
@@ -471,7 +533,7 @@ public:
             req_body["model"]           = llm_task_obj->model_;
             req_body["response_format"] = llm_task_obj->response_format_;
             req_body["enoutput"]        = llm_task_obj->enoutput_;
-            req_body["inputs_"]         = llm_task_obj->inputs_;
+            req_body["inputs"]         = llm_task_obj->inputs_;
             send("yolo.taskinfo", req_body, LLM_NO_ERROR, work_id);
         }
     }

@@ -11,22 +11,54 @@
 #include <fstream>
 #include <stdexcept>
 #include <iostream>
+#include "../../../../SDK/components/utilities/include/sample_log.h"
+#include "camera.h"
+#include <glob.h>
+#include <opencv2/opencv.hpp>
+
 using namespace StackFlows;
 int main_exit_flage = 0;
 static void __sigint(int iSigNo)
 {
     main_exit_flage = 1;
 }
-typedef std::function<void(const std::string &data, bool finish)> task_callback_t;
+
+typedef std::function<void(const void *, int)> task_callback_t;
+
+#define CONFIG_AUTO_SET(obj, key)             \
+    if (config_body.contains(#key))           \
+        mode_config_.key = config_body[#key]; \
+    else if (obj.contains(#key))              \
+        mode_config_.key = obj[#key];
+
 class llm_task {
 private:
+    Camera_t *cam;
+
 public:
-    std::string model_;
     std::string response_format_;
     std::vector<std::string> inputs_;
     task_callback_t out_callback_;
     bool enoutput_;
     bool enstream_;
+    std::atomic_int cap_status_;
+    std::unique_ptr<std::thread> camera_cap_thread_;
+    std::atomic_bool camera_clear_flage_;
+
+    std::string devname_;
+    int frame_width_;
+    int frame_height_;
+
+    static void on_cap_fream(uint8_t *pData, uint32_t width, uint32_t height, uint32_t Length, void *ctx)
+    {
+        llm_task *self = static_cast<llm_task *>(ctx);
+        cv::Mat yuv240(height, width, CV_8UC2, pData);
+        cv::Mat yuv320(self->frame_height_, self->frame_width_, CV_8UC2);
+        int offsetX = (self->frame_width_ == width) ? 0 : (self->frame_width_ - width) / 2;
+        int offsetY = (self->frame_height_ == height) ? 0 : (self->frame_height_ - height) / 2;
+        yuv240.copyTo(yuv320(cv::Rect(offsetX, offsetY, width, height)));
+        if (self->out_callback_) self->out_callback_(yuv320.data, self->frame_height_ * self->frame_width_ * 2);
+    }
 
     void set_output(task_callback_t out_callback)
     {
@@ -36,9 +68,12 @@ public:
     bool parse_config(const nlohmann::json &config_body)
     {
         try {
-            model_           = config_body.at("model");
             response_format_ = config_body.at("response_format");
             enoutput_        = config_body.at("enoutput");
+            devname_         = config_body.at("devname");
+            frame_width_     = config_body.at("frame_width");
+            frame_height_    = config_body.at("frame_height");
+
             if (config_body.contains("input")) {
                 if (config_body["input"].is_string()) {
                     inputs_.push_back(config_body["input"].get<std::string>());
@@ -60,120 +95,99 @@ public:
         if (parse_config(config_body)) {
             return -1;
         }
+        try {
+            printf("CameraOpen %d  %d \n", frame_width_, frame_height_);
+            cam = CameraOpen(devname_.c_str(), frame_width_, frame_height_, 30);
+            if (cam == NULL) {
+                printf("Camera open failed \n");
+                return -1;
+            }
+            cam->ctx_ = static_cast<void *>(this);
+            cam->CameraCaptureCallbackSet(cam, on_cap_fream);
+            cam->CameraCaptureStart(cam);
+        } catch (...) {
+            SLOGE("config file read false");
+            return -3;
+        }
         return 0;
     }
 
     void inference(const std::string &msg)
     {
-        std::cout << msg << std::endl;
-        if (out_callback_) out_callback_(std::string("hello"), true);
+        // std::cout << msg << std::endl;
+        if (out_callback_) out_callback_("None", 4);
     }
 
     llm_task(const std::string &workid)
     {
+        cam = NULL;
     }
 
     ~llm_task()
     {
+        if (cam) {
+            cam->CameraCaptureStop(cam);
+            CameraClose(cam);
+            cam = NULL;
+        }
     }
 };
 
-class llm_llm : public StackFlow {
+class llm_camera : public StackFlow {
 private:
-    int task_count_;
     std::unordered_map<int, std::shared_ptr<llm_task>> llm_task_;
 
 public:
-    llm_llm() : StackFlow("test")
+    llm_camera() : StackFlow("camera")
     {
-        task_count_ = 1;
+        rpc_ctx_->register_rpc_action(
+            "list_camera", std::bind(&llm_camera::list_camera, this, std::placeholders::_1, std::placeholders::_2));
+    }
+
+    std::string list_camera(pzmq *_pzmq, const std::string &rawdata)
+    {
+        nlohmann::json req_body;
+        std::string zmq_url    = RPC_PARSE_TO_FIRST(rawdata);
+        std::string param_json = RPC_PARSE_TO_SECOND(rawdata);
+        std::vector<std::string> devices;
+        glob_t glob_result;
+        glob("/dev/video*", GLOB_TILDE, NULL, &glob_result);
+        for (size_t i = 0; i < glob_result.gl_pathc; ++i) {
+            devices.push_back(std::string(glob_result.gl_pathv[i]));
+        }
+        globfree(&glob_result);
+        send("camera.devices", devices, LLM_NO_ERROR, sample_json_str_get(param_json, "work_id"), zmq_url);
+        return LLM_NONE;
     }
 
     void task_output(const std::weak_ptr<llm_task> llm_task_obj_weak,
-                     const std::weak_ptr<llm_channel_obj> llm_channel_weak, const std::string &data, bool finish)
+                     const std::weak_ptr<llm_channel_obj> llm_channel_weak, const void *data, int size)
     {
         auto llm_task_obj = llm_task_obj_weak.lock();
         auto llm_channel  = llm_channel_weak.lock();
         if (!(llm_task_obj && llm_channel)) {
             return;
         }
-        if (llm_channel->enstream_) {
-            static int count = 0;
-            nlohmann::json data_body;
-            data_body["index"] = count++;
-            data_body["delta"] = data;
-            if (!finish)
-                data_body["delta"] = data;
-            else
-                data_body["delta"] = std::string("");
-            data_body["finish"] = finish;
-            if (finish) count = 0;
-            llm_channel->send(llm_task_obj->response_format_, data_body, LLM_NO_ERROR);
-        } else if (finish) {
-            llm_channel->send(llm_task_obj->response_format_, data, LLM_NO_ERROR);
+        std::string out_data((char *)data, size);
+        llm_channel->send_raw_to_pub(out_data);
+        if (llm_task_obj->enoutput_) {
+            std::string base64_data;
+            int ret = StackFlows::encode_base64(out_data, base64_data);
+            std::string out_json_str;
+            out_json_str += R"({"request_id":")";
+            out_json_str += llm_channel->request_id_;
+            out_json_str += R"(","work_id":")";
+            out_json_str += llm_channel->work_id_;
+            out_json_str += R"(","object":"image.raw.base64","error":{"code":0, "message":""},"data":")";
+            out_json_str += base64_data;
+            out_json_str += R"("})";
+            llm_channel->send_raw_to_usr(out_json_str);
         }
-    }
-
-    void task_user_data(const std::weak_ptr<llm_task> llm_task_obj_weak,
-                        const std::weak_ptr<llm_channel_obj> llm_channel_weak, const std::string &object,
-                        const std::string &data)
-    {
-        nlohmann::json error_body;
-        auto llm_task_obj = llm_task_obj_weak.lock();
-        auto llm_channel  = llm_channel_weak.lock();
-        if (!(llm_task_obj && llm_channel)) {
-            error_body["code"]    = -11;
-            error_body["message"] = "Model run failed.";
-            send("None", "None", error_body, unit_name_);
-            return;
-        }
-        if (data.empty() || (data == "None")) {
-            error_body["code"]    = -24;
-            error_body["message"] = "The inference data is empty.";
-            send("None", "None", error_body, unit_name_);
-            return;
-        }
-        const std::string *next_data = &data;
-        int ret;
-        std::string tmp_msg1;
-        if (object.find("stream") != std::string::npos) {
-            static std::unordered_map<int, std::string> stream_buff;
-            try {
-                if (decode_stream(data, tmp_msg1, stream_buff)) {
-                    return;
-                };
-            } catch (...) {
-                stream_buff.clear();
-                error_body["code"]    = -25;
-                error_body["message"] = "Stream data index error.";
-                send("None", "None", error_body, unit_name_);
-                return;
-            }
-            next_data = &tmp_msg1;
-        }
-        std::string tmp_msg2;
-        if (object.find("base64") != std::string::npos) {
-            ret = decode_base64((*next_data), tmp_msg2);
-            if (ret == -1) {
-                error_body["code"]    = -23;
-                error_body["message"] = "Base64 decoding error.";
-                send("None", "None", error_body, unit_name_);
-                return;
-            }
-            next_data = &tmp_msg2;
-        }
-        llm_task_obj->inference((*next_data));
     }
 
     int setup(const std::string &work_id, const std::string &object, const std::string &data) override
     {
         nlohmann::json error_body;
-        if ((llm_task_channel_.size() - 1) == task_count_) {
-            error_body["code"]    = -21;
-            error_body["message"] = "task full";
-            send("None", "None", error_body, unit_name_);
-            return -1;
-        }
         int work_id_num   = sample_get_work_id_num(work_id);
         auto llm_channel  = get_channel(work_id);
         auto llm_task_obj = std::make_shared<llm_task>(work_id);
@@ -190,13 +204,9 @@ public:
         if (ret == 0) {
             llm_channel->set_output(llm_task_obj->enoutput_);
             llm_channel->set_stream(llm_task_obj->enstream_);
-            llm_task_obj->set_output(std::bind(&llm_llm::task_output, this, std::weak_ptr<llm_task>(llm_task_obj),
+            llm_task_obj->set_output(std::bind(&llm_camera::task_output, this, std::weak_ptr<llm_task>(llm_task_obj),
                                                std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1,
                                                std::placeholders::_2));
-            llm_channel->subscriber_work_id(
-                "",
-                std::bind(&llm_llm::task_user_data, this, std::weak_ptr<llm_task>(llm_task_obj),
-                          std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1, std::placeholders::_2));
             llm_task_[work_id_num] = llm_task_obj;
             send("None", "None", LLM_NO_ERROR, work_id);
             return 0;
@@ -217,7 +227,7 @@ public:
             std::transform(llm_task_channel_.begin(), llm_task_channel_.end(), std::back_inserter(task_list),
                            [](const auto task_channel) { return task_channel.second->work_id_; });
             req_body = task_list;
-            send("llm.tasklist", req_body, LLM_NO_ERROR, work_id);
+            send("camera.tasklist", req_body, LLM_NO_ERROR, work_id);
         } else {
             if (llm_task_.find(work_id_num) == llm_task_.end()) {
                 req_body["code"]    = -6;
@@ -226,11 +236,10 @@ public:
                 return;
             }
             auto llm_task_obj           = llm_task_[work_id_num];
-            req_body["model"]           = llm_task_obj->model_;
             req_body["response_format"] = llm_task_obj->response_format_;
             req_body["enoutput"]        = llm_task_obj->enoutput_;
-            req_body["inputs"]         = llm_task_obj->inputs_;
-            send("llm.taskinfo", req_body, LLM_NO_ERROR, work_id);
+            req_body["inputs"]          = llm_task_obj->inputs_;
+            send("camera.taskinfo", req_body, LLM_NO_ERROR, work_id);
         }
     }
 
@@ -251,7 +260,7 @@ public:
         return 0;
     }
 
-    ~llm_llm()
+    ~llm_camera()
     {
         while (1) {
             auto iteam = llm_task_.begin();
@@ -270,7 +279,7 @@ int main(int argc, char *argv[])
     signal(SIGTERM, __sigint);
     signal(SIGINT, __sigint);
     mkdir("/tmp/llm", 0777);
-    llm_llm llm;
+    llm_camera llm;
     while (!main_exit_flage) {
         sleep(1);
     }

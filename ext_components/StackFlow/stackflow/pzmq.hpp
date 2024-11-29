@@ -59,6 +59,9 @@ public:
     pzmq(const std::string &url, int mode, const msg_callback_fun &raw_call = nullptr)
         : zmq_ctx_(NULL), zmq_socket_(NULL), mode_(mode), flage_(true), timeout_(3000)
     {
+        if ((url[0] != 'i') && (url[1] != 'p')) {
+            rpc_url_head_.clear();
+        }
         if (mode_ != ZMQ_RPC_FUN) creat(url, raw_call);
     }
     void set_timeout(int ms)

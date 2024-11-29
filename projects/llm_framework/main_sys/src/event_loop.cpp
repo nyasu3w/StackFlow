@@ -530,6 +530,8 @@ void unit_action_match(int com_id, const std::string &json_str)
         usr_print_error("0", "sys", "{\"code\":-2, \"message\":\"json format error\"}", com_id);
         return;
     }
+    if(work_id.empty())
+        work_id = "sys";
     std::string action;
     error = doc["action"].get_string(action);
     if (error) {

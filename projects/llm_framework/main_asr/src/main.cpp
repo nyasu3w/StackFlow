@@ -179,7 +179,7 @@ public:
         out_callback_ = out_callback;
     }
 
-    void sys_pcm_on_data(pzmq *_pzmq, const std::string &raw)
+    void sys_pcm_on_data(const std::string &raw)
     {
         static int count = 0;
         if (count < delay_audio_frame_) {
@@ -403,7 +403,7 @@ public:
             }
             next_data = &tmp_msg4;
         }
-        llm_task_obj->sys_pcm_on_data(nullptr, (*next_data));
+        llm_task_obj->sys_pcm_on_data((*next_data));
     }
 
     void _task_pause(const std::string &work_id, const std::string &data)
@@ -435,8 +435,10 @@ public:
         }
         llm_task_obj->kws_awake();
         if ((!audio_url_.empty()) && (llm_task_obj->audio_flage_ == false)) {
-            llm_channel->subscriber(audio_url_, std::bind(&llm_task::sys_pcm_on_data, llm_task_obj.get(),
-                                                          std::placeholders::_1, std::placeholders::_2));
+            std::weak_ptr<llm_task> _llm_task_obj = llm_task_obj;
+            llm_channel->subscriber(audio_url_, [_llm_task_obj](pzmq *_pzmq, const std::string &raw) {
+                _llm_task_obj.lock()->sys_pcm_on_data(raw);
+            });
             llm_task_obj->audio_flage_ = true;
         }
     }
@@ -521,9 +523,11 @@ public:
 
             for (const auto input : llm_task_obj->inputs_) {
                 if (input.find("sys") != std::string::npos) {
-                    audio_url_ = unit_call("audio", "cap", input);
-                    llm_channel->subscriber(audio_url_, std::bind(&llm_task::sys_pcm_on_data, llm_task_obj.get(),
-                                                                  std::placeholders::_1, std::placeholders::_2));
+                    audio_url_                            = unit_call("audio", "cap", input);
+                    std::weak_ptr<llm_task> _llm_task_obj = llm_task_obj;
+                    llm_channel->subscriber(audio_url_, [_llm_task_obj](pzmq *_pzmq, const std::string &raw) {
+                        _llm_task_obj.lock()->sys_pcm_on_data(raw);
+                    });
                     llm_task_obj->audio_flage_ = true;
                 } else if (input.find("asr") != std::string::npos) {
                     llm_channel->subscriber_work_id(
@@ -568,8 +572,10 @@ public:
         auto llm_task_obj = llm_task_[work_id_num];
         if (data.find("sys") != std::string::npos) {
             if (audio_url_.empty()) audio_url_ = unit_call("audio", "cap", data);
-            llm_channel->subscriber(audio_url_, std::bind(&llm_task::sys_pcm_on_data, llm_task_obj.get(),
-                                                          std::placeholders::_1, std::placeholders::_2));
+            std::weak_ptr<llm_task> _llm_task_obj = llm_task_obj;
+            llm_channel->subscriber(audio_url_, [_llm_task_obj](pzmq *_pzmq, const std::string &raw) {
+                _llm_task_obj.lock()->sys_pcm_on_data(raw);
+            });
             llm_task_obj->audio_flage_ = true;
             llm_task_obj->inputs_.push_back(data);
         } else if (data.find("kws") != std::string::npos) {
@@ -638,7 +644,7 @@ public:
             req_body["model"]           = llm_task_obj->model_;
             req_body["response_format"] = llm_task_obj->response_format_;
             req_body["enoutput"]        = llm_task_obj->enoutput_;
-            req_body["inputs_"]         = llm_task_obj->inputs_;
+            req_body["inputs"]         = llm_task_obj->inputs_;
             send("asr.taskinfo", req_body, LLM_NO_ERROR, work_id);
         }
     }
