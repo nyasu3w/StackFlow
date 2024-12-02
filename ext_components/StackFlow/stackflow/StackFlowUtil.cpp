@@ -264,3 +264,18 @@ std::string StackFlows::unit_call(const std::string &unit_name, const std::strin
     _call.call_rpc_action(unit_action, data, [&value](pzmq *_pzmq, const std::string &raw) { value = raw; });
     return value;
 }
+
+std::list<std::string> StackFlows::get_config_file_paths(const std::string &base_model_path,
+                                                         const std::string &mode_name)
+{
+    std::shared_ptr<std::string> base_path((std::string *)(&base_model_path), [](std::string *Npt) {});
+    if (base_path->empty()) base_path = std::make_shared<std::string>("/opt/m5stack/data/");
+    std::list<std::string> config_file_paths;
+    config_file_paths.push_back(std::string("./") + mode_name + ".json");
+    config_file_paths.push_back(std::string("./asr_mode_") + mode_name + ".json");
+    config_file_paths.push_back((*base_path) + "../share/" + mode_name + ".json");
+    config_file_paths.push_back((*base_path) + "../share/asr_mode_" + mode_name + ".json");
+    config_file_paths.push_back((*base_path) + mode_name + ".json");
+    config_file_paths.push_back((*base_path) + "asr_mode_" + mode_name + ".json");
+    return config_file_paths;
+}

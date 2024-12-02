@@ -92,9 +92,7 @@ public:
             return -1;
         }
         nlohmann::json file_body;
-        std::list<std::string> config_file_paths;
-        config_file_paths.push_back(std::string("./") + model_ + ".json");
-        config_file_paths.push_back(base_model_path_ + "../share/" + model_ + ".json");
+        std::list<std::string> config_file_paths = get_config_file_paths(base_model_path_, model_);
         try {
             for (auto file_name : config_file_paths) {
                 std::ifstream config_file(file_name);
@@ -644,7 +642,7 @@ public:
             req_body["model"]           = llm_task_obj->model_;
             req_body["response_format"] = llm_task_obj->response_format_;
             req_body["enoutput"]        = llm_task_obj->enoutput_;
-            req_body["inputs"]         = llm_task_obj->inputs_;
+            req_body["inputs"]          = llm_task_obj->inputs_;
             send("asr.taskinfo", req_body, LLM_NO_ERROR, work_id);
         }
     }

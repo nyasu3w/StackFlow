@@ -139,9 +139,7 @@ public:
         nlohmann::json config_body;
         nlohmann::json file_body;
         nlohmann::json error_body;
-        std::list<std::string> config_file_paths;
-        config_file_paths.push_back("./audio.json");
-        config_file_paths.push_back("/opt/m5stack/share/audio.json");
+        std::list<std::string> config_file_paths = get_config_file_paths("/opt/m5stack/data", "audio");
         try {
             config_body = nlohmann::json::parse(data);
             for (auto file_name : config_file_paths) {

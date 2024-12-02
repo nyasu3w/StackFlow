@@ -85,9 +85,7 @@ public:
             return -1;
         }
         nlohmann::json file_body;
-        std::list<std::string> config_file_paths;
-        config_file_paths.push_back(std::string("./") + model_ + ".json");
-        config_file_paths.push_back(base_model_path_ + "../share/" + model_ + ".json");
+        std::list<std::string> config_file_paths = get_config_file_paths(base_model_path_, model_);
         try {
             for (auto file_name : config_file_paths) {
                 std::ifstream config_file(file_name);

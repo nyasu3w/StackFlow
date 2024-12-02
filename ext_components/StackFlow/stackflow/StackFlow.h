@@ -133,6 +133,7 @@ public:
         } else
             out_body["error"] = error_msg;
         std::string out = out_body.dump();
+        out += "\n";
         if (outuart)
             return output_to_uart(out);
         else
@@ -155,6 +156,7 @@ public:
             out_body["error"] = error_msg;
 
         std::string out = out_body.dump();
+        out += "\n";
         send_raw_to_pub(out);
         if (enoutput_) return send_raw_to_usr(out);
         return 0;
@@ -176,6 +178,7 @@ public:
             out_body["error"] = error_msg;
 
         std::string out = out_body.dump();
+        out += "\n";
         send_raw_to_pub(out);
         if (enoutput_) return send_raw_to_usr(out);
         return 0;
@@ -342,10 +345,14 @@ public:
             out_body["error"] = error_msg;
         if (zmq_url.empty()) {
             pzmq _zmq(out_zmq_url_, ZMQ_PUSH);
-            return _zmq.send_data(out_body.dump());
+            std::string out = out_body.dump();
+            out += "\n";
+            return _zmq.send_data(out);
         } else {
             pzmq _zmq(zmq_url, ZMQ_PUSH);
-            return _zmq.send_data(out_body.dump());
+            std::string out = out_body.dump();
+            out += "\n";
+            return _zmq.send_data(out);
         }
     }
 

@@ -154,7 +154,8 @@ void zmq_com_send(int com_id, const std::string &out_str)
     char zmq_push_url[128];
     sprintf(zmq_push_url, zmq_c_format.c_str(), com_id);
     pzmq _zmq(zmq_push_url, ZMQ_PUSH);
-    _zmq.send_data(out_str);
+    std::string out = out_str + "\n";
+    _zmq.send_data(out);
 }
 
 void zmq_bus_work()

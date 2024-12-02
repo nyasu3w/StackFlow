@@ -33,7 +33,7 @@ typedef std::function<void(const void *, int)> task_callback_t;
 
 class llm_task {
 private:
-    Camera_t *cam;
+    camera_t *cam;
 
 public:
     std::string response_format_;
@@ -48,16 +48,41 @@ public:
     std::string devname_;
     int frame_width_;
     int frame_height_;
+    cv::Mat yuv_dist_;
 
     static void on_cap_fream(uint8_t *pData, uint32_t width, uint32_t height, uint32_t Length, void *ctx)
     {
         llm_task *self = static_cast<llm_task *>(ctx);
-        cv::Mat yuv240(height, width, CV_8UC2, pData);
-        cv::Mat yuv320(self->frame_height_, self->frame_width_, CV_8UC2);
-        int offsetX = (self->frame_width_ == width) ? 0 : (self->frame_width_ - width) / 2;
-        int offsetY = (self->frame_height_ == height) ? 0 : (self->frame_height_ - height) / 2;
-        yuv240.copyTo(yuv320(cv::Rect(offsetX, offsetY, width, height)));
-        if (self->out_callback_) self->out_callback_(yuv320.data, self->frame_height_ * self->frame_width_ * 2);
+        if ((self->frame_height_ == height) && (self->frame_width_ == width)) {
+            if (self->out_callback_) self->out_callback_(pData, Length);
+        } else {
+            cv::Mat yuv_src(height, width, CV_8UC2, pData);
+            if ((self->frame_height_ >= height) && (self->frame_width_ >= width)) {
+                int offsetX = (self->frame_width_ == width) ? 0 : (self->frame_width_ - width) / 2;
+                int offsetY = (self->frame_height_ == height) ? 0 : (self->frame_height_ - height) / 2;
+                yuv_src.copyTo(self->yuv_dist_(cv::Rect(offsetX, offsetY, width, height)));
+                if (self->out_callback_)
+                    self->out_callback_(self->yuv_dist_.data, self->frame_height_ * self->frame_width_ * 2);
+            } else if ((self->frame_height_ <= height) && (self->frame_width_ <= width)) {
+                int offsetX = (self->frame_width_ == width) ? 0 : (width - self->frame_width_) / 2;
+                int offsetY = (self->frame_height_ == height) ? 0 : (height - self->frame_height_) / 2;
+                yuv_src(cv::Rect(offsetX, offsetY, self->frame_width_, self->frame_height_)).copyTo(self->yuv_dist_);
+                if (self->out_callback_)
+                    self->out_callback_(self->yuv_dist_.data, self->frame_height_ * self->frame_width_ * 2);
+            } else if ((self->frame_height_ >= height) && (self->frame_width_ <= width)) {
+                int offsetX = (self->frame_width_ == width) ? 0 : (width - self->frame_width_) / 2;
+                int offsetY = (self->frame_height_ == height) ? 0 : (self->frame_height_ - height) / 2;
+                yuv_src(cv::Rect(offsetX, offsetY, self->frame_width_, height)).copyTo(self->yuv_dist_);
+                if (self->out_callback_)
+                    self->out_callback_(self->yuv_dist_.data, self->frame_height_ * self->frame_width_ * 2);
+            } else {
+                int offsetX = (self->frame_width_ == width) ? 0 : (self->frame_width_ - width) / 2;
+                int offsetY = (self->frame_height_ == height) ? 0 : (self->frame_height_ - height) / 2;
+                yuv_src(cv::Rect(offsetX, offsetY, width, self->frame_height_)).copyTo(self->yuv_dist_);
+                if (self->out_callback_)
+                    self->out_callback_(self->yuv_dist_.data, self->frame_height_ * self->frame_width_ * 2);
+            }
+        }
     }
 
     void set_output(task_callback_t out_callback)
@@ -87,6 +112,7 @@ public:
             return true;
         }
         enstream_ = (response_format_.find("stream") != std::string::npos);
+        yuv_dist_ = cv::Mat(frame_height_, frame_width_, CV_8UC2);
         return false;
     }
 
@@ -96,15 +122,14 @@ public:
             return -1;
         }
         try {
-            printf("CameraOpen %d  %d \n", frame_width_, frame_height_);
-            cam = CameraOpen(devname_.c_str(), frame_width_, frame_height_, 30);
+            cam = camera_open(devname_.c_str(), frame_width_, frame_height_, 30);
             if (cam == NULL) {
                 printf("Camera open failed \n");
                 return -1;
             }
             cam->ctx_ = static_cast<void *>(this);
-            cam->CameraCaptureCallbackSet(cam, on_cap_fream);
-            cam->CameraCaptureStart(cam);
+            cam->camera_capture_callback_set(cam, on_cap_fream);
+            cam->camera_capture_start(cam);
         } catch (...) {
             SLOGE("config file read false");
             return -3;
@@ -126,8 +151,8 @@ public:
     ~llm_task()
     {
         if (cam) {
-            cam->CameraCaptureStop(cam);
-            CameraClose(cam);
+            cam->camera_capture_stop(cam);
+            camera_close(cam);
             cam = NULL;
         }
     }
@@ -178,9 +203,9 @@ public:
             out_json_str += llm_channel->request_id_;
             out_json_str += R"(","work_id":")";
             out_json_str += llm_channel->work_id_;
-            out_json_str += R"(","object":"image.raw.base64","error":{"code":0, "message":""},"data":")";
+            out_json_str += R"(","object":"image.yuvraw.base64","error":{"code":0, "message":""},"data":")";
             out_json_str += base64_data;
-            out_json_str += R"("})";
+            out_json_str += R"("}\n)";
             llm_channel->send_raw_to_usr(out_json_str);
         }
     }

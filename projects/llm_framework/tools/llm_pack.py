@@ -239,7 +239,7 @@ if __name__ == "__main__":
         os.system('rm ./*.deb m5stack_* -rf')
         exit(0)
 
-    version = '1.2'
+    version = '1.3'
     data_version = '0.2'
     src_folder = '../dist'
     revision = 'm5stack1'

@@ -7,6 +7,7 @@
 #include <string>
 #include <cstring>
 #include <unordered_map>
+#include <list>
 #define WORK_ID_NONE -100
 
 #define RPC_PUSH_PARAM(_obj, _data1, _data2)                                                     \
@@ -31,4 +32,5 @@ bool decode_stream(const std::string &in, std::string &out, std::unordered_map<i
 int decode_base64(const std::string &in, std::string &out);
 int encode_base64(const std::string &in, std::string &out);
 std::string unit_call(const std::string &unit_name, const std::string &unit_action, const std::string &data);
+std::list<std::string> get_config_file_paths(const std::string &base_model_path, const std::string &mode_name);
 };  // namespace StackFlows

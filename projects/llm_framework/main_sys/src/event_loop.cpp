@@ -35,6 +35,7 @@
 #include "zmq_bus.h"
 #include "remote_action.h"
 #include <simdjson.h>
+#include "hv/ifconfig.h"
 
 void usr_print_error(const std::string &request_id, const std::string &work_id, const std::string &error_msg,
                      int zmq_out)
@@ -156,6 +157,27 @@ int _sys_hwinfo(int com_id, const nlohmann::json &json_obj)
     get_memory_info(&one, &two);
     float use        = ((one * 1.0f) - (two * 1.0f)) / (one * 1.0f);
     data_body["mem"] = (int)(use * 100);
+    std::vector<ifconfig_t> ifcs;
+    ifconfig(ifcs);
+    std::vector<nlohmann::json> jifcs;
+    for (auto& item : ifcs)
+    {
+        nlohmann::json eth_info;
+        eth_info["name"] = item.name;
+        eth_info["ip"] = item.ip;
+        char eth_ip_buff[128] = {0};
+        sprintf(eth_ip_buff, "/sys/class/net/%s/speed", item.name);
+        FILE *file = fopen(eth_ip_buff, "r");
+        memset(eth_ip_buff, 0, sizeof(eth_ip_buff));
+        if(file != NULL)
+        {
+            fread(eth_ip_buff, 1, sizeof(eth_ip_buff), file);
+            fclose(file);
+        }
+        eth_info["speed"] = eth_ip_buff;
+        jifcs.push_back(eth_info);
+    }
+    data_body["eth_info"] = jifcs;
     out_body["data"] = data_body;
     std::string out  = out_body.dump();
     zmq_com_send(com_id, out);
