@@ -188,8 +188,19 @@ StackFlow::StackFlow::StackFlow(const std::string &unit_name)
 
     status_.store(0);
     exit_flage_.store(false);
-    even_loop_thread_ = std::make_unique<std::thread>(std::bind(&StackFlow::even_loop, this));
-    event_queue_.enqueue(EVENT_SYS_INIT, "", "");
+    even_loop_thread_              = std::make_unique<std::thread>(std::bind(&StackFlow::even_loop, this));
+    llm_channel_obj::uart_push_url = std::string("ipc:///tmp/llm/5556.sock");
+    status_.store(1);
+    repeat_event(1000, [this]() {
+        std::string serial_zmq_url = this->sys_sql_select("serial_zmq_url");
+        if (!serial_zmq_url.empty()) {
+            SLOGI("serial_zmq_url:%s", serial_zmq_url.c_str());
+            llm_channel_obj::uart_push_url = serial_zmq_url;
+            return 0;
+        } else {
+            return 1;
+        }
+    });
 }
 
 StackFlow::~StackFlow()
@@ -222,17 +233,7 @@ void StackFlow::_none_event(const std::string &data1, const std::string &data2)
 
 void StackFlow::_sys_init(const std::string &zmq_url, const std::string &data)
 {
-    // serial_zmq_url
-    std::string serial_zmq_url;
-    serial_zmq_url = sys_sql_select("serial_zmq_url");
-    if (!serial_zmq_url.empty()) {
-        SLOGI("serial_zmq_url:%s", serial_zmq_url.c_str());
-        llm_channel_obj::uart_push_url = serial_zmq_url;
-        status_.store(1);
-    } else {
-        sleep(1);
-        event_queue_.enqueue(EVENT_SYS_INIT, "", "");
-    }
+    // todo:...
 }
 
 std::string StackFlow::_rpc_setup(pzmq *_pzmq, const std::string &data)
