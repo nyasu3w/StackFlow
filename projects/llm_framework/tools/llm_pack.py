@@ -297,3 +297,6 @@ if __name__ == "__main__":
         create_data_deb('llm-single-speaker-english-fast', data_version, src_folder, revision)
         create_data_deb('llm-single-speaker-fast', data_version, src_folder, revision)
         create_data_deb('llm-melotts-zh-cn', data_version, src_folder, revision)
+        create_data_deb('llm-yolo11n', data_version, src_folder, revision)
+        create_data_deb('llm-yolo11n-pose', data_version, src_folder, revision)
+        create_data_deb('llm-yolo11n-seg', data_version, src_folder, revision)
