@@ -340,7 +340,7 @@ void post_process(AX_ENGINE_IO_INFO_T* io_info, AX_ENGINE_IO_T* io_data, const c
         auto mask_proto_ptr = (float*)io_data->pOutputs[6].pVirAddr;
         detection::get_out_bbox_mask(proposals, objects, mask_proto_ptr, 32, 4, nms_threshold, input_h, input_w,
                                      mat.rows, mat.cols);
-        detection::draw_objects_mask(mat, objects, CLASS_NAMES, COCO_COLORS, "yolo11_seg_out");
+        // detection::draw_objects_mask(mat, objects, CLASS_NAMES, COCO_COLORS, "yolo11_seg_out");
     } else if (model_type == "pose") {
         float* output_ptr[3]     = {(float*)io_data->pOutputs[0].pVirAddr, (float*)io_data->pOutputs[1].pVirAddr,
                                     (float*)io_data->pOutputs[2].pVirAddr};
@@ -355,7 +355,7 @@ void post_process(AX_ENGINE_IO_INFO_T* io_info, AX_ENGINE_IO_T* io_data, const c
                                                              input_h, input_w, 17, cls_num);
         }
         detection::get_out_bbox_kps(proposals, objects, nms_threshold, input_h, input_w, mat.rows, mat.cols);
-        detection::draw_keypoints(mat, objects, KPS_COLORS, LIMB_COLORS, SKELETON, "yolo11_pose_out");
+        // detection::draw_keypoints(mat, objects, KPS_COLORS, LIMB_COLORS, SKELETON, "yolo11_pose_out");
     } else if (model_type == "obb") {
         std::vector<int> strides = {8, 16, 32};
         std::vector<detection::GridAndStride> grid_strides;
@@ -364,7 +364,7 @@ void post_process(AX_ENGINE_IO_INFO_T* io_info, AX_ENGINE_IO_T* io_data, const c
         detection::obb::generate_proposals_yolov8_obb_native(grid_strides, feat_ptr, prob_threshold, proposals, input_w,
                                                              input_h, cls_num);
         detection::obb::get_out_obb_bbox(proposals, objects, nms_threshold, input_h, input_w, mat.rows, mat.cols);
-        detection::obb::draw_objects_obb(mat, objects, OBB_CLASS_NAMES, "yolo11_obb_out", 1);
+        // detection::obb::draw_objects_obb(mat, objects, OBB_CLASS_NAMES, "yolo11_obb_out", 1);
     }
 }
 
