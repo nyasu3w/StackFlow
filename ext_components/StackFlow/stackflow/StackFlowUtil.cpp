@@ -273,8 +273,8 @@ std::list<std::string> StackFlows::get_config_file_paths(const std::string &base
     std::list<std::string> config_file_paths;
     config_file_paths.push_back(std::string("./") + mode_name + ".json");
     config_file_paths.push_back(std::string("./asr_mode_") + mode_name + ".json");
-    config_file_paths.push_back((*base_path) + "../share/" + mode_name + ".json");
-    config_file_paths.push_back((*base_path) + "../share/asr_mode_" + mode_name + ".json");
+    config_file_paths.push_back((*base_path) + "/../share/" + mode_name + ".json");
+    config_file_paths.push_back((*base_path) + "/../share/asr_mode_" + mode_name + ".json");
     config_file_paths.push_back((*base_path) + mode_name + ".json");
     config_file_paths.push_back((*base_path) + "asr_mode_" + mode_name + ".json");
     return config_file_paths;
