@@ -161,17 +161,43 @@ public:
             throw std::string("img size error");
         }
         cv::Mat camera_data(mode_config_.img_h, mode_config_.img_w, CV_8UC2, (void *)msg.data());        
-        cv::Mat bgr;
-        cv::cvtColor(camera_data, bgr, cv::COLOR_YUV2BGR_YUYV);
-        return inference(bgr);
+        cv::Mat rgb;
+        cv::cvtColor(camera_data, rgb, cv::COLOR_YUV2RGB_YUYV);
+        return inference(rgb, false);
     }
 
-    bool inference(cv::Mat &src)
+    bool inference_raw_rgb(const std::string &msg)
+    {
+        if (inference_mtx_.try_lock())
+            std::lock_guard<std::mutex> guard(inference_mtx_, std::adopt_lock);
+        else
+            return true;
+        if (msg.size() != mode_config_.img_w * mode_config_.img_h * 3) {
+            throw std::string("img size error");
+        }
+        cv::Mat camera_data(mode_config_.img_h, mode_config_.img_w, CV_8UC3, (void *)msg.data());        
+        return inference(camera_data, false);
+    }
+
+    bool inference_raw_bgr(const std::string &msg)
+    {
+        if (inference_mtx_.try_lock())
+            std::lock_guard<std::mutex> guard(inference_mtx_, std::adopt_lock);
+        else
+            return true;
+        if (msg.size() != mode_config_.img_w * mode_config_.img_h * 3) {
+            throw std::string("img size error");
+        }
+        cv::Mat camera_data(mode_config_.img_h, mode_config_.img_w, CV_8UC3, (void *)msg.data());        
+        return inference(camera_data);
+    }
+
+    bool inference(cv::Mat &src, bool bgr2rgb = true)
     {
         try {
             int ret = -1;
             std::vector<uint8_t> image(mode_config_.img_w * mode_config_.img_h * 3, 0);
-            common::get_input_data_letterbox(src, image, mode_config_.img_w, mode_config_.img_h, true);
+            common::get_input_data_letterbox(src, image, mode_config_.img_w, mode_config_.img_h, bgr2rgb);
             yolo_->SetInput((void *)image.data(), 0);
             if (0 != yolo_->RunSync()) {
                 SLOGE("Run yolo model failed!\n");
