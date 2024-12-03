@@ -300,3 +300,6 @@ if __name__ == "__main__":
         create_data_deb('llm-yolo11n', data_version, src_folder, revision)
         create_data_deb('llm-yolo11n-pose', data_version, src_folder, revision)
         create_data_deb('llm-yolo11n-seg', data_version, src_folder, revision)
+        create_data_deb('llm-qwen2.5-coder-0.5B-ax630c', data_version, src_folder, revision)
+        create_data_deb('llm-llama3.2-1B-prefill-ax630c', data_version, src_folder, revision)
+        create_data_deb('llm-openbuddy-llama3.2-1B-ax630c', data_version, src_folder, revision)

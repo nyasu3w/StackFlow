@@ -175,7 +175,7 @@ public:
         if (msg.size() != mode_config_.img_w * mode_config_.img_h * 3) {
             throw std::string("img size error");
         }
-        cv::Mat camera_data(mode_config_.img_h, mode_config_.img_w, CV_8UC3, (void *)msg.data());        
+        cv::Mat camera_data(mode_config_.img_h, mode_config_.img_w, CV_8UC3, (void *)msg.data());
         return inference(camera_data, false);
     }
 
@@ -188,7 +188,7 @@ public:
         if (msg.size() != mode_config_.img_w * mode_config_.img_h * 3) {
             throw std::string("img size error");
         }
-        cv::Mat camera_data(mode_config_.img_h, mode_config_.img_w, CV_8UC3, (void *)msg.data());        
+        cv::Mat camera_data(mode_config_.img_h, mode_config_.img_w, CV_8UC3, (void *)msg.data());
         return inference(camera_data);
     }
 
