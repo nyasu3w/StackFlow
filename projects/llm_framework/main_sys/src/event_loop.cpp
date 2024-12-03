@@ -171,7 +171,9 @@ int _sys_hwinfo(int com_id, const nlohmann::json &json_obj)
         memset(eth_ip_buff, 0, sizeof(eth_ip_buff));
         if(file != NULL)
         {
-            fread(eth_ip_buff, 1, sizeof(eth_ip_buff), file);
+            int size = fread(eth_ip_buff, 1, sizeof(eth_ip_buff), file);
+            if(size > 0)
+                eth_ip_buff[size-1] = '\0';
             fclose(file);
         }
         eth_info["speed"] = eth_ip_buff;
@@ -490,7 +492,7 @@ int sys_reset(int com_id, const nlohmann::json &json_obj)
 
 int sys_version(int com_id, const nlohmann::json &json_obj)
 {
-    usr_out(json_obj["request_id"], json_obj["work_id"], std::string("v1.2"), com_id);
+    usr_out(json_obj["request_id"], json_obj["work_id"], std::string("v1.3"), com_id);
     int out = 0;
     return out;
 }

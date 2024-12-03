@@ -32,5 +32,5 @@ bool decode_stream(const std::string &in, std::string &out, std::unordered_map<i
 int decode_base64(const std::string &in, std::string &out);
 int encode_base64(const std::string &in, std::string &out);
 std::string unit_call(const std::string &unit_name, const std::string &unit_action, const std::string &data);
-std::list<std::string> get_config_file_paths(const std::string &base_model_path, const std::string &mode_name);
+std::list<std::string> get_config_file_paths(std::string &base_model_path, std::string &base_model_config_path, const std::string &mode_name);
 };  // namespace StackFlows

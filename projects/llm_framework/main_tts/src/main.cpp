@@ -95,7 +95,15 @@ public:
             return -1;
         }
         nlohmann::json file_body;
-        std::list<std::string> config_file_paths = get_config_file_paths(base_model_path_, model_);
+        std::list<std::string> config_file_paths =
+            get_config_file_paths(base_model_path_, base_model_config_path_, model_);
+        // Compatible operation
+        if (model_ == "single_speaker_english_fast")
+            config_file_paths =
+                get_config_file_paths(base_model_path_, base_model_config_path_, "single-speaker-english-fast");
+        else if (model_ == "single_speaker_fast")
+            config_file_paths = get_config_file_paths(base_model_path_, base_model_config_path_, "single-speaker-fast");
+
         try {
             for (auto file_name : config_file_paths) {
                 std::ifstream config_file(file_name);
@@ -169,27 +177,11 @@ class llm_tts : public StackFlow {
 private:
     int task_count_;
     std::unordered_map<int, std::shared_ptr<llm_task>> llm_task_;
-    int _load_config()
-    {
-        if (base_model_path_.empty()) {
-            base_model_path_ = sys_sql_select("config_base_mode_path");
-        }
-        if (base_model_config_path_.empty()) {
-            base_model_config_path_ = sys_sql_select("config_base_mode_config_path");
-        }
-        if (base_model_path_.empty() || base_model_config_path_.empty()) {
-            return -1;
-        } else {
-            SLOGI("llm_tts::_load_config success");
-            return 0;
-        }
-    }
 
 public:
     llm_tts() : StackFlow("tts")
     {
         task_count_ = 1;
-        repeat_event(1000, std::bind(&llm_tts::_load_config, this));
     }
 
     void task_output(const std::weak_ptr<llm_task> llm_task_obj_weak,
@@ -485,7 +477,7 @@ public:
             req_body["model"]           = llm_task_obj->model_;
             req_body["response_format"] = llm_task_obj->response_format_;
             req_body["enoutput"]        = llm_task_obj->enoutput_;
-            req_body["inputs"]         = llm_task_obj->inputs_;
+            req_body["inputs"]          = llm_task_obj->inputs_;
             send("tts.taskinfo", req_body, LLM_NO_ERROR, work_id);
         }
     }

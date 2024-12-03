@@ -31,7 +31,7 @@ def create_lib_deb(package_name, version, src_folder, revision = 'm5stack1'):
         elif item.startswith('lib'):
             os.makedirs(os.path.join(deb_folder, 'opt/m5stack/lib'), exist_ok = True)
             shutil.copy2(os.path.join(src_folder, item), os.path.join(deb_folder, 'opt/m5stack/lib', item))
-        else:
+        elif not item.startswith('mode_'):
             os.makedirs(os.path.join(deb_folder, 'opt/m5stack/share'), exist_ok = True)
             shutil.copy2(os.path.join(src_folder, item), os.path.join(deb_folder, 'opt/m5stack/share', item))
     # os.makedirs(os.path.join(deb_folder, 'opt/m5stack/data'), exist_ok = True)
@@ -98,6 +98,12 @@ def create_lib_deb(package_name, version, src_folder, revision = 'm5stack1'):
         f.write(f'[ -f "/lib/systemd/system/llm-llm.service" ] && systemctl start llm-llm.service\n')
         f.write(f'[ -f "/lib/systemd/system/llm-tts.service" ] && systemctl enable llm-tts.service\n')
         f.write(f'[ -f "/lib/systemd/system/llm-tts.service" ] && systemctl start llm-tts.service\n')
+        f.write(f'[ -f "/lib/systemd/system/llm-camera.service" ] && systemctl enable llm-camera.service\n')
+        f.write(f'[ -f "/lib/systemd/system/llm-camera.service" ] && systemctl start llm-camera.service\n')
+        f.write(f'[ -f "/lib/systemd/system/llm-yolo.service" ] && systemctl enable llm-yolo.service\n')
+        f.write(f'[ -f "/lib/systemd/system/llm-yolo.service" ] && systemctl start llm-yolo.service\n')
+        f.write(f'[ -f "/lib/systemd/system/llm-melotts.service" ] && systemctl enable llm-melotts.service\n')
+        f.write(f'[ -f "/lib/systemd/system/llm-melotts.service" ] && systemctl start llm-melotts.service\n')
         f.write(f'exit 0\n')
     with open(os.path.join(deb_folder, 'DEBIAN/prerm'),'w') as f:
         f.write(f'#!/bin/sh\n')
@@ -113,6 +119,12 @@ def create_lib_deb(package_name, version, src_folder, revision = 'm5stack1'):
         f.write(f'[ -f "/lib/systemd/system/llm-asr.service" ] && systemctl disable llm-asr.service\n')
         f.write(f'[ -f "/lib/systemd/system/llm-sys.service" ] && systemctl stop llm-sys.service\n')
         f.write(f'[ -f "/lib/systemd/system/llm-sys.service" ] && systemctl disable llm-sys.service\n')
+        f.write(f'[ -f "/lib/systemd/system/llm-camera.service" ] && systemctl stop llm-camera.service\n')
+        f.write(f'[ -f "/lib/systemd/system/llm-camera.service" ] && systemctl disable llm-camera.service\n')
+        f.write(f'[ -f "/lib/systemd/system/llm-yolo.service" ] && systemctl stop llm-yolo.service\n')
+        f.write(f'[ -f "/lib/systemd/system/llm-yolo.service" ] && systemctl disable llm-yolo.service\n')
+        f.write(f'[ -f "/lib/systemd/system/llm-melotts.service" ] && systemctl stop llm-melotts.service\n')
+        f.write(f'[ -f "/lib/systemd/system/llm-melotts.service" ] && systemctl disable llm-melotts.service\n')
         f.write(f'exit 0\n')
     os.chmod(os.path.join(deb_folder, 'DEBIAN/postinst'), 0o755)
     os.chmod(os.path.join(deb_folder, 'DEBIAN/prerm'), 0o755)
@@ -144,6 +156,12 @@ def create_data_deb(package_name, version, src_folder, revision = 'm5stack1'):
         print("The {} download successful.".format(down_url))
     if os.path.exists(zip_file_extrpath):
         shutil.copytree(zip_file_extrpath, os.path.join(deb_folder, 'opt/m5stack/data'))
+
+    os.makedirs(os.path.join(deb_folder, 'opt/m5stack/data/models'), exist_ok = True)
+    if os.path.exists(os.path.join(src_folder,'mode_{}.json'.format(package_name[4:]))):
+        shutil.copy2(os.path.join(src_folder,'mode_{}.json'.format(package_name[4:])), os.path.join(deb_folder, 'opt/m5stack/data/models', 'mode_{}.json'.format(package_name[4:])))
+    else:
+        print(os.path.join(src_folder,'mode_{}.json'.format(package_name[4:])), " miss")
 
     os.makedirs(os.path.join(deb_folder, 'DEBIAN'), exist_ok = True)
     with open(os.path.join(deb_folder, 'DEBIAN/control'),'w') as f:
@@ -258,6 +276,12 @@ if __name__ == "__main__":
         create_bin_deb('llm-llm', version, src_folder, revision)
         create_bin_deb('llm-tts', version, src_folder, revision)
         create_bin_deb('llm-melotts', version, src_folder, revision)
+        create_bin_deb('llm-camera', version, src_folder, revision)
+        create_bin_deb('llm-vlm', version, src_folder, revision)
+        create_bin_deb('llm-yolo', version, src_folder, revision)
+        create_bin_deb('llm-skel', version, src_folder, revision)
+        # create_bin_deb('llm-tokenizer', version, src_folder, revision)
+        
     if (create_data):
         create_data_deb('llm-audio-en-us', data_version, src_folder, revision)
         create_data_deb('llm-audio-zh-cn', data_version, src_folder, revision)

@@ -26,7 +26,7 @@ REQUIREMENTS += ['onnxruntime', 'samplerate']
 INCLUDE += [ADir('../include')]
 INCLUDE += [ADir('src/runner'), ADir('../include/onnxruntime/core/session')]
 
-STATIC_FILES += [AFile('melotts_zh-cn.json')]
+STATIC_FILES += Glob('mode_*.json')
 
 env['COMPONENTS'].append({'target':'llm_melotts',
                           'SRCS':SRCS,

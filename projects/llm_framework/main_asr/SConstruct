@@ -24,8 +24,7 @@ INCLUDE += [ADir('../include/sherpa'), ADir('../include/sherpa/sherpa-ncnn')]
 LINK_SEARCH_PATH += [ADir('../static_lib/sherpa/ncnn')]
 REQUIREMENTS += ['ncnn', 'sherpa-ncnn-core']
 
-STATIC_FILES += [AFile('sherpa-ncnn-streaming-zipformer-20M-2023-02-17.json'), AFile('sherpa-ncnn-streaming-zipformer-zh-14M-2023-02-23.json')]
-
+STATIC_FILES += Glob('mode_*.json')
 
 env['COMPONENTS'].append({'target':'llm_asr',
                           'SRCS':SRCS,

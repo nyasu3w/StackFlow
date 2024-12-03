@@ -45,24 +45,26 @@
 #define AX_MIN(a, b) (((a) < (b)) ? (a) : (b))
 #endif
 
-#define SKEL_SAMPLE_OUTPUT_BODY_PATH "body"
+#define SKEL_SAMPLE_OUTPUT_BODY_PATH    "body"
 #define SKEL_SAMPLE_OUTPUT_VEHICLE_PATH "vehicle"
-#define SKEL_SAMPLE_OUTPUT_CYCLE_PATH "cycle"
-#define SKEL_SAMPLE_OUTPUT_FACE_PATH "face"
-#define SKEL_SAMPLE_OUTPUT_PLATE_PATH "plate"
-#define SKEL_SAMPLE_OUTPUT_LOG_FILE "output.txt"
+#define SKEL_SAMPLE_OUTPUT_CYCLE_PATH   "cycle"
+#define SKEL_SAMPLE_OUTPUT_FACE_PATH    "face"
+#define SKEL_SAMPLE_OUTPUT_PLATE_PATH   "plate"
+#define SKEL_SAMPLE_OUTPUT_LOG_FILE     "output.txt"
 
 #define SAMPLE_SKEL_SHIFT_LEFT_ALIGN(a) (1 << (a))
-#define SAMPLE_SKEL_VDEC_WIDTH_ALIGN     SAMPLE_SKEL_SHIFT_LEFT_ALIGN(8)
-#define SAMPLE_SKEL_HEIGHT_ALIGN     SAMPLE_SKEL_SHIFT_LEFT_ALIGN(6)
+#define SAMPLE_SKEL_VDEC_WIDTH_ALIGN    SAMPLE_SKEL_SHIFT_LEFT_ALIGN(8)
+#define SAMPLE_SKEL_HEIGHT_ALIGN        SAMPLE_SKEL_SHIFT_LEFT_ALIGN(6)
 
-#define RUN_COMMAND(format, ...)    do {   \
-                                        char cmd[512];   \
-                                        snprintf(cmd, 512, format, ##__VA_ARGS__);  \
-                                        system(cmd);    \
-                                    } while(0);
+#define RUN_COMMAND(format, ...)                   \
+    do {                                           \
+        char cmd[512];                             \
+        snprintf(cmd, 512, format, ##__VA_ARGS__); \
+        system(cmd);                               \
+    } while (0);
 
-AX_VOID LogSaveToFile(FILE *file, const char *fmt, ...) {
+AX_VOID LogSaveToFile(FILE *file, const char *fmt, ...)
+{
     if (file) {
         va_list args;
         char szLog[1024] = {0};
@@ -82,8 +84,8 @@ AX_VOID LogSaveToFile(FILE *file, const char *fmt, ...) {
     }
 }
 #define OUTPUT_LOG_SAVE(fmt, ...) LogSaveToFile(fpResultFile, fmt "\n", ##__VA_ARGS__)
-#define BLACK_VIDEO_FRAME_COUNT 60
-#define SKEL_SAMPLE_OBJECT_SIZE 512
+#define BLACK_VIDEO_FRAME_COUNT   60
+#define SKEL_SAMPLE_OBJECT_SIZE   512
 
 struct skeleton {
     int connection[2];
@@ -112,7 +114,8 @@ typedef struct _AI_Detection_SkelResult_t {
     AI_Detection_Box_t tBox;
 } AI_Detection_SkelResult_t;
 
-static AX_U64 get_tick_count(AX_VOID) {
+static AX_U64 get_tick_count(AX_VOID)
+{
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
@@ -124,7 +127,8 @@ static AX_U64 get_tick_count(AX_VOID) {
 //     return (ts.tv_sec * 1000000 + ts.tv_nsec / 1000);
 // }
 
-static AX_VOID ShowUsage(AX_VOID) {
+static AX_VOID ShowUsage(AX_VOID)
+{
     // printf("usage: ./%s <options> ...\n", SAMPLE_SKEL_NAME);
     printf("options:\n");
     printf("-i, \tInput File(yuv)\n");
@@ -138,35 +142,41 @@ static AX_VOID ShowUsage(AX_VOID) {
     printf("-H, \tHuman track size limit((unsigned int), default=0)\n");
     printf("-V, \tVehicle track size limit((unsigned int), default=0)\n");
     printf("-C, \tCylcle track size limit((unsigned int), default=0)\n");
-    printf("-d, \tSkel detect type((unsigned int), default=2)\n"
-                "\t\t0: detect only\n"
-                "\t\t1: detect + track\n"
-                "\t\t2: detect + track + push\n");
-    printf("-u, \tSkel push strategy((unsigned int), default=3)\n"
-                "\t\t1: fast push strategy\n"
-                "\t\t2: push strategy\n"
-                "\t\t3: best push strategy\n");
-    printf("-N, \tSkel NPU type((unsigned int), default=0(VNPU Disable)\n"
-                "\t\t0: VNPU Disable\n"
-                "\t\t1: STD-VNPU Default\n"
-                "\t\t2: STD-VNPU1\n"
-                "\t\t3: STD-VNPU2\n");
-    printf("-p, \tSkel PPL((unsigned int), default=1)\n"
-                "\t\t1: AX_SKEL_PPL_HVCP\n"
-                "\t\t2: AX_SKEL_PPL_FACE\n");
-    printf("-v, \tLog level((unsigned int), default=5)\n"
-                "\t\t0: LOG_EMERGENCY_LEVEL\n"
-                "\t\t1: LOG_ALERT_LEVEL\n"
-                "\t\t2: LOG_CRITICAL_LEVEL\n"
-                "\t\t3: LOG_ERROR_LEVEL\n"
-                "\t\t4: LOG_WARN_LEVEL\n"
-                "\t\t5: LOG_NOTICE_LEVEL\n"
-                "\t\t6: LOG_INFO_LEVEL\n"
-                "\t\t7: LOG_DEBUG_LEVEL\n");
+    printf(
+        "-d, \tSkel detect type((unsigned int), default=2)\n"
+        "\t\t0: detect only\n"
+        "\t\t1: detect + track\n"
+        "\t\t2: detect + track + push\n");
+    printf(
+        "-u, \tSkel push strategy((unsigned int), default=3)\n"
+        "\t\t1: fast push strategy\n"
+        "\t\t2: push strategy\n"
+        "\t\t3: best push strategy\n");
+    printf(
+        "-N, \tSkel NPU type((unsigned int), default=0(VNPU Disable)\n"
+        "\t\t0: VNPU Disable\n"
+        "\t\t1: STD-VNPU Default\n"
+        "\t\t2: STD-VNPU1\n"
+        "\t\t3: STD-VNPU2\n");
+    printf(
+        "-p, \tSkel PPL((unsigned int), default=1)\n"
+        "\t\t1: AX_SKEL_PPL_HVCP\n"
+        "\t\t2: AX_SKEL_PPL_FACE\n");
+    printf(
+        "-v, \tLog level((unsigned int), default=5)\n"
+        "\t\t0: LOG_EMERGENCY_LEVEL\n"
+        "\t\t1: LOG_ALERT_LEVEL\n"
+        "\t\t2: LOG_CRITICAL_LEVEL\n"
+        "\t\t3: LOG_ERROR_LEVEL\n"
+        "\t\t4: LOG_WARN_LEVEL\n"
+        "\t\t5: LOG_NOTICE_LEVEL\n"
+        "\t\t6: LOG_INFO_LEVEL\n"
+        "\t\t7: LOG_DEBUG_LEVEL\n");
     printf("-h, \tprint this message\n");
 }
 
-AX_S32 ParseConfigParam(const AX_SKEL_CONFIG_T *pstConfig) {
+AX_S32 ParseConfigParam(const AX_SKEL_CONFIG_T *pstConfig)
+{
     if (pstConfig->nSize > 0 && pstConfig->pstItems) {
         for (size_t i = 0; i < pstConfig->nSize; i++) {
             if (pstConfig->pstItems[i].pstrType && pstConfig->pstItems[i].pstrValue) {
@@ -177,7 +187,8 @@ AX_S32 ParseConfigParam(const AX_SKEL_CONFIG_T *pstConfig) {
                             (AX_SKEL_COMMON_THRESHOLD_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
                         ALOGI("SKEL get %s: %d", pstConfig->pstItems[i].pstrType, (AX_U8)pstConf->fValue);
                     } else {
-                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType, pstConfig->pstItems[i].nValueSize);
+                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType,
+                              pstConfig->pstItems[i].nValueSize);
                     }
                 }
                 // cmd: "vehicle_max_target_count", value_type: AX_SKEL_COMMON_THRESHOLD_CONFIG_T *
@@ -187,7 +198,8 @@ AX_S32 ParseConfigParam(const AX_SKEL_CONFIG_T *pstConfig) {
                             (AX_SKEL_COMMON_THRESHOLD_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
                         ALOGI("SKEL get %s: %d", pstConfig->pstItems[i].pstrType, (AX_U8)pstConf->fValue);
                     } else {
-                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType, pstConfig->pstItems[i].nValueSize);
+                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType,
+                              pstConfig->pstItems[i].nValueSize);
                     }
                 }
                 // cmd: "cycle_max_target_count", value_type: AX_SKEL_COMMON_THRESHOLD_CONFIG_T *
@@ -197,7 +209,8 @@ AX_S32 ParseConfigParam(const AX_SKEL_CONFIG_T *pstConfig) {
                             (AX_SKEL_COMMON_THRESHOLD_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
                         ALOGI("SKEL get %s: %d", pstConfig->pstItems[i].pstrType, (AX_U8)pstConf->fValue);
                     } else {
-                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType, pstConfig->pstItems[i].nValueSize);
+                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType,
+                              pstConfig->pstItems[i].nValueSize);
                     }
                 }
                 // cmd: "body_confidence", value_type: AX_SKEL_COMMON_THRESHOLD_CONFIG_T *
@@ -207,7 +220,8 @@ AX_S32 ParseConfigParam(const AX_SKEL_CONFIG_T *pstConfig) {
                             (AX_SKEL_COMMON_THRESHOLD_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
                         ALOGI("SKEL get %s: %f", pstConfig->pstItems[i].pstrType, pstConf->fValue);
                     } else {
-                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType, pstConfig->pstItems[i].nValueSize);
+                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType,
+                              pstConfig->pstItems[i].nValueSize);
                     }
                 }
                 // cmd: "face_confidence", value_type: AX_SKEL_COMMON_THRESHOLD_CONFIG_T *
@@ -217,7 +231,8 @@ AX_S32 ParseConfigParam(const AX_SKEL_CONFIG_T *pstConfig) {
                             (AX_SKEL_COMMON_THRESHOLD_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
                         ALOGI("SKEL get %s: %f", pstConfig->pstItems[i].pstrType, pstConf->fValue);
                     } else {
-                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType, pstConfig->pstItems[i].nValueSize);
+                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType,
+                              pstConfig->pstItems[i].nValueSize);
                     }
                 }
                 // cmd: "vehicle_confidence", value_type: AX_SKEL_COMMON_THRESHOLD_CONFIG_T *
@@ -227,7 +242,8 @@ AX_S32 ParseConfigParam(const AX_SKEL_CONFIG_T *pstConfig) {
                             (AX_SKEL_COMMON_THRESHOLD_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
                         ALOGI("SKEL get %s: %f", pstConfig->pstItems[i].pstrType, pstConf->fValue);
                     } else {
-                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType, pstConfig->pstItems[i].nValueSize);
+                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType,
+                              pstConfig->pstItems[i].nValueSize);
                     }
                 }
                 // cmd: "cycle_confidence", value_type: AX_SKEL_COMMON_THRESHOLD_CONFIG_T *
@@ -237,7 +253,8 @@ AX_S32 ParseConfigParam(const AX_SKEL_CONFIG_T *pstConfig) {
                             (AX_SKEL_COMMON_THRESHOLD_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
                         ALOGI("SKEL get %s: %f", pstConfig->pstItems[i].pstrType, pstConf->fValue);
                     } else {
-                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType, pstConfig->pstItems[i].nValueSize);
+                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType,
+                              pstConfig->pstItems[i].nValueSize);
                     }
                 }
                 // cmd: "plate_confidence", value_type: AX_SKEL_COMMON_THRESHOLD_CONFIG_T *
@@ -247,7 +264,8 @@ AX_S32 ParseConfigParam(const AX_SKEL_CONFIG_T *pstConfig) {
                             (AX_SKEL_COMMON_THRESHOLD_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
                         ALOGI("SKEL get %s: %f", pstConfig->pstItems[i].pstrType, pstConf->fValue);
                     } else {
-                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType, pstConfig->pstItems[i].nValueSize);
+                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType,
+                              pstConfig->pstItems[i].nValueSize);
                     }
                 }
                 // cmd: "crop_encoder_qpLevel", value_type: AX_SKEL_COMMON_THRESHOLD_CONFIG_T *
@@ -257,7 +275,8 @@ AX_S32 ParseConfigParam(const AX_SKEL_CONFIG_T *pstConfig) {
                             (AX_SKEL_COMMON_THRESHOLD_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
                         ALOGI("SKEL get %s: %f", pstConfig->pstItems[i].pstrType, pstConf->fValue);
                     } else {
-                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType, pstConfig->pstItems[i].nValueSize);
+                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType,
+                              pstConfig->pstItems[i].nValueSize);
                     }
                 }
                 // cmd: "body_min_size",  value_type: AX_SKEL_OBJECT_SIZE_FILTER_CONFIG_T *
@@ -267,7 +286,8 @@ AX_S32 ParseConfigParam(const AX_SKEL_CONFIG_T *pstConfig) {
                             (AX_SKEL_OBJECT_SIZE_FILTER_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
                         ALOGI("SKEL get %s %dx%d", pstConfig->pstItems[i].pstrType, pstConf->nWidth, pstConf->nHeight);
                     } else {
-                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType, pstConfig->pstItems[i].nValueSize);
+                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType,
+                              pstConfig->pstItems[i].nValueSize);
                     }
                 }
                 // cmd: "face_min_size",  value_type: AX_SKEL_OBJECT_SIZE_FILTER_CONFIG_T *
@@ -277,7 +297,8 @@ AX_S32 ParseConfigParam(const AX_SKEL_CONFIG_T *pstConfig) {
                             (AX_SKEL_OBJECT_SIZE_FILTER_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
                         ALOGI("SKEL get %s %dx%d", pstConfig->pstItems[i].pstrType, pstConf->nWidth, pstConf->nHeight);
                     } else {
-                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType, pstConfig->pstItems[i].nValueSize);
+                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType,
+                              pstConfig->pstItems[i].nValueSize);
                     }
                 }
                 // cmd: "vehicle_min_size",  value_type: AX_SKEL_OBJECT_SIZE_FILTER_CONFIG_T *
@@ -287,7 +308,8 @@ AX_S32 ParseConfigParam(const AX_SKEL_CONFIG_T *pstConfig) {
                             (AX_SKEL_OBJECT_SIZE_FILTER_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
                         ALOGI("SKEL get %s %dx%d", pstConfig->pstItems[i].pstrType, pstConf->nWidth, pstConf->nHeight);
                     } else {
-                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType, pstConfig->pstItems[i].nValueSize);
+                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType,
+                              pstConfig->pstItems[i].nValueSize);
                     }
                 }
                 // cmd: "cycle_min_size",  value_type: AX_SKEL_OBJECT_SIZE_FILTER_CONFIG_T *
@@ -297,7 +319,8 @@ AX_S32 ParseConfigParam(const AX_SKEL_CONFIG_T *pstConfig) {
                             (AX_SKEL_OBJECT_SIZE_FILTER_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
                         ALOGI("SKEL get %s %dx%d", pstConfig->pstItems[i].pstrType, pstConf->nWidth, pstConf->nHeight);
                     } else {
-                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType, pstConfig->pstItems[i].nValueSize);
+                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType,
+                              pstConfig->pstItems[i].nValueSize);
                     }
                 }
                 // cmd: "plate_min_size",  value_type: AX_SKEL_OBJECT_SIZE_FILTER_CONFIG_T *
@@ -307,166 +330,201 @@ AX_S32 ParseConfigParam(const AX_SKEL_CONFIG_T *pstConfig) {
                             (AX_SKEL_OBJECT_SIZE_FILTER_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
                         ALOGI("SKEL get %s %dx%d", pstConfig->pstItems[i].pstrType, pstConf->nWidth, pstConf->nHeight);
                     } else {
-                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType, pstConfig->pstItems[i].nValueSize);
+                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType,
+                              pstConfig->pstItems[i].nValueSize);
                     }
                 }
-               // cmd: "detect_roi_polygon",  value_type: AX_SKEL_ROI_POLYGON_CONFIG_T *
+                // cmd: "detect_roi_polygon",  value_type: AX_SKEL_ROI_POLYGON_CONFIG_T *
                 else if (strcmp(pstConfig->pstItems[i].pstrType, "detect_roi_polygon") == 0) {
                     if (pstConfig->pstItems[i].nValueSize == sizeof(AX_SKEL_ROI_POLYGON_CONFIG_T)) {
-                        AX_SKEL_ROI_POLYGON_CONFIG_T *pstConf = (AX_SKEL_ROI_POLYGON_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
-                        ALOGI("SKEL get %s [%d]: nPointNum[%d]", pstConfig->pstItems[i].pstrType, pstConf->bEnable, pstConf->nPointNum);
+                        AX_SKEL_ROI_POLYGON_CONFIG_T *pstConf =
+                            (AX_SKEL_ROI_POLYGON_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
+                        ALOGI("SKEL get %s [%d]: nPointNum[%d]", pstConfig->pstItems[i].pstrType, pstConf->bEnable,
+                              pstConf->nPointNum);
                     } else {
-                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType, pstConfig->pstItems[i].nValueSize);
+                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType,
+                              pstConfig->pstItems[i].nValueSize);
                     }
                 }
                 // cmd: "push_strategy",  value_type: AX_SKEL_PUSH_STRATEGY_T *
                 else if (strcmp(pstConfig->pstItems[i].pstrType, "push_strategy") == 0) {
                     if (pstConfig->pstItems[i].nValueSize == sizeof(AX_SKEL_PUSH_STRATEGY_T)) {
                         AX_SKEL_PUSH_STRATEGY_T *pstConf = (AX_SKEL_PUSH_STRATEGY_T *)pstConfig->pstItems[i].pstrValue;
-                        ALOGI("SKEL get %s [mode:%d, times:%d, count:%d, same:%d]", pstConfig->pstItems[i].pstrType, pstConf->ePushMode, pstConf->nIntervalTimes,
-                                pstConf->nPushCounts, pstConf->bPushSameFrame);
+                        ALOGI("SKEL get %s [mode:%d, times:%d, count:%d, same:%d]", pstConfig->pstItems[i].pstrType,
+                              pstConf->ePushMode, pstConf->nIntervalTimes, pstConf->nPushCounts,
+                              pstConf->bPushSameFrame);
                     } else {
-                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType, pstConfig->pstItems[i].nValueSize);
+                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType,
+                              pstConfig->pstItems[i].nValueSize);
                     }
                 }
                 // cmd: "body_crop_encoder",  value_type: AX_SKEL_CROP_ENCODER_THRESHOLD_CONFIG_T *
                 else if (strcmp(pstConfig->pstItems[i].pstrType, "body_crop_encoder") == 0) {
                     if (pstConfig->pstItems[i].nValueSize == sizeof(AX_SKEL_CROP_ENCODER_THRESHOLD_CONFIG_T)) {
-                        AX_SKEL_CROP_ENCODER_THRESHOLD_CONFIG_T *pstConf = (AX_SKEL_CROP_ENCODER_THRESHOLD_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
-                        ALOGI("SKEL get %s [%f, %f, %f, %f]", pstConfig->pstItems[i].pstrType,
-                                pstConf->fScaleLeft, pstConf->fScaleRight,
-                                pstConf->fScaleTop, pstConf->fScaleBottom);
+                        AX_SKEL_CROP_ENCODER_THRESHOLD_CONFIG_T *pstConf =
+                            (AX_SKEL_CROP_ENCODER_THRESHOLD_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
+                        ALOGI("SKEL get %s [%f, %f, %f, %f]", pstConfig->pstItems[i].pstrType, pstConf->fScaleLeft,
+                              pstConf->fScaleRight, pstConf->fScaleTop, pstConf->fScaleBottom);
                     } else {
-                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType, pstConfig->pstItems[i].nValueSize);
+                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType,
+                              pstConfig->pstItems[i].nValueSize);
                     }
                 }
                 // cmd: "vehicle_crop_encoder",  value_type: AX_SKEL_CROP_ENCODER_THRESHOLD_CONFIG_T *
                 else if (strcmp(pstConfig->pstItems[i].pstrType, "vehicle_crop_encoder") == 0) {
                     if (pstConfig->pstItems[i].nValueSize == sizeof(AX_SKEL_CROP_ENCODER_THRESHOLD_CONFIG_T)) {
-                        AX_SKEL_CROP_ENCODER_THRESHOLD_CONFIG_T *pstConf = (AX_SKEL_CROP_ENCODER_THRESHOLD_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
-                        ALOGI("SKEL get %s [%f, %f, %f, %f]", pstConfig->pstItems[i].pstrType,
-                                pstConf->fScaleLeft, pstConf->fScaleRight,
-                                pstConf->fScaleTop, pstConf->fScaleBottom);
+                        AX_SKEL_CROP_ENCODER_THRESHOLD_CONFIG_T *pstConf =
+                            (AX_SKEL_CROP_ENCODER_THRESHOLD_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
+                        ALOGI("SKEL get %s [%f, %f, %f, %f]", pstConfig->pstItems[i].pstrType, pstConf->fScaleLeft,
+                              pstConf->fScaleRight, pstConf->fScaleTop, pstConf->fScaleBottom);
                     } else {
-                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType, pstConfig->pstItems[i].nValueSize);
+                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType,
+                              pstConfig->pstItems[i].nValueSize);
                     }
                 }
                 // cmd: "cycle_crop_encoder",  value_type: AX_SKEL_CROP_ENCODER_THRESHOLD_CONFIG_T *
                 else if (strcmp(pstConfig->pstItems[i].pstrType, "cycle_crop_encoder") == 0) {
                     if (pstConfig->pstItems[i].nValueSize == sizeof(AX_SKEL_CROP_ENCODER_THRESHOLD_CONFIG_T)) {
-                        AX_SKEL_CROP_ENCODER_THRESHOLD_CONFIG_T *pstConf = (AX_SKEL_CROP_ENCODER_THRESHOLD_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
-                        ALOGI("SKEL get %s [%f, %f, %f, %f]", pstConfig->pstItems[i].pstrType,
-                                pstConf->fScaleLeft, pstConf->fScaleRight,
-                                pstConf->fScaleTop, pstConf->fScaleBottom);
+                        AX_SKEL_CROP_ENCODER_THRESHOLD_CONFIG_T *pstConf =
+                            (AX_SKEL_CROP_ENCODER_THRESHOLD_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
+                        ALOGI("SKEL get %s [%f, %f, %f, %f]", pstConfig->pstItems[i].pstrType, pstConf->fScaleLeft,
+                              pstConf->fScaleRight, pstConf->fScaleTop, pstConf->fScaleBottom);
                     } else {
-                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType, pstConfig->pstItems[i].nValueSize);
+                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType,
+                              pstConfig->pstItems[i].nValueSize);
                     }
                 }
                 // cmd: "face_crop_encoder",  value_type: AX_SKEL_CROP_ENCODER_THRESHOLD_CONFIG_T *
                 else if (strcmp(pstConfig->pstItems[i].pstrType, "face_crop_encoder") == 0) {
                     if (pstConfig->pstItems[i].nValueSize == sizeof(AX_SKEL_CROP_ENCODER_THRESHOLD_CONFIG_T)) {
-                        AX_SKEL_CROP_ENCODER_THRESHOLD_CONFIG_T *pstConf = (AX_SKEL_CROP_ENCODER_THRESHOLD_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
-                        ALOGI("SKEL get %s [%f, %f, %f, %f]", pstConfig->pstItems[i].pstrType,
-                                pstConf->fScaleLeft, pstConf->fScaleRight,
-                                pstConf->fScaleTop, pstConf->fScaleBottom);
+                        AX_SKEL_CROP_ENCODER_THRESHOLD_CONFIG_T *pstConf =
+                            (AX_SKEL_CROP_ENCODER_THRESHOLD_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
+                        ALOGI("SKEL get %s [%f, %f, %f, %f]", pstConfig->pstItems[i].pstrType, pstConf->fScaleLeft,
+                              pstConf->fScaleRight, pstConf->fScaleTop, pstConf->fScaleBottom);
                     } else {
-                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType, pstConfig->pstItems[i].nValueSize);
+                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType,
+                              pstConfig->pstItems[i].nValueSize);
                     }
                 }
                 // cmd: "plate_crop_encoder",  value_type: AX_SKEL_CROP_ENCODER_THRESHOLD_CONFIG_T *
                 else if (strcmp(pstConfig->pstItems[i].pstrType, "plate_crop_encoder") == 0) {
                     if (pstConfig->pstItems[i].nValueSize == sizeof(AX_SKEL_CROP_ENCODER_THRESHOLD_CONFIG_T)) {
-                        AX_SKEL_CROP_ENCODER_THRESHOLD_CONFIG_T *pstConf = (AX_SKEL_CROP_ENCODER_THRESHOLD_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
-                        ALOGI("SKEL get %s [%f, %f, %f, %f]", pstConfig->pstItems[i].pstrType,
-                                pstConf->fScaleLeft, pstConf->fScaleRight,
-                                pstConf->fScaleTop, pstConf->fScaleBottom);
+                        AX_SKEL_CROP_ENCODER_THRESHOLD_CONFIG_T *pstConf =
+                            (AX_SKEL_CROP_ENCODER_THRESHOLD_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
+                        ALOGI("SKEL get %s [%f, %f, %f, %f]", pstConfig->pstItems[i].pstrType, pstConf->fScaleLeft,
+                              pstConf->fScaleRight, pstConf->fScaleTop, pstConf->fScaleBottom);
                     } else {
-                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType, pstConfig->pstItems[i].nValueSize);
+                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType,
+                              pstConfig->pstItems[i].nValueSize);
                     }
                 }
                 // cmd: "push_panorama",  value_type: AX_SKEL_PUSH_PANORAMA_CONFIG_T *
                 else if (strcmp(pstConfig->pstItems[i].pstrType, "push_panorama") == 0) {
                     if (pstConfig->pstItems[i].nValueSize == sizeof(AX_SKEL_PUSH_PANORAMA_CONFIG_T)) {
-                        AX_SKEL_PUSH_PANORAMA_CONFIG_T *pstConf = (AX_SKEL_PUSH_PANORAMA_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
+                        AX_SKEL_PUSH_PANORAMA_CONFIG_T *pstConf =
+                            (AX_SKEL_PUSH_PANORAMA_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
                         ALOGI("SKEL get %s [Enable: %d, Quality: %d]", pstConfig->pstItems[i].pstrType,
-                                pstConf->bEnable, pstConf->nQuality);
+                              pstConf->bEnable, pstConf->nQuality);
                     } else {
-                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType, pstConfig->pstItems[i].nValueSize);
+                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType,
+                              pstConfig->pstItems[i].nValueSize);
                     }
                 }
                 // cmd: "push_quality_body",  value_type: AX_SKEL_ATTR_FILTER_CONFIG_T *
                 else if (strcmp(pstConfig->pstItems[i].pstrType, "push_quality_body") == 0) {
                     if (pstConfig->pstItems[i].nValueSize == sizeof(AX_SKEL_ATTR_FILTER_CONFIG_T)) {
-                        AX_SKEL_ATTR_FILTER_CONFIG_T *pstConf = (AX_SKEL_ATTR_FILTER_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
-                        ALOGI("SKEL get %s [Q: %f]", pstConfig->pstItems[i].pstrType, pstConf->stCommonAttrFilterConfig.fQuality);
+                        AX_SKEL_ATTR_FILTER_CONFIG_T *pstConf =
+                            (AX_SKEL_ATTR_FILTER_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
+                        ALOGI("SKEL get %s [Q: %f]", pstConfig->pstItems[i].pstrType,
+                              pstConf->stCommonAttrFilterConfig.fQuality);
                     } else {
-                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType, pstConfig->pstItems[i].nValueSize);
+                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType,
+                              pstConfig->pstItems[i].nValueSize);
                     }
                 }
                 // cmd: "push_quality_vehicle",  value_type: AX_SKEL_ATTR_FILTER_CONFIG_T *
                 else if (strcmp(pstConfig->pstItems[i].pstrType, "push_quality_vehicle") == 0) {
                     if (pstConfig->pstItems[i].nValueSize == sizeof(AX_SKEL_ATTR_FILTER_CONFIG_T)) {
-                        AX_SKEL_ATTR_FILTER_CONFIG_T *pstConf = (AX_SKEL_ATTR_FILTER_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
-                        ALOGI("SKEL get %s [Q: %f]", pstConfig->pstItems[i].pstrType, pstConf->stCommonAttrFilterConfig.fQuality);
+                        AX_SKEL_ATTR_FILTER_CONFIG_T *pstConf =
+                            (AX_SKEL_ATTR_FILTER_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
+                        ALOGI("SKEL get %s [Q: %f]", pstConfig->pstItems[i].pstrType,
+                              pstConf->stCommonAttrFilterConfig.fQuality);
                     } else {
-                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType, pstConfig->pstItems[i].nValueSize);
+                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType,
+                              pstConfig->pstItems[i].nValueSize);
                     }
                 }
                 // cmd: "push_quality_cycle",  value_type: AX_SKEL_ATTR_FILTER_CONFIG_T *
                 else if (strcmp(pstConfig->pstItems[i].pstrType, "push_quality_cycle") == 0) {
                     if (pstConfig->pstItems[i].nValueSize == sizeof(AX_SKEL_ATTR_FILTER_CONFIG_T)) {
-                        AX_SKEL_ATTR_FILTER_CONFIG_T *pstConf = (AX_SKEL_ATTR_FILTER_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
-                        ALOGI("SKEL get %s [Q: %f]", pstConfig->pstItems[i].pstrType, pstConf->stCommonAttrFilterConfig.fQuality);
+                        AX_SKEL_ATTR_FILTER_CONFIG_T *pstConf =
+                            (AX_SKEL_ATTR_FILTER_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
+                        ALOGI("SKEL get %s [Q: %f]", pstConfig->pstItems[i].pstrType,
+                              pstConf->stCommonAttrFilterConfig.fQuality);
                     } else {
-                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType, pstConfig->pstItems[i].nValueSize);
+                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType,
+                              pstConfig->pstItems[i].nValueSize);
                     }
                 }
                 // cmd: "push_quality_face",  value_type: AX_SKEL_ATTR_FILTER_CONFIG_T *
                 else if (strcmp(pstConfig->pstItems[i].pstrType, "push_quality_face") == 0) {
                     if (pstConfig->pstItems[i].nValueSize == sizeof(AX_SKEL_ATTR_FILTER_CONFIG_T)) {
-                        AX_SKEL_ATTR_FILTER_CONFIG_T *pstConf = (AX_SKEL_ATTR_FILTER_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
+                        AX_SKEL_ATTR_FILTER_CONFIG_T *pstConf =
+                            (AX_SKEL_ATTR_FILTER_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
                         ALOGI("SKEL get %s [W: %d, H: %d, P: %f, Y: %f, R: %f, B: %f]", pstConfig->pstItems[i].pstrType,
-                                pstConf->stFaceAttrFilterConfig.nWidth, pstConf->stFaceAttrFilterConfig.nHeight,
-                                pstConf->stFaceAttrFilterConfig.stPoseblur.fPitch, pstConf->stFaceAttrFilterConfig.stPoseblur.fYaw,
-                                pstConf->stFaceAttrFilterConfig.stPoseblur.fRoll, pstConf->stFaceAttrFilterConfig.stPoseblur.fBlur);
+                              pstConf->stFaceAttrFilterConfig.nWidth, pstConf->stFaceAttrFilterConfig.nHeight,
+                              pstConf->stFaceAttrFilterConfig.stPoseblur.fPitch,
+                              pstConf->stFaceAttrFilterConfig.stPoseblur.fYaw,
+                              pstConf->stFaceAttrFilterConfig.stPoseblur.fRoll,
+                              pstConf->stFaceAttrFilterConfig.stPoseblur.fBlur);
                     } else {
-                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType, pstConfig->pstItems[i].nValueSize);
+                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType,
+                              pstConfig->pstItems[i].nValueSize);
                     }
                 }
                 // cmd: "push_quality_plate",  value_type: AX_SKEL_ATTR_FILTER_CONFIG_T *
                 else if (strcmp(pstConfig->pstItems[i].pstrType, "push_quality_plate") == 0) {
                     if (pstConfig->pstItems[i].nValueSize == sizeof(AX_SKEL_ATTR_FILTER_CONFIG_T)) {
-                        AX_SKEL_ATTR_FILTER_CONFIG_T *pstConf = (AX_SKEL_ATTR_FILTER_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
-                        ALOGI("SKEL get %s [Q: %f]", pstConfig->pstItems[i].pstrType, pstConf->stCommonAttrFilterConfig.fQuality);
+                        AX_SKEL_ATTR_FILTER_CONFIG_T *pstConf =
+                            (AX_SKEL_ATTR_FILTER_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
+                        ALOGI("SKEL get %s [Q: %f]", pstConfig->pstItems[i].pstrType,
+                              pstConf->stCommonAttrFilterConfig.fQuality);
                     } else {
-                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType, pstConfig->pstItems[i].nValueSize);
+                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType,
+                              pstConfig->pstItems[i].nValueSize);
                     }
                 }
                 // cmd: "push_bind_enable",  value_type: AX_SKEL_COMMON_THRESHOLD_CONFIG_T *
                 else if (strcmp(pstConfig->pstItems[i].pstrType, "push_bind_enable") == 0) {
                     if (pstConfig->pstItems[i].nValueSize == sizeof(AX_SKEL_COMMON_THRESHOLD_CONFIG_T)) {
-                        AX_SKEL_COMMON_THRESHOLD_CONFIG_T *pstConf = (AX_SKEL_COMMON_THRESHOLD_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
+                        AX_SKEL_COMMON_THRESHOLD_CONFIG_T *pstConf =
+                            (AX_SKEL_COMMON_THRESHOLD_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
                         ALOGI("SKEL get %s : %f", pstConfig->pstItems[i].pstrType, pstConf->fValue);
                     } else {
-                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType, pstConfig->pstItems[i].nValueSize);
+                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType,
+                              pstConfig->pstItems[i].nValueSize);
                     }
                 }
-                 // cmd: "track_enable",  value_type: AX_SKEL_COMMON_ENABLE_CONFIG_S *
+                // cmd: "track_enable",  value_type: AX_SKEL_COMMON_ENABLE_CONFIG_S *
                 else if (strcmp(pstConfig->pstItems[i].pstrType, "track_enable") == 0) {
                     if (pstConfig->pstItems[i].nValueSize == sizeof(AX_SKEL_COMMON_ENABLE_CONFIG_T)) {
-                        AX_SKEL_COMMON_ENABLE_CONFIG_T *pstConf = (AX_SKEL_COMMON_ENABLE_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
+                        AX_SKEL_COMMON_ENABLE_CONFIG_T *pstConf =
+                            (AX_SKEL_COMMON_ENABLE_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
                         ALOGI("SKEL get %s : %d", pstConfig->pstItems[i].pstrType, pstConf->bEnable);
                     } else {
-                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType, pstConfig->pstItems[i].nValueSize);
+                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType,
+                              pstConfig->pstItems[i].nValueSize);
                     }
                 }
                 // cmd: "push_enable",  value_type: AX_SKEL_COMMON_ENABLE_CONFIG_S *
                 else if (strcmp(pstConfig->pstItems[i].pstrType, "push_enable") == 0) {
                     if (pstConfig->pstItems[i].nValueSize == sizeof(AX_SKEL_COMMON_ENABLE_CONFIG_T)) {
-                        AX_SKEL_COMMON_ENABLE_CONFIG_T *pstConf = (AX_SKEL_COMMON_ENABLE_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
+                        AX_SKEL_COMMON_ENABLE_CONFIG_T *pstConf =
+                            (AX_SKEL_COMMON_ENABLE_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
                         ALOGI("SKEL get %s : %d", pstConfig->pstItems[i].pstrType, pstConf->bEnable);
                     } else {
-                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType, pstConfig->pstItems[i].nValueSize);
+                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType,
+                              pstConfig->pstItems[i].nValueSize);
                     }
                 }
                 // cmd: "target_config",  value_type: AX_SKEL_TARGET_CONFIG_T *
@@ -474,17 +532,18 @@ AX_S32 ParseConfigParam(const AX_SKEL_CONFIG_T *pstConfig) {
                     if (pstConfig->pstItems[i].nValueSize == sizeof(AX_SKEL_TARGET_CONFIG_T)) {
                         AX_SKEL_TARGET_CONFIG_T *pstConf = (AX_SKEL_TARGET_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
                         if (pstConf->pstItems) {
-                            for (AX_U32 j = 0; j < pstConf->nSize; j ++) {
+                            for (AX_U32 j = 0; j < pstConf->nSize; j++) {
                                 if (pstConf->pstItems[j].pstrObjectCategory) {
-                                    ALOGI("SKEL set %s: [%d]%s", pstConfig->pstItems[i].pstrType, j, pstConf->pstItems[j].pstrObjectCategory);
+                                    ALOGI("SKEL set %s: [%d]%s", pstConfig->pstItems[i].pstrType, j,
+                                          pstConf->pstItems[j].pstrObjectCategory);
                                 }
                             }
-                        }
-                        else {
+                        } else {
                             ALOGE("SKEL cmd: %s invalid param", pstConfig->pstItems[i].pstrType);
                         }
                     } else {
-                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType, pstConfig->pstItems[i].nValueSize);
+                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType,
+                              pstConfig->pstItems[i].nValueSize);
                     }
                 }
                 // cmd: "push_target_config",  value_type: AX_SKEL_TARGET_CONFIG_S *
@@ -492,54 +551,59 @@ AX_S32 ParseConfigParam(const AX_SKEL_CONFIG_T *pstConfig) {
                     if (pstConfig->pstItems[i].nValueSize == sizeof(AX_SKEL_TARGET_CONFIG_T)) {
                         AX_SKEL_TARGET_CONFIG_T *pstConf = (AX_SKEL_TARGET_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
                         if (pstConf->pstItems) {
-                            for (AX_U32 j = 0; j < pstConf->nSize; j ++) {
+                            for (AX_U32 j = 0; j < pstConf->nSize; j++) {
                                 if (pstConf->pstItems[j].pstrObjectCategory) {
-                                    ALOGI("SKEL set %s: [%d]%s", pstConfig->pstItems[i].pstrType, j, pstConf->pstItems[j].pstrObjectCategory);
+                                    ALOGI("SKEL set %s: [%d]%s", pstConfig->pstItems[i].pstrType, j,
+                                          pstConf->pstItems[j].pstrObjectCategory);
                                 }
                             }
-                        }
-                        else {
+                        } else {
                             ALOGE("SKEL cmd: %s invalid param", pstConfig->pstItems[i].pstrType);
                         }
                     } else {
-                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType, pstConfig->pstItems[i].nValueSize);
+                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType,
+                              pstConfig->pstItems[i].nValueSize);
                     }
                 }
                 // cmd: "analyzer_attr_config",  value_type: AX_SKEL_ANALYZER_CONFIG_T *
                 else if (strcmp(pstConfig->pstItems[i].pstrType, "analyzer_attr_config") == 0) {
                     if (pstConfig->pstItems[i].nValueSize == sizeof(AX_SKEL_ANALYZER_CONFIG_T)) {
-                        AX_SKEL_ANALYZER_CONFIG_T *pstConf = (AX_SKEL_ANALYZER_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
+                        AX_SKEL_ANALYZER_CONFIG_T *pstConf =
+                            (AX_SKEL_ANALYZER_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
                         if (pstConf->peItems) {
-                            for (AX_U32 j = 0; j < pstConf->nSize; j ++) {
+                            for (AX_U32 j = 0; j < pstConf->nSize; j++) {
                                 ALOGI("SKEL set %s: [%d]%d", pstConfig->pstItems[i].pstrType, j, pstConf->peItems[j]);
                             }
-                        }
-                        else {
+                        } else {
                             ALOGE("SKEL cmd: %s invalid param", pstConfig->pstItems[i].pstrType);
                         }
                     } else {
-                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType, pstConfig->pstItems[i].nValueSize);
+                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType,
+                              pstConfig->pstItems[i].nValueSize);
                     }
                 }
                 // cmd: "venc_attr_config", value_type: AX_SKEL_COMMON_THRESHOLD_CONFIG_S *
                 else if (strcmp(pstConfig->pstItems[i].pstrType, "venc_attr_config") == 0) {
                     if (pstConfig->pstItems[i].nValueSize == sizeof(AX_SKEL_COMMON_THRESHOLD_CONFIG_T)) {
-                        AX_SKEL_COMMON_THRESHOLD_CONFIG_T *pstConf = (AX_SKEL_COMMON_THRESHOLD_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
+                        AX_SKEL_COMMON_THRESHOLD_CONFIG_T *pstConf =
+                            (AX_SKEL_COMMON_THRESHOLD_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
                         ALOGI("SKEL set %s: %d", pstConfig->pstItems[i].pstrType, (AX_U32)pstConf->fValue);
                     } else {
-                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType, pstConfig->pstItems[i].nValueSize);
+                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType,
+                              pstConfig->pstItems[i].nValueSize);
                     }
                 }
                 // cmd: "push_attr_always", value_type: AX_SKEL_COMMON_ENABLE_CONFIG_S *
                 else if (strcmp(pstConfig->pstItems[i].pstrType, "push_attr_always") == 0) {
                     if (pstConfig->pstItems[i].nValueSize == sizeof(AX_SKEL_COMMON_ENABLE_CONFIG_T)) {
-                        AX_SKEL_COMMON_ENABLE_CONFIG_T *pstConf = (AX_SKEL_COMMON_ENABLE_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
+                        AX_SKEL_COMMON_ENABLE_CONFIG_T *pstConf =
+                            (AX_SKEL_COMMON_ENABLE_CONFIG_T *)pstConfig->pstItems[i].pstrValue;
                         ALOGI("SKEL set %s: %d", pstConfig->pstItems[i].pstrType, pstConf->bEnable);
                     } else {
-                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType, pstConfig->pstItems[i].nValueSize);
+                        ALOGE("SKEL %s size(%d) no match", pstConfig->pstItems[i].pstrType,
+                              pstConfig->pstItems[i].nValueSize);
                     }
-                }
-                else {
+                } else {
                     ALOGE("SKEL cmd: %s not support", pstConfig->pstItems[i].pstrType);
                 }
             }
@@ -549,7 +613,7 @@ AX_S32 ParseConfigParam(const AX_SKEL_CONFIG_T *pstConfig) {
     return 0;
 }
 
-FILE* LoadFile(const AX_CHAR *pFile, AX_U64 *pLen)
+FILE *LoadFile(const AX_CHAR *pFile, AX_U64 *pLen)
 {
     /* Reading input file */
     FILE *f_in = fopen(pFile, "rb");
@@ -567,7 +631,7 @@ FILE* LoadFile(const AX_CHAR *pFile, AX_U64 *pLen)
     return f_in;
 }
 
-int ReLoadFile(FILE* pFile)
+int ReLoadFile(FILE *pFile)
 {
     if (pFile) {
         rewind(pFile);
@@ -577,17 +641,9 @@ int ReLoadFile(FILE* pFile)
     return -1;
 }
 
-int NV12ToStrideNV12(AX_U64 nSrcPhyAddr,
-                        AX_VOID *pSrcVirAddr,
-                        AX_U32 nSrcSize,
-                        AX_U32 nSrcStride,
-                        AX_U32 nSrcHeight,
-                        AX_U64 nDstPhyAddr,
-                        AX_VOID *pDstVirAddr,
-                        AX_U32 nDstSize,
-                        AX_U32 nDstStride,
-                        AX_U32 nDstHeight
-                        ) {
+int NV12ToStrideNV12(AX_U64 nSrcPhyAddr, AX_VOID *pSrcVirAddr, AX_U32 nSrcSize, AX_U32 nSrcStride, AX_U32 nSrcHeight,
+                     AX_U64 nDstPhyAddr, AX_VOID *pDstVirAddr, AX_U32 nDstSize, AX_U32 nDstStride, AX_U32 nDstHeight)
+{
     AX_U64 nStartTime = get_tick_count();
 
     // src check
@@ -595,7 +651,7 @@ int NV12ToStrideNV12(AX_U64 nSrcPhyAddr,
         return -1;
     }
 
-    if (nSrcSize != nSrcStride * nSrcHeight * 3 /2) {
+    if (nSrcSize != nSrcStride * nSrcHeight * 3 / 2) {
         return -1;
     }
 
@@ -604,7 +660,7 @@ int NV12ToStrideNV12(AX_U64 nSrcPhyAddr,
         return -1;
     }
 
-    if (nDstSize != nDstStride * nDstHeight * 3 /2) {
+    if (nDstSize != nDstStride * nDstHeight * 3 / 2) {
         return -1;
     }
 
@@ -622,7 +678,7 @@ int NV12ToStrideNV12(AX_U64 nSrcPhyAddr,
 
     AX_VOID *src = pSrcVirAddr;
     AX_VOID *dst = pDstVirAddr;
-    for(AX_U32 i = 0; i < nSrcHeight * 3 / 2; i++) {
+    for (AX_U32 i = 0; i < nSrcHeight * 3 / 2; i++) {
         memcpy(dst, src, nSrcStride);
         src += nSrcStride;
         dst += nDstStride;
@@ -630,7 +686,8 @@ int NV12ToStrideNV12(AX_U64 nSrcPhyAddr,
 
     AX_U64 nProcessElasped = get_tick_count() - nStartTime;
 
-    ALOGD("NV12ToStrideNV12 %dx%d=>%dx%d elapse: %lld ms", nSrcStride, nSrcHeight, nDstStride, nDstHeight, nProcessElasped);
+    ALOGD("NV12ToStrideNV12 %dx%d=>%dx%d elapse: %lld ms", nSrcStride, nSrcHeight, nDstStride, nDstHeight,
+          nProcessElasped);
 
     return 0;
 }
@@ -643,8 +700,7 @@ int LoadFileToMem(FILE *pFile, AX_U64 nPhyAddr, AX_VOID *pVirAddr, AX_S32 nSize)
         if (nPhyAddr != 0 && pVirAddr) {
             memset((AX_U8 *)pVirAddr, 0x00, nSize);
             nReadSize = fread((AX_U8 *)pVirAddr, 1, nSize, pFile);
-        }
-        else {
+        } else {
             fseeko(pFile, nSize, SEEK_CUR);
         }
     }
@@ -652,21 +708,21 @@ int LoadFileToMem(FILE *pFile, AX_U64 nPhyAddr, AX_VOID *pVirAddr, AX_S32 nSize)
     return nReadSize;
 }
 
-int DecodeJpeg(FILE* InputFileHandle, AX_U64 OneYUVDataPhy, AX_VOID* OneYUVDataVir, AX_U32 nWidth, AX_U32 nHeight)
+int DecodeJpeg(FILE *InputFileHandle, AX_U64 OneYUVDataPhy, AX_VOID *OneYUVDataVir, AX_U32 nWidth, AX_U32 nHeight)
 {
     SAMPLE_INPUT_FILE_INFO_T stStreamInfo;
     SAMPLE_STREAM_BUF_T stStreamBuf;
-    size_t nReadLen = 0;
-    AX_U64 streamPhyAddr = 0;
+    size_t nReadLen         = 0;
+    AX_U64 streamPhyAddr    = 0;
     AX_VOID *pStreamVirAddr = NULL;
     AX_VDEC_DEC_ONE_FRM_T decOneFrmParam;
-    size_t nFileSize = 0;
+    size_t nFileSize   = 0;
     AX_U32 heightAlign = 0;
-    AX_U32 frmStride = 0;
-    frmStride = AX_COMM_ALIGN(nWidth * 8, AX_VDEC_WIDTH_ALIGN * 8) / 8;
-    heightAlign = ALIGN_UP(nHeight, 16);
-    AX_U32 nFrameSize = heightAlign * frmStride * 3 / 2;
-    
+    AX_U32 frmStride   = 0;
+    frmStride          = AX_COMM_ALIGN(nWidth * 8, AX_VDEC_WIDTH_ALIGN * 8) / 8;
+    heightAlign        = ALIGN_UP(nHeight, 16);
+    AX_U32 nFrameSize  = heightAlign * frmStride * 3 / 2;
+
     memset(&stStreamInfo, 0, sizeof(SAMPLE_INPUT_FILE_INFO_T));
     memset(&stStreamBuf, 0, sizeof(SAMPLE_STREAM_BUF_T));
     memset(&decOneFrmParam, 0, sizeof(AX_VDEC_DEC_ONE_FRM_T));
@@ -675,19 +731,18 @@ int DecodeJpeg(FILE* InputFileHandle, AX_U64 OneYUVDataPhy, AX_VOID* OneYUVDataV
     fseek(InputFileHandle, 0, SEEK_END);
     nFileSize = (size_t)ftello(InputFileHandle);
 
-    stStreamInfo.fInput = InputFileHandle;
+    stStreamInfo.fInput    = InputFileHandle;
     stStreamInfo.sFileSize = nFileSize;
 
     stStreamBuf.uBufSize = ((AX_U32)nFileSize) > STREAM_BUFFER_MAX_SIZE ? STREAM_BUFFER_MAX_SIZE : nFileSize;
-    int ret = AX_SYS_MemAlloc(&streamPhyAddr, (AX_VOID **)&pStreamVirAddr,
-                            stStreamBuf.uBufSize, 0x100, (AX_S8 *)"vdec_input_stream");
+    int ret              = AX_SYS_MemAlloc(&streamPhyAddr, (AX_VOID **)&pStreamVirAddr, stStreamBuf.uBufSize, 0x100,
+                                           (AX_S8 *)"vdec_input_stream");
     if (ret != AX_SUCCESS) {
-        ALOGE("AX_SYS_MemAlloc FAILED! uBufSize:0x%x ret:0x%x\n",
-                        stStreamBuf.uBufSize, ret);
+        ALOGE("AX_SYS_MemAlloc FAILED! uBufSize:0x%x ret:0x%x\n", stStreamBuf.uBufSize, ret);
         return -1;
     }
 
-    stStreamBuf.tBufAddr.pVirAddr = pStreamVirAddr;
+    stStreamBuf.tBufAddr.pVirAddr   = pStreamVirAddr;
     stStreamBuf.tBufAddr.u64PhyAddr = streamPhyAddr;
 
     ret = StreamParserReadFrameJpeg(&stStreamInfo, &stStreamBuf, &nReadLen);
@@ -704,8 +759,8 @@ int DecodeJpeg(FILE* InputFileHandle, AX_U64 OneYUVDataPhy, AX_VOID* OneYUVDataV
         return ret;
     }
 
-    decOneFrmParam.stStream.pu8Addr = (AX_U8*)stStreamBuf.tBufAddr.pVirAddr;
-    decOneFrmParam.stStream.u64PhyAddr = stStreamBuf.tBufAddr.u64PhyAddr;
+    decOneFrmParam.stStream.pu8Addr          = (AX_U8 *)stStreamBuf.tBufAddr.pVirAddr;
+    decOneFrmParam.stStream.u64PhyAddr       = stStreamBuf.tBufAddr.u64PhyAddr;
     decOneFrmParam.stStream.u32StreamPackLen = (AX_U32)nReadLen;
 
     decOneFrmParam.stFrame.u64VirAddr[0] = (AX_ULONG)OneYUVDataVir;
@@ -716,15 +771,14 @@ int DecodeJpeg(FILE* InputFileHandle, AX_U64 OneYUVDataPhy, AX_VOID* OneYUVDataV
 
     ret = AX_VDEC_JpegDecodeOneFrame(&decOneFrmParam);
     if (ret != AX_SUCCESS) {
-        ALOGE("AX_VDEC_JpegDecodeOneFrame FAILED! ret:0x%x %s\n",
-                        ret, SampleVdecRetStr(ret));
+        ALOGE("AX_VDEC_JpegDecodeOneFrame FAILED! ret:0x%x %s\n", ret, SampleVdecRetStr(ret));
         AX_SYS_MemFree(streamPhyAddr, pStreamVirAddr);
         return ret;
     }
 
     AX_SYS_MemFree(streamPhyAddr, pStreamVirAddr);
 
-    return 0; 
+    return 0;
 }
 
 int LoadFileToMemExt(const AX_CHAR *pFile, AX_U64 *pPhyAddr, AX_VOID **ppVirAddr, AX_U32 *pLen)
@@ -742,7 +796,7 @@ int LoadFileToMemExt(const AX_CHAR *pFile, AX_U64 *pPhyAddr, AX_VOID **ppVirAddr
     rewind(f_in);
 
     if (pPhyAddr && ppVirAddr) {
-        AX_U64 nPhyAddr = 0;
+        AX_U64 nPhyAddr   = 0;
         AX_VOID *pVirAddr = NULL;
 
         // pVirAddr = (AX_VOID *)malloc(nFileSize);
@@ -756,7 +810,7 @@ int LoadFileToMemExt(const AX_CHAR *pFile, AX_U64 *pPhyAddr, AX_VOID **ppVirAddr
 
         fread((AX_U8 *)pVirAddr, nFileSize, 1, f_in);
 
-        *pPhyAddr = nPhyAddr;
+        *pPhyAddr  = nPhyAddr;
         *ppVirAddr = pVirAddr;
     }
 
@@ -769,14 +823,16 @@ int LoadFileToMemExt(const AX_CHAR *pFile, AX_U64 *pPhyAddr, AX_VOID **ppVirAddr
     return 0;
 }
 
-int EncodeOneFrameToJpeg(const AX_CHAR *dstFile, AX_U32 nStride, AX_U32 nWidth, AX_U32 nHeight, AX_U64 nPhyAddr, AX_VOID *pVirAddr, AX_U32 nLen) {
+int EncodeOneFrameToJpeg(const AX_CHAR *dstFile, AX_U32 nStride, AX_U32 nWidth, AX_U32 nHeight, AX_U64 nPhyAddr,
+                         AX_VOID *pVirAddr, AX_U32 nLen)
+{
     AX_S32 s32Ret = AX_SUCCESS;
 
     AX_U32 frameSize = nLen;
     AX_JPEG_ENCODE_ONCE_PARAMS_T stJpegEncodeOnceParam;
     memset(&stJpegEncodeOnceParam, 0, sizeof(stJpegEncodeOnceParam));
 
-    AX_U64 outPhyAddr = 0;
+    AX_U64 outPhyAddr   = 0;
     AX_VOID *outVirAddr = NULL;
 
     s32Ret = AX_SYS_MemAlloc(&outPhyAddr, &outVirAddr, frameSize, 128, (AX_S8 *)"SKEL-VENC");
@@ -787,24 +843,26 @@ int EncodeOneFrameToJpeg(const AX_CHAR *dstFile, AX_U32 nStride, AX_U32 nWidth, 
 
     // output
     stJpegEncodeOnceParam.u32OutBufSize = frameSize;
-    stJpegEncodeOnceParam.ulPhyAddr = outPhyAddr;
-    stJpegEncodeOnceParam.pu8Addr = (AX_U8 *)outVirAddr;
+    stJpegEncodeOnceParam.ulPhyAddr     = outPhyAddr;
+    stJpegEncodeOnceParam.pu8Addr       = (AX_U8 *)outVirAddr;
 
     // input
     stJpegEncodeOnceParam.stJpegParam.u32Qfactor = 90;
-    stJpegEncodeOnceParam.u32Width = nWidth;
-    stJpegEncodeOnceParam.u32Height = nHeight;
-    stJpegEncodeOnceParam.enImgFormat = AX_FORMAT_YUV420_SEMIPLANAR;
-    stJpegEncodeOnceParam.u32PicStride[0] = nStride;
-    stJpegEncodeOnceParam.u32PicStride[1] = stJpegEncodeOnceParam.u32PicStride[0];
-    stJpegEncodeOnceParam.u32PicStride[2] = 0;
+    stJpegEncodeOnceParam.u32Width               = nWidth;
+    stJpegEncodeOnceParam.u32Height              = nHeight;
+    stJpegEncodeOnceParam.enImgFormat            = AX_FORMAT_YUV420_SEMIPLANAR;
+    stJpegEncodeOnceParam.u32PicStride[0]        = nStride;
+    stJpegEncodeOnceParam.u32PicStride[1]        = stJpegEncodeOnceParam.u32PicStride[0];
+    stJpegEncodeOnceParam.u32PicStride[2]        = 0;
 
     stJpegEncodeOnceParam.u64PhyAddr[0] = nPhyAddr;
-    stJpegEncodeOnceParam.u64PhyAddr[1] = stJpegEncodeOnceParam.u64PhyAddr[0] + stJpegEncodeOnceParam.u32PicStride[0] * stJpegEncodeOnceParam.u32Height;
+    stJpegEncodeOnceParam.u64PhyAddr[1] =
+        stJpegEncodeOnceParam.u64PhyAddr[0] + stJpegEncodeOnceParam.u32PicStride[0] * stJpegEncodeOnceParam.u32Height;
     stJpegEncodeOnceParam.u64PhyAddr[2] = 0;
 
     stJpegEncodeOnceParam.u64VirAddr[0] = (AX_ULONG)pVirAddr;
-    stJpegEncodeOnceParam.u64VirAddr[1] = stJpegEncodeOnceParam.u64VirAddr[0] + stJpegEncodeOnceParam.u32PicStride[0] * stJpegEncodeOnceParam.u32Height;
+    stJpegEncodeOnceParam.u64VirAddr[1] =
+        stJpegEncodeOnceParam.u64VirAddr[0] + stJpegEncodeOnceParam.u32PicStride[0] * stJpegEncodeOnceParam.u32Height;
     stJpegEncodeOnceParam.u64VirAddr[2] = 0;
 
     s32Ret = AX_VENC_JpegEncodeOneFrame(&stJpegEncodeOnceParam);
@@ -832,7 +890,8 @@ JENC_EXIT:
     return s32Ret;
 }
 
-AX_BOOL FrameSkipCtrl(AX_S32 nSrcFrameRate, AX_S32 nDstFrameRate, AX_S32 nFrameSeqNum) {
+AX_BOOL FrameSkipCtrl(AX_S32 nSrcFrameRate, AX_S32 nDstFrameRate, AX_S32 nFrameSeqNum)
+{
     if (nFrameSeqNum < 1) {
         nFrameSeqNum = 1;
     }
@@ -852,54 +911,59 @@ AX_BOOL FrameSkipCtrl(AX_S32 nSrcFrameRate, AX_S32 nDstFrameRate, AX_S32 nFrameS
     }
 }
 
-AX_S32 main(AX_S32 argc, AX_CHAR *argv[]) {
+AX_S32 main(AX_S32 argc, AX_CHAR *argv[])
+{
+    while (argc == 1) {
+        sleep(10);
+    }
+
     AX_S32 nRet = 0;
     AX_S32 c;
-    AX_S32 isExit = 0;
-    AX_BOOL bJpgFile = AX_FALSE;
-    FILE *InputFileHandle = NULL;
-    const AX_CHAR *InputFile = NULL;
+    AX_S32 isExit                  = 0;
+    AX_BOOL bJpgFile               = AX_FALSE;
+    FILE *InputFileHandle          = NULL;
+    const AX_CHAR *InputFile       = NULL;
     const AX_CHAR *InputResolution = NULL;
-    AX_S32 InputFileFrameCnt = 1;
-    const AX_CHAR *ReWritePath = NULL;
-    const AX_CHAR *SaveResultPath = NULL;
-    const AX_CHAR *ModelsPath = NULL;
-    FILE *fpResultFile = NULL;
-    AX_S32 nRepeatTimes = 1;
-    AX_S32 nPPL = AX_SKEL_PPL_HVCP;
-    AX_S32 nDetectType = 2;
-    AX_S32 nPushStrategy = 3;
-    AX_S32 nNpuType = 0;
-    AX_S32 nInterval = 0;
-    AX_U32 nStride = 1920;
-    AX_U32 nWidth = 1920;
-    AX_U32 nHeight = 1080;
-    AX_U32 nJencBufSize = 0;
-    AX_U32 nFrameDepth = 1;
-    AX_U32 nOneSize = 0;
-    AX_U64 OneYUVDataPhy = 0;
-    AX_VOID *OneYUVDataVir = NULL;
-    AX_U32 nFrameSize = nStride * nHeight * 3 / 2;
-    AX_U32 nCacheListDepth = 1;
-    AX_S32 nSrcFrameRate = 25;
-    AX_S32 nDstFrameRate = 25;
-    AX_VOID *YUVDataVir = NULL;
-    AX_U64 YUVDataPhy = 0;
-    AX_VOID *YUVDataWrVir = NULL;
-    AX_U64 YUVDataWrPhy = 0;
-    AX_SKEL_HANDLE pHandle = NULL;
-    AX_SKEL_FRAME_T stFrame = {0};
-    AX_SKEL_RESULT_T *pstResult = NULL;
-    AX_U64 nFileSize = 0;
-    AX_U64 nStartTime = 0;
-    AX_U64 nInitElasped = 0;
-    AX_U64 nCreateElasped = 0;
-    AX_U64 nProcessElasped = 0;
-    AX_U64 nResultElasped = 0;
-    AX_U64 nResultElaspedMin = (AX_U64)-1;
-    AX_U64 nResultElaspedMax = 0;
-    AX_U64 nResultElaspedTotal = 0;
-    AX_F32 fConfidence = 0.0;
+    AX_S32 InputFileFrameCnt       = 1;
+    const AX_CHAR *ReWritePath     = NULL;
+    const AX_CHAR *SaveResultPath  = NULL;
+    const AX_CHAR *ModelsPath      = NULL;
+    FILE *fpResultFile             = NULL;
+    AX_S32 nRepeatTimes            = 1;
+    AX_S32 nPPL                    = AX_SKEL_PPL_HVCP;
+    AX_S32 nDetectType             = 2;
+    AX_S32 nPushStrategy           = 3;
+    AX_S32 nNpuType                = 0;
+    AX_S32 nInterval               = 0;
+    AX_U32 nStride                 = 1920;
+    AX_U32 nWidth                  = 1920;
+    AX_U32 nHeight                 = 1080;
+    AX_U32 nJencBufSize            = 0;
+    AX_U32 nFrameDepth             = 1;
+    AX_U32 nOneSize                = 0;
+    AX_U64 OneYUVDataPhy           = 0;
+    AX_VOID *OneYUVDataVir         = NULL;
+    AX_U32 nFrameSize              = nStride * nHeight * 3 / 2;
+    AX_U32 nCacheListDepth         = 1;
+    AX_S32 nSrcFrameRate           = 25;
+    AX_S32 nDstFrameRate           = 25;
+    AX_VOID *YUVDataVir            = NULL;
+    AX_U64 YUVDataPhy              = 0;
+    AX_VOID *YUVDataWrVir          = NULL;
+    AX_U64 YUVDataWrPhy            = 0;
+    AX_SKEL_HANDLE pHandle         = NULL;
+    AX_SKEL_FRAME_T stFrame        = {0};
+    AX_SKEL_RESULT_T *pstResult    = NULL;
+    AX_U64 nFileSize               = 0;
+    AX_U64 nStartTime              = 0;
+    AX_U64 nInitElasped            = 0;
+    AX_U64 nCreateElasped          = 0;
+    AX_U64 nProcessElasped         = 0;
+    AX_U64 nResultElasped          = 0;
+    AX_U64 nResultElaspedMin       = (AX_U64)-1;
+    AX_U64 nResultElaspedMax       = 0;
+    AX_U64 nResultElaspedTotal     = 0;
+    AX_F32 fConfidence             = 0.0;
     // AX_U32 nHumantracksize = 0;
     // AX_U32 nVehicletracksize = 0;
     // AX_U32 nCycletracksize = 0;
@@ -975,12 +1039,9 @@ AX_S32 main(AX_S32 argc, AX_CHAR *argv[]) {
         }
     }
 
-    if (isExit || !InputFile || !InputResolution || (nPPL < AX_SKEL_PPL_HVCP) || (nPPL > AX_SKEL_PPL_MAX)
-        || (log_level < 0 || log_level >= SKEL_LOG_MAX)
-        || (fConfidence < 0 || fConfidence > 1)
-        || (nDetectType < 0 || nDetectType > 2)
-        || (nPushStrategy < 1 || nPushStrategy > 3)
-        || (nNpuType > 3)) {
+    if (isExit || !InputFile || !InputResolution || (nPPL < AX_SKEL_PPL_HVCP) || (nPPL > AX_SKEL_PPL_MAX) ||
+        (log_level < 0 || log_level >= SKEL_LOG_MAX) || (fConfidence < 0 || fConfidence > 1) ||
+        (nDetectType < 0 || nDetectType > 2) || (nPushStrategy < 1 || nPushStrategy > 3) || (nNpuType > 3)) {
         ShowUsage();
         exit(0);
     }
@@ -1034,7 +1095,7 @@ AX_S32 main(AX_S32 argc, AX_CHAR *argv[]) {
             exit(0);
         }
 
-        nWidth = atoi(InputResolution);
+        nWidth  = atoi(InputResolution);
         nStride = nWidth;
         nHeight = atoi(temp_p + 1);
     }
@@ -1051,10 +1112,10 @@ AX_S32 main(AX_S32 argc, AX_CHAR *argv[]) {
 
     AX_VENC_MOD_ATTR_T stVencModAttr;
     memset(&stVencModAttr, 0x00, sizeof(stVencModAttr));
-    stVencModAttr.enVencType = AX_VENC_MULTI_ENCODER;
+    stVencModAttr.enVencType                     = AX_VENC_MULTI_ENCODER;
     stVencModAttr.stModThdAttr.u32TotalThreadNum = 1;
-    stVencModAttr.stModThdAttr.bExplicitSched = AX_FALSE;
-    nRet = AX_VENC_Init(&stVencModAttr);
+    stVencModAttr.stModThdAttr.bExplicitSched    = AX_FALSE;
+    nRet                                         = AX_VENC_Init(&stVencModAttr);
     if (AX_SUCCESS != nRet) {
         ALOGE("AX_VENC_Init FAILED! ret:0x%x\n", nRet);
         goto EXIT0;
@@ -1076,18 +1137,15 @@ AX_S32 main(AX_S32 argc, AX_CHAR *argv[]) {
 #if defined(CHIP_AX650)
     if (nNpuType == 0) {
         npu_attr.eHardMode = AX_ENGINE_VIRTUAL_NPU_DISABLE;
-    }
-    else if (nNpuType >= 1 && nNpuType <= 4) {
+    } else if (nNpuType >= 1 && nNpuType <= 4) {
         npu_attr.eHardMode = AX_ENGINE_VIRTUAL_NPU_STD;
-    }
-    else if (nNpuType >= 5 && nNpuType <= 7) {
+    } else if (nNpuType >= 5 && nNpuType <= 7) {
         npu_attr.eHardMode = AX_ENGINE_VIRTUAL_NPU_BIG_LITTLE;
     }
 #elif defined(CHIP_AX620E)
     if (nNpuType == 0) {
         npu_attr.eHardMode = AX_ENGINE_VIRTUAL_NPU_DISABLE;
-    }
-    else {
+    } else {
         npu_attr.eHardMode = AX_ENGINE_VIRTUAL_NPU_ENABLE;
     }
 #else
@@ -1100,27 +1158,23 @@ AX_S32 main(AX_S32 argc, AX_CHAR *argv[]) {
         goto EXIT0;
     }
 
-    nOneSize = nWidth * nHeight * 3 / 2;
+    nOneSize   = nWidth * nHeight * 3 / 2;
     nFrameSize = nStride * nHeight * 3 / 2;
 
     InputFileHandle = LoadFile(InputFile, &nFileSize);
 
     if (bJpgFile) {
         InputFileFrameCnt = 1;
-    }
-    else {
-        if (!InputFileHandle
-        || (nFileSize % nOneSize) != 0) {
+    } else {
+        if (!InputFileHandle || (nFileSize % nOneSize) != 0) {
             ALOGE("%s file is not %dx%d", InputFile, nWidth, nHeight);
             goto EXIT1;
         }
 
         InputFileFrameCnt = nFileSize / nOneSize;
     }
-    
 
-    if (nWidth%2 == 1
-        || nHeight%2 == 1) {
+    if (nWidth % 2 == 1 || nHeight % 2 == 1) {
         ALOGE("wxh(%dx%d) should be even", nWidth, nHeight);
         goto EXIT1;
     }
@@ -1150,8 +1204,7 @@ AX_S32 main(AX_S32 argc, AX_CHAR *argv[]) {
 
     if (ModelsPath) {
         stInitParam.pStrModelDeploymentPath = ModelsPath;
-    }
-    else {
+    } else {
         stInitParam.pStrModelDeploymentPath = "/opt/etc/skelModels";
     }
 
@@ -1214,62 +1267,62 @@ AX_S32 main(AX_S32 argc, AX_CHAR *argv[]) {
 
     AX_SKEL_HANDLE_PARAM_T stHandleParam = {0};
 
-    stHandleParam.ePPL = (AX_SKEL_PPL_E)nPPL;
-    stHandleParam.nFrameDepth = nFrameDepth;
+    stHandleParam.ePPL             = (AX_SKEL_PPL_E)nPPL;
+    stHandleParam.nFrameDepth      = nFrameDepth;
     stHandleParam.nFrameCacheDepth = nCacheListDepth;
-    stHandleParam.nIoDepth = 0;
-    stHandleParam.nWidth = nWidth;
-    stHandleParam.nHeight = nHeight;
+    stHandleParam.nIoDepth         = 0;
+    stHandleParam.nWidth           = nWidth;
+    stHandleParam.nHeight          = nHeight;
 
     // config settings (if need)
-    AX_SKEL_CONFIG_T stConfig = {0};
+    AX_SKEL_CONFIG_T stConfig         = {0};
     AX_SKEL_CONFIG_ITEM_T stItems[16] = {0};
-    AX_U8 itemIndex = 0;
-    stConfig.nSize = 0;
-    stConfig.pstItems = &stItems[0];
+    AX_U8 itemIndex                   = 0;
+    stConfig.nSize                    = 0;
+    stConfig.pstItems                 = &stItems[0];
 
     // venc_attr_config
     // default will be system definition: w*h*3/8
     AX_SKEL_COMMON_THRESHOLD_CONFIG_T stVencAttrConfigThreshold = {0};
     if (nJencBufSize > 0) {
-        stConfig.pstItems[itemIndex].pstrType = (AX_CHAR *)"venc_attr_config";
-        stVencAttrConfigThreshold.fValue = (AX_F32) nJencBufSize;
-        stConfig.pstItems[itemIndex].pstrValue = (AX_VOID *)&stVencAttrConfigThreshold;
+        stConfig.pstItems[itemIndex].pstrType   = (AX_CHAR *)"venc_attr_config";
+        stVencAttrConfigThreshold.fValue        = (AX_F32)nJencBufSize;
+        stConfig.pstItems[itemIndex].pstrValue  = (AX_VOID *)&stVencAttrConfigThreshold;
         stConfig.pstItems[itemIndex].nValueSize = sizeof(AX_SKEL_COMMON_THRESHOLD_CONFIG_T);
         itemIndex++;
     }
 
     AX_SKEL_COMMON_THRESHOLD_CONFIG_T stTrackEnableThreshold = {0};
-    AX_SKEL_COMMON_THRESHOLD_CONFIG_T stPushEnableThreshold = {0};
+    AX_SKEL_COMMON_THRESHOLD_CONFIG_T stPushEnableThreshold  = {0};
 
     // detect only (disable track + disable push)
     if (nDetectType == 0) {
         // track_disable
-        stConfig.pstItems[itemIndex].pstrType = (AX_CHAR *)"track_enable";
-        stTrackEnableThreshold.fValue = 0;
-        stConfig.pstItems[itemIndex].pstrValue = (AX_VOID *)&stTrackEnableThreshold;
+        stConfig.pstItems[itemIndex].pstrType   = (AX_CHAR *)"track_enable";
+        stTrackEnableThreshold.fValue           = 0;
+        stConfig.pstItems[itemIndex].pstrValue  = (AX_VOID *)&stTrackEnableThreshold;
         stConfig.pstItems[itemIndex].nValueSize = sizeof(AX_SKEL_COMMON_THRESHOLD_CONFIG_T);
         itemIndex++;
 
         // push_disable
-        stConfig.pstItems[itemIndex].pstrType = (AX_CHAR *)"push_enable";
-        stPushEnableThreshold.fValue = 0;
-        stConfig.pstItems[itemIndex].pstrValue = (AX_VOID *)&stPushEnableThreshold;
+        stConfig.pstItems[itemIndex].pstrType   = (AX_CHAR *)"push_enable";
+        stPushEnableThreshold.fValue            = 0;
+        stConfig.pstItems[itemIndex].pstrValue  = (AX_VOID *)&stPushEnableThreshold;
         stConfig.pstItems[itemIndex].nValueSize = sizeof(AX_SKEL_COMMON_THRESHOLD_CONFIG_T);
         itemIndex++;
     }
     // detect + track (disable push)
     else if (nDetectType == 1) {
         // push_disable
-        stConfig.pstItems[itemIndex].pstrType = (AX_CHAR *)"push_enable";
-        stPushEnableThreshold.fValue = 0;
-        stConfig.pstItems[itemIndex].pstrValue = (AX_VOID *)&stPushEnableThreshold;
+        stConfig.pstItems[itemIndex].pstrType   = (AX_CHAR *)"push_enable";
+        stPushEnableThreshold.fValue            = 0;
+        stConfig.pstItems[itemIndex].pstrValue  = (AX_VOID *)&stPushEnableThreshold;
         stConfig.pstItems[itemIndex].nValueSize = sizeof(AX_SKEL_COMMON_THRESHOLD_CONFIG_T);
         itemIndex++;
     }
 
     if (itemIndex > 0) {
-        stConfig.nSize = itemIndex;
+        stConfig.nSize         = itemIndex;
         stHandleParam.stConfig = stConfig;
     }
 
@@ -1280,8 +1333,7 @@ AX_S32 main(AX_S32 argc, AX_CHAR *argv[]) {
     // STD-NPU
     else if (nNpuType == 2) {
         stHandleParam.nNpuType = (AX_S32)AX_SKEL_STD_VNPU_1;
-    }
-    else if (nNpuType == 3) {
+    } else if (nNpuType == 3) {
         stHandleParam.nNpuType = (AX_S32)AX_SKEL_STD_VNPU_2;
     }
 
@@ -1303,11 +1355,11 @@ AX_S32 main(AX_S32 argc, AX_CHAR *argv[]) {
 
     // set config
     {
-        AX_SKEL_CONFIG_T stConfig = {0};
+        AX_SKEL_CONFIG_T stConfig         = {0};
         AX_SKEL_CONFIG_ITEM_T stItems[64] = {0};
-        AX_U8 itemIndex = 0;
-        stConfig.nSize = 0;
-        stConfig.pstItems = &stItems[0];
+        AX_U8 itemIndex                   = 0;
+        stConfig.nSize                    = 0;
+        stConfig.pstItems                 = &stItems[0];
 #if 0
         // body_max_target_count
         stConfig.pstItems[itemIndex].pstrType = (AX_CHAR *)"body_max_target_count";
@@ -1434,27 +1486,27 @@ AX_S32 main(AX_S32 argc, AX_CHAR *argv[]) {
 
         // detect_roi_polygon
         AX_SKEL_ROI_POLYGON_CONFIG_T stDetectRoi = {0};
-        stConfig.pstItems[itemIndex].pstrType = (AX_CHAR *)"detect_roi_polygon";
-        stDetectRoi.bEnable = AX_FALSE;
-        stDetectRoi.nPointNum = 4;
-        AX_SKEL_POINT_T stPoint[4] = {{0, 0}, {nWidth, 0}, {nWidth, nHeight}, {0, nHeight}};
-        stDetectRoi.pstPoint = (AX_SKEL_POINT_T *)stPoint;
-        stConfig.pstItems[itemIndex].pstrValue = (AX_VOID *)&stDetectRoi;
-        stConfig.pstItems[itemIndex].nValueSize = sizeof(AX_SKEL_ROI_POLYGON_CONFIG_T);
+        stConfig.pstItems[itemIndex].pstrType    = (AX_CHAR *)"detect_roi_polygon";
+        stDetectRoi.bEnable                      = AX_FALSE;
+        stDetectRoi.nPointNum                    = 4;
+        AX_SKEL_POINT_T stPoint[4]               = {{0, 0}, {nWidth, 0}, {nWidth, nHeight}, {0, nHeight}};
+        stDetectRoi.pstPoint                     = (AX_SKEL_POINT_T *)stPoint;
+        stConfig.pstItems[itemIndex].pstrValue   = (AX_VOID *)&stDetectRoi;
+        stConfig.pstItems[itemIndex].nValueSize  = sizeof(AX_SKEL_ROI_POLYGON_CONFIG_T);
         itemIndex++;
 
         // push_strategy
-        stConfig.pstItems[itemIndex].pstrType = (AX_CHAR *)"push_strategy";
-        AX_SKEL_PUSH_STRATEGY_T stPushStrategy = {0};
-        stPushStrategy.ePushMode = (AX_SKEL_PUSH_MODE_E)nPushStrategy;
-        stPushStrategy.nIntervalTimes = 2000;
-        stPushStrategy.nPushCounts = 1;
-        stPushStrategy.bPushSameFrame = AX_TRUE;
-        stConfig.pstItems[itemIndex].pstrValue = (AX_VOID *)&stPushStrategy;
+        stConfig.pstItems[itemIndex].pstrType   = (AX_CHAR *)"push_strategy";
+        AX_SKEL_PUSH_STRATEGY_T stPushStrategy  = {0};
+        stPushStrategy.ePushMode                = (AX_SKEL_PUSH_MODE_E)nPushStrategy;
+        stPushStrategy.nIntervalTimes           = 2000;
+        stPushStrategy.nPushCounts              = 1;
+        stPushStrategy.bPushSameFrame           = AX_TRUE;
+        stConfig.pstItems[itemIndex].pstrValue  = (AX_VOID *)&stPushStrategy;
         stConfig.pstItems[itemIndex].nValueSize = sizeof(AX_SKEL_PUSH_STRATEGY_T);
         itemIndex++;
 
-        //4 crop_encoder
+        // 4 crop_encoder
 #if 0
         // body_crop_encoder
         AX_SKEL_CROP_ENCODER_THRESHOLD_CONFIG_T stBodyCropEncoderThreshold = {0};
@@ -1512,12 +1564,12 @@ AX_S32 main(AX_S32 argc, AX_CHAR *argv[]) {
         itemIndex++;
 #endif
         // push_panorama
-        stConfig.pstItems[itemIndex].pstrType = (AX_CHAR *)"push_panorama";
+        stConfig.pstItems[itemIndex].pstrType               = (AX_CHAR *)"push_panorama";
         AX_SKEL_PUSH_PANORAMA_CONFIG_T stPushPanoramaConfig = {0};
-        stPushPanoramaConfig.bEnable = AX_FALSE;
-        stPushPanoramaConfig.nQuality = 0;
-        stConfig.pstItems[itemIndex].pstrValue = (AX_VOID *)&stPushPanoramaConfig;
-        stConfig.pstItems[itemIndex].nValueSize = sizeof(AX_SKEL_PUSH_PANORAMA_CONFIG_T);
+        stPushPanoramaConfig.bEnable                        = AX_FALSE;
+        stPushPanoramaConfig.nQuality                       = 0;
+        stConfig.pstItems[itemIndex].pstrValue              = (AX_VOID *)&stPushPanoramaConfig;
+        stConfig.pstItems[itemIndex].nValueSize             = sizeof(AX_SKEL_PUSH_PANORAMA_CONFIG_T);
         itemIndex++;
 #if 0
         // push_quality_body
@@ -1565,23 +1617,23 @@ AX_S32 main(AX_S32 argc, AX_CHAR *argv[]) {
         stConfig.pstItems[itemIndex].nValueSize = sizeof(AX_SKEL_ATTR_FILTER_CONFIG_T);
         itemIndex++;
 #endif
-//#if 0
-        // track_enable
-        stConfig.pstItems[itemIndex].pstrType = (AX_CHAR *)"track_enable";
+        // #if 0
+        //  track_enable
+        stConfig.pstItems[itemIndex].pstrType        = (AX_CHAR *)"track_enable";
         AX_SKEL_COMMON_ENABLE_CONFIG_T stTrackEnable = {0};
-        stTrackEnable.bEnable = AX_TRUE;
-        stConfig.pstItems[itemIndex].pstrValue = (AX_VOID *)&stTrackEnable;
-        stConfig.pstItems[itemIndex].nValueSize = sizeof(AX_SKEL_COMMON_ENABLE_CONFIG_T);
+        stTrackEnable.bEnable                        = AX_TRUE;
+        stConfig.pstItems[itemIndex].pstrValue       = (AX_VOID *)&stTrackEnable;
+        stConfig.pstItems[itemIndex].nValueSize      = sizeof(AX_SKEL_COMMON_ENABLE_CONFIG_T);
         itemIndex++;
 
-        //push_enable
-        stConfig.pstItems[itemIndex].pstrType = (AX_CHAR *)"push_enable";
+        // push_enable
+        stConfig.pstItems[itemIndex].pstrType       = (AX_CHAR *)"push_enable";
         AX_SKEL_COMMON_ENABLE_CONFIG_T stPushEnable = {0};
-        stPushEnable.bEnable = AX_TRUE;
-        stConfig.pstItems[itemIndex].pstrValue = (AX_VOID *)&stPushEnable;
-        stConfig.pstItems[itemIndex].nValueSize = sizeof(AX_SKEL_COMMON_ENABLE_CONFIG_T);
+        stPushEnable.bEnable                        = AX_TRUE;
+        stConfig.pstItems[itemIndex].pstrValue      = (AX_VOID *)&stPushEnable;
+        stConfig.pstItems[itemIndex].nValueSize     = sizeof(AX_SKEL_COMMON_ENABLE_CONFIG_T);
         itemIndex++;
-//#endif
+// #endif
 #if 0
         //target_config
         stConfig.pstItems[itemIndex].pstrType = (AX_CHAR *)"target_config";
@@ -1616,10 +1668,10 @@ AX_S32 main(AX_S32 argc, AX_CHAR *argv[]) {
         stConfig.pstItems[itemIndex].nValueSize = sizeof(AX_SKEL_COMMON_ENABLE_CONFIG_T);
         itemIndex++;
 #endif
-        //analyzer_attr_config
-        // stConfig.pstItems[itemIndex].pstrType = (AX_CHAR *)"analyzer_attr_config";
-        // AX_SKEL_ANALYZER_CONFIG_T stAnalyze = {0};
-        // //AX_SKEL_ANALYZER_ATTR_E analyze_attribute = AX_SKEL_ANALYZER_ATTR_NONE;
+        // analyzer_attr_config
+        //  stConfig.pstItems[itemIndex].pstrType = (AX_CHAR *)"analyzer_attr_config";
+        //  AX_SKEL_ANALYZER_CONFIG_T stAnalyze = {0};
+        //  //AX_SKEL_ANALYZER_ATTR_E analyze_attribute = AX_SKEL_ANALYZER_ATTR_NONE;
 
         // stAnalyze.nSize = 1;
         // AX_SKEL_ANALYZER_ATTR_E analyze_attribute = AX_SKEL_ANALYZER_ATTR_FACE_ATTRIBUTE;
@@ -1686,14 +1738,14 @@ AX_S32 main(AX_S32 argc, AX_CHAR *argv[]) {
         OUTPUT_LOG_SAVE("#####SKEL Process times: %d", nRepeat + 1);
 
         STAT_OBJECT_NUM_T tObjectTrackNum = {0};
-        STAT_OBJECT_NUM_T tObjectPushNum = {0};
+        STAT_OBJECT_NUM_T tObjectPushNum  = {0};
 
         for (AX_U32 nFrameCnt = 0; nFrameCnt < InputFileFrameCnt; nFrameCnt++) {
             AX_BLK blkId = AX_INVALID_BLOCKID;
 
             if (InputFileFrameCnt != 1) {
                 if (FrameSkipCtrl(nSrcFrameRate, nDstFrameRate, nSkelFrameId)) {
-                    nSkelFrameId ++;
+                    nSkelFrameId++;
 
                     LoadFileToMem(InputFileHandle, 0, NULL, nOneSize);
 
@@ -1701,10 +1753,8 @@ AX_S32 main(AX_S32 argc, AX_CHAR *argv[]) {
                         usleep(nInterval);
                     }
                     continue;
-                }
-                else {
+                } else {
                     if (!FrameMgrGet(&YUVDataPhy, &YUVDataVir, nFrameSize, nSkelFrameId, &blkId)) {
-
                         ALOGE("FrameMgrGet fail");
 
                         goto EXIT1;
@@ -1713,28 +1763,16 @@ AX_S32 main(AX_S32 argc, AX_CHAR *argv[]) {
                     if (nOneSize != nFrameSize) {
                         LoadFileToMem(InputFileHandle, OneYUVDataPhy, OneYUVDataVir, nOneSize);
 
-                        NV12ToStrideNV12(OneYUVDataPhy,
-                                        OneYUVDataVir,
-                                        nOneSize,
-                                        nWidth,
-                                        nHeight,
-                                        YUVDataPhy,
-                                        YUVDataVir,
-                                        nFrameSize,
-                                        nStride,
-                                        nHeight
-                                        );
-                    }
-                    else {
+                        NV12ToStrideNV12(OneYUVDataPhy, OneYUVDataVir, nOneSize, nWidth, nHeight, YUVDataPhy,
+                                         YUVDataVir, nFrameSize, nStride, nHeight);
+                    } else {
                         LoadFileToMem(InputFileHandle, YUVDataPhy, YUVDataVir, nOneSize);
                     }
                 }
             } else {
                 FrameMgrGet(&YUVDataPhy, &YUVDataVir, nFrameSize, nSkelFrameId, &blkId);
 
-                if (nRet != 0
-                    || YUVDataPhy == 0
-                    || YUVDataVir == NULL) {
+                if (nRet != 0 || YUVDataPhy == 0 || YUVDataVir == NULL) {
                     ALOGE("Load input file fail");
                     goto EXIT1;
                 }
@@ -1745,52 +1783,42 @@ AX_S32 main(AX_S32 argc, AX_CHAR *argv[]) {
                         ALOGE("DecodeJpeg failed!");
                         goto EXIT3;
                     }
-                }
-                else {
+                } else {
                     if (nOneSize != nFrameSize) {
-                        nRet = AX_SYS_MemAlloc(&OneYUVDataPhy, (AX_VOID **)&OneYUVDataVir, nOneSize, 256, (AX_S8 *)"SKEL_TEST");
+                        nRet = AX_SYS_MemAlloc(&OneYUVDataPhy, (AX_VOID **)&OneYUVDataVir, nOneSize, 256,
+                                               (AX_S8 *)"SKEL_TEST");
 
                         nRet = LoadFileToMem(InputFileHandle, OneYUVDataPhy, OneYUVDataVir, nOneSize);
 
-                        NV12ToStrideNV12(OneYUVDataPhy,
-                                        OneYUVDataVir,
-                                        nOneSize,
-                                        nWidth,
-                                        nHeight,
-                                        YUVDataPhy,
-                                        YUVDataVir,
-                                        nFrameSize,
-                                        nStride,
-                                        nHeight
-                                        );
-                    }
-                    else {
+                        NV12ToStrideNV12(OneYUVDataPhy, OneYUVDataVir, nOneSize, nWidth, nHeight, YUVDataPhy,
+                                         YUVDataVir, nFrameSize, nStride, nHeight);
+                    } else {
                         nRet = LoadFileToMem(InputFileHandle, YUVDataPhy, YUVDataVir, nFrameSize);
                     }
                 }
             }
-            stFrame.stFrame.u32Width = nWidth;
-            stFrame.stFrame.u32Height = nHeight;
-            stFrame.stFrame.enImgFormat = AX_FORMAT_YUV420_SEMIPLANAR;
-            stFrame.stFrame.u32FrameSize = nFrameSize;
+            stFrame.stFrame.u32Width        = nWidth;
+            stFrame.stFrame.u32Height       = nHeight;
+            stFrame.stFrame.enImgFormat     = AX_FORMAT_YUV420_SEMIPLANAR;
+            stFrame.stFrame.u32FrameSize    = nFrameSize;
             stFrame.stFrame.u32PicStride[0] = nStride;
             stFrame.stFrame.u32PicStride[1] = nStride;
             stFrame.stFrame.u32PicStride[2] = nStride;
-            stFrame.stFrame.u64PhyAddr[0] = YUVDataPhy;
-            stFrame.stFrame.u64PhyAddr[1] = YUVDataPhy + nStride * nHeight;
-            stFrame.stFrame.u64PhyAddr[2] = 0;
-            stFrame.stFrame.u64VirAddr[0] = (AX_ULONG)(YUVDataVir);
-            stFrame.stFrame.u64VirAddr[1] = (AX_ULONG)(YUVDataVir + nStride * nHeight);
-            stFrame.stFrame.u64VirAddr[2] = 0;
-            stFrame.stFrame.u32BlkId[0] = blkId;
-            stFrame.stFrame.u32BlkId[1] = 0;
-            stFrame.stFrame.u32BlkId[2] = 0;
+            stFrame.stFrame.u64PhyAddr[0]   = YUVDataPhy;
+            stFrame.stFrame.u64PhyAddr[1]   = YUVDataPhy + nStride * nHeight;
+            stFrame.stFrame.u64PhyAddr[2]   = 0;
+            stFrame.stFrame.u64VirAddr[0]   = (AX_ULONG)(YUVDataVir);
+            stFrame.stFrame.u64VirAddr[1]   = (AX_ULONG)(YUVDataVir + nStride * nHeight);
+            stFrame.stFrame.u64VirAddr[2]   = 0;
+            stFrame.stFrame.u32BlkId[0]     = blkId;
+            stFrame.stFrame.u32BlkId[1]     = 0;
+            stFrame.stFrame.u32BlkId[2]     = 0;
             ALOGN("*****SKEL Frame(%d) Process", nFrameCnt + 1);
 
-            //OUTPUT_LOG_SAVE("*****SKEL Frame(%d) Process Start", nFrameCnt + 1);
+            // OUTPUT_LOG_SAVE("*****SKEL Frame(%d) Process Start", nFrameCnt + 1);
 
-            stFrame.nFrameId = nSkelFrameId ++;
-            nStartTime = get_tick_count();
+            stFrame.nFrameId = nSkelFrameId++;
+            nStartTime       = get_tick_count();
 
             while (1) {
                 nRet = AX_SKEL_SendFrame(pHandle, &stFrame, 0);
@@ -1846,7 +1874,7 @@ AX_S32 main(AX_S32 argc, AX_CHAR *argv[]) {
 
             ALOGN("\tObject Num: %d", pstResult->nObjectSize);
 
-            AX_U32 nSkelSize = 0;
+            AX_U32 nSkelSize                                         = 0;
             AI_Detection_SkelResult_t Skels[SKEL_SAMPLE_OBJECT_SIZE] = {0};
             for (AX_U32 i = 0; i < pstResult->nObjectSize; i++) {
                 AX_SKEL_OBJECT_ITEM_T *pstItems = &pstResult->pstObjectItems[i];
@@ -1855,59 +1883,53 @@ AX_S32 main(AX_S32 argc, AX_CHAR *argv[]) {
                 ALOGI("\t\tTrackId: %lld, TrackState: %d", pstItems->nTrackId, pstItems->eTrackState);
 
                 ALOGN("\t\tRect[%d] %s: [%f, %f, %f, %f], Confidence: %f", i, pstItems->pstrObjectCategory,
-                    pstItems->stRect.fX,
-                    pstItems->stRect.fY, pstItems->stRect.fW,
-                    pstItems->stRect.fH, pstItems->fConfidence);
+                      pstItems->stRect.fX, pstItems->stRect.fY, pstItems->stRect.fW, pstItems->stRect.fH,
+                      pstItems->fConfidence);
                 StatTrackMgr(pstItems, &tObjectTrackNum);
                 StatPushMgr(pstItems, &tObjectPushNum);
 
                 // get detect box only new or update state
-                if ((pstItems->eTrackState == AX_SKEL_TRACK_STATUS_NEW
-                    || pstItems->eTrackState == AX_SKEL_TRACK_STATUS_UPDATE)
-                    && nSkelSize < SKEL_SAMPLE_OBJECT_SIZE) {
+                if ((pstItems->eTrackState == AX_SKEL_TRACK_STATUS_NEW ||
+                     pstItems->eTrackState == AX_SKEL_TRACK_STATUS_UPDATE) &&
+                    nSkelSize < SKEL_SAMPLE_OBJECT_SIZE) {
                     Skels[nSkelSize].pstrObjectCategory = pstItems->pstrObjectCategory;
-                    Skels[nSkelSize].tBox.fX = pstItems->stRect.fX;
-                    Skels[nSkelSize].tBox.fY = pstItems->stRect.fY;
-                    Skels[nSkelSize].tBox.fW = pstItems->stRect.fW;
-                    Skels[nSkelSize].tBox.fH = pstItems->stRect.fH;
+                    Skels[nSkelSize].tBox.fX            = pstItems->stRect.fX;
+                    Skels[nSkelSize].tBox.fY            = pstItems->stRect.fY;
+                    Skels[nSkelSize].tBox.fW            = pstItems->stRect.fW;
+                    Skels[nSkelSize].tBox.fH            = pstItems->stRect.fH;
 
-                    OUTPUT_LOG_SAVE("\t\tObject[%d] %s: [%f, %f, %f, %f], Confidence: %f",
-                                    i, pstItems->pstrObjectCategory,
-                                    pstItems->stRect.fX, pstItems->stRect.fY,
-                                    pstItems->stRect.fW, pstItems->stRect.fH,
-                                    pstItems->fConfidence);
+                    OUTPUT_LOG_SAVE("\t\tObject[%d] %s: [%f, %f, %f, %f], Confidence: %f", i,
+                                    pstItems->pstrObjectCategory, pstItems->stRect.fX, pstItems->stRect.fY,
+                                    pstItems->stRect.fW, pstItems->stRect.fH, pstItems->fConfidence);
 
                     ALOGN("\t\t[%d]Point Set Size: %d", i, pstItems->nPointSetSize);
 
                     // point
                     Skels[nSkelSize].nPointNum = AX_MIN(DETECT_SKEL_POINT_COUNT, pstItems->nPointSetSize);
                     for (AX_U32 j = 0; j < Skels[i].nPointNum; j++) {
-                        ALOGI("\t\t\tPoint[%d] %s: [%f, %f] Confidence: %f", j, pstItems->pstPointSet[j].pstrObjectCategory,
-                            pstItems->pstPointSet[j].stPoint.fX,
-                            pstItems->pstPointSet[j].stPoint.fY,
-                            pstItems->pstPointSet[j].fConfidence);
-                            Skels[nSkelSize].tPoint[j].fX = pstItems->pstPointSet[j].stPoint.fX;
-                            Skels[nSkelSize].tPoint[j].fY = pstItems->pstPointSet[j].stPoint.fY;
+                        ALOGI("\t\t\tPoint[%d] %s: [%f, %f] Confidence: %f", j,
+                              pstItems->pstPointSet[j].pstrObjectCategory, pstItems->pstPointSet[j].stPoint.fX,
+                              pstItems->pstPointSet[j].stPoint.fY, pstItems->pstPointSet[j].fConfidence);
+                        Skels[nSkelSize].tPoint[j].fX = pstItems->pstPointSet[j].stPoint.fX;
+                        Skels[nSkelSize].tPoint[j].fY = pstItems->pstPointSet[j].stPoint.fY;
 
-                        OUTPUT_LOG_SAVE("\t\t\tPoint[%d] %s: [%f, %f] Confidence: %f\n",
-                                        j,
+                        OUTPUT_LOG_SAVE("\t\t\tPoint[%d] %s: [%f, %f] Confidence: %f\n", j,
                                         pstItems->pstPointSet[j].pstrObjectCategory,
-                                        pstItems->pstPointSet[j].stPoint.fX,
-                                        pstItems->pstPointSet[j].stPoint.fY,
+                                        pstItems->pstPointSet[j].stPoint.fX, pstItems->pstPointSet[j].stPoint.fY,
                                         pstItems->pstPointSet[j].fConfidence);
                     }
 
-                    //face attr
-                    if(nPPL == AX_SKEL_PPL_FACE){
+                    // face attr
+                    if (nPPL == AX_SKEL_PPL_FACE) {
                         ALOGN("\t\tFace Attribute:");
-                        ALOGI("\t\t\tfYaw %f,",pstItems->stFaceAttr.fYaw);
-                        ALOGI("\t\t\tfPitch %f,",pstItems->stFaceAttr.fPitch);
-                        ALOGI("\t\t\tfRoll %f,",pstItems->stFaceAttr.fRoll);
-                        ALOGI("\t\t\tfMask %f,",pstItems->stFaceAttr.fMask);
-                        ALOGI("\t\t\tage %d",pstItems->stFaceAttr.nAge);
-                        ALOGI("\t\t\tgender %d",pstItems->stFaceAttr.nGender);
+                        ALOGI("\t\t\tfYaw %f,", pstItems->stFaceAttr.fYaw);
+                        ALOGI("\t\t\tfPitch %f,", pstItems->stFaceAttr.fPitch);
+                        ALOGI("\t\t\tfRoll %f,", pstItems->stFaceAttr.fRoll);
+                        ALOGI("\t\t\tfMask %f,", pstItems->stFaceAttr.fMask);
+                        ALOGI("\t\t\tage %d", pstItems->stFaceAttr.nAge);
+                        ALOGI("\t\t\tgender %d", pstItems->stFaceAttr.nGender);
                     }
-                    nSkelSize ++;
+                    nSkelSize++;
                 }
 
                 if (AX_SKEL_TRACK_STATUS_SELECT == pstItems->eTrackState) {
@@ -1915,125 +1937,93 @@ AX_S32 main(AX_S32 argc, AX_CHAR *argv[]) {
                     memset(&AttrInfo, 0x00, sizeof(AttrInfo));
                     AttrParser(pstItems, &AttrInfo);
 
-                    if (pstItems->bCropFrame
-                        && pstItems->stCropFrame.pFrameData
-                        && 0 < pstItems->stCropFrame.nFrameDataSize
-                        && SaveResultPath) {
+                    if (pstItems->bCropFrame && pstItems->stCropFrame.pFrameData &&
+                        0 < pstItems->stCropFrame.nFrameDataSize && SaveResultPath) {
                         // save attribute
-                        AX_CHAR arrDat[256] = {0};
+                        AX_CHAR arrDat[256]  = {0};
                         AX_CHAR strFile[512] = {0};
                         if (AttrInfo.bExist && AttrInfo.eType == ATTR_TYPE_FACE) {
                             sprintf(arrDat, "frame%lld_crop_%s[%lld]_Gender[%s]_Age[%d]_Mask[%s]_Score[%f]_%dx%d",
-                                    pstItems->stCropFrame.nFrameId,
-                                    pstItems->pstrObjectCategory,
-                                    pstItems->nTrackId,
-                                    AttrInfo.tFaceInfo.szGender,
-                                    AttrInfo.tFaceInfo.nAge,
-                                    AttrInfo.tFaceInfo.szMask,
-                                    pstItems->fConfidence,
-                                    pstItems->stCropFrame.nFrameWidth,
+                                    pstItems->stCropFrame.nFrameId, pstItems->pstrObjectCategory, pstItems->nTrackId,
+                                    AttrInfo.tFaceInfo.szGender, AttrInfo.tFaceInfo.nAge, AttrInfo.tFaceInfo.szMask,
+                                    pstItems->fConfidence, pstItems->stCropFrame.nFrameWidth,
                                     pstItems->stCropFrame.nFrameHeight);
 
                             OUTPUT_LOG_SAVE("\t\t[FACE ATTR] %s", arrDat);
-                        }
-                        else if (AttrInfo.bExist && AttrInfo.eType == ATTR_TYPE_PLATE) {
+                        } else if (AttrInfo.bExist && AttrInfo.eType == ATTR_TYPE_PLATE) {
                             sprintf(arrDat, "frame%lld_crop_%s[%lld]_Valid[%d]_Num[%s]_Color[%s]_Score[%f]_%dx%d",
-                                    pstItems->stCropFrame.nFrameId,
-                                    pstItems->pstrObjectCategory,
-                                    pstItems->nTrackId,
-                                    AttrInfo.tPlateInfo.bValid,
-                                    AttrInfo.tPlateInfo.szNum,
-                                    AttrInfo.tPlateInfo.szColor,
-                                    pstItems->fConfidence,
-                                    pstItems->stCropFrame.nFrameWidth,
+                                    pstItems->stCropFrame.nFrameId, pstItems->pstrObjectCategory, pstItems->nTrackId,
+                                    AttrInfo.tPlateInfo.bValid, AttrInfo.tPlateInfo.szNum, AttrInfo.tPlateInfo.szColor,
+                                    pstItems->fConfidence, pstItems->stCropFrame.nFrameWidth,
                                     pstItems->stCropFrame.nFrameHeight);
 
                             OUTPUT_LOG_SAVE("\t\t[PLATE ATTR] %s", arrDat);
-                        }
-                        else if (AttrInfo.bExist && AttrInfo.eType == ATTR_TYPE_VEHICLE) {
-                            sprintf(arrDat, "frame%lld_crop_%s[%lld]_[plate_Valid[%d]_Num[%s]_Color[%s]]_Score[%f]_%dx%d",
-                                    pstItems->stCropFrame.nFrameId,
-                                    pstItems->pstrObjectCategory,
-                                    pstItems->nTrackId,
-                                    AttrInfo.tPlateInfo.bValid,
-                                    AttrInfo.tPlateInfo.szNum,
-                                    AttrInfo.tPlateInfo.szColor,
-                                    pstItems->fConfidence,
-                                    pstItems->stCropFrame.nFrameWidth,
+                        } else if (AttrInfo.bExist && AttrInfo.eType == ATTR_TYPE_VEHICLE) {
+                            sprintf(arrDat,
+                                    "frame%lld_crop_%s[%lld]_[plate_Valid[%d]_Num[%s]_Color[%s]]_Score[%f]_%dx%d",
+                                    pstItems->stCropFrame.nFrameId, pstItems->pstrObjectCategory, pstItems->nTrackId,
+                                    AttrInfo.tPlateInfo.bValid, AttrInfo.tPlateInfo.szNum, AttrInfo.tPlateInfo.szColor,
+                                    pstItems->fConfidence, pstItems->stCropFrame.nFrameWidth,
                                     pstItems->stCropFrame.nFrameHeight);
 
                             OUTPUT_LOG_SAVE("\t\t[VEHICLE ATTR] %s", arrDat);
-                        }
-                        else {
-                            sprintf(arrDat, "frame%lld_crop_%s[%lld]_Score[%f]_%dx%d",
-                                    pstItems->stCropFrame.nFrameId,
-                                    pstItems->pstrObjectCategory,
-                                    pstItems->nTrackId,
-                                    pstItems->fConfidence,
-                                    pstItems->stCropFrame.nFrameWidth,
-                                    pstItems->stCropFrame.nFrameHeight);
+                        } else {
+                            sprintf(arrDat, "frame%lld_crop_%s[%lld]_Score[%f]_%dx%d", pstItems->stCropFrame.nFrameId,
+                                    pstItems->pstrObjectCategory, pstItems->nTrackId, pstItems->fConfidence,
+                                    pstItems->stCropFrame.nFrameWidth, pstItems->stCropFrame.nFrameHeight);
                         }
 
-                        sprintf(strFile, "%s/%s/%s.jpg",
-                                SaveResultPath,
-                                pstItems->pstrObjectCategory,
-                                arrDat);
+                        sprintf(strFile, "%s/%s/%s.jpg", SaveResultPath, pstItems->pstrObjectCategory, arrDat);
 
                         FILE *fp_w = fopen(strFile, "wb");
 
                         if (fp_w) {
                             ALOGI("Write crop jpg to file: %s", strFile);
-                            fwrite((AX_U8 *)pstItems->stCropFrame.pFrameData, 1, pstItems->stCropFrame.nFrameDataSize, fp_w);
+                            fwrite((AX_U8 *)pstItems->stCropFrame.pFrameData, 1, pstItems->stCropFrame.nFrameDataSize,
+                                   fp_w);
                             fclose(fp_w);
                         }
-
                     }
 
                     // panora frame
-                    if (pstItems->bPanoraFrame
-                        && pstItems->stPanoraFrame.pFrameData
-                        && 0 < pstItems->stPanoraFrame.nFrameDataSize
-                        && SaveResultPath) {
-                        AX_CHAR arrDat[256] = {0};
+                    if (pstItems->bPanoraFrame && pstItems->stPanoraFrame.pFrameData &&
+                        0 < pstItems->stPanoraFrame.nFrameDataSize && SaveResultPath) {
+                        AX_CHAR arrDat[256]  = {0};
                         AX_CHAR strFile[512] = {0};
                         if (AttrInfo.bExist && AttrInfo.eType == ATTR_TYPE_FACE) {
                             sprintf(arrDat, "frame%lld_panora_%s[%lld]_Gender[%s]_Age[%d]_Mask[%s]_Score[%f]_%dx%d.jpg",
                                     pstItems->stCropFrame.nFrameId, pstItems->pstrObjectCategory, pstItems->nTrackId,
                                     AttrInfo.tFaceInfo.szGender, AttrInfo.tFaceInfo.nAge, AttrInfo.tFaceInfo.szMask,
-                                    pstItems->fConfidence,
-                                    pstItems->stCropFrame.nFrameWidth, pstItems->stCropFrame.nFrameHeight);
-                        }
-                        else if (AttrInfo.bExist && AttrInfo.eType == ATTR_TYPE_PLATE) {
+                                    pstItems->fConfidence, pstItems->stCropFrame.nFrameWidth,
+                                    pstItems->stCropFrame.nFrameHeight);
+                        } else if (AttrInfo.bExist && AttrInfo.eType == ATTR_TYPE_PLATE) {
                             sprintf(arrDat, "frame%lld_panora_%s[%lld]_Valid[%d]_Num[%s]_Color[%s]_Score[%f]_%dx%d.jpg",
                                     pstItems->stCropFrame.nFrameId, pstItems->pstrObjectCategory, pstItems->nTrackId,
                                     AttrInfo.tPlateInfo.bValid, AttrInfo.tPlateInfo.szNum, AttrInfo.tPlateInfo.szColor,
-                                    pstItems->fConfidence,
-                                    pstItems->stCropFrame.nFrameWidth, pstItems->stCropFrame.nFrameHeight);
-                        }
-                        else if (AttrInfo.bExist && AttrInfo.eType == ATTR_TYPE_VEHICLE) {
-                            sprintf(arrDat, "frame%lld_panora_%s[%lld]_[plate_Valid[%d]_Num[%s]_Color[%s]]_Score[%f]_%dx%d.jpg",
+                                    pstItems->fConfidence, pstItems->stCropFrame.nFrameWidth,
+                                    pstItems->stCropFrame.nFrameHeight);
+                        } else if (AttrInfo.bExist && AttrInfo.eType == ATTR_TYPE_VEHICLE) {
+                            sprintf(arrDat,
+                                    "frame%lld_panora_%s[%lld]_[plate_Valid[%d]_Num[%s]_Color[%s]]_Score[%f]_%dx%d.jpg",
                                     pstItems->stCropFrame.nFrameId, pstItems->pstrObjectCategory, pstItems->nTrackId,
                                     AttrInfo.tPlateInfo.bValid, AttrInfo.tPlateInfo.szNum, AttrInfo.tPlateInfo.szColor,
-                                    pstItems->fConfidence,
-                                    pstItems->stCropFrame.nFrameWidth, pstItems->stCropFrame.nFrameHeight);
-                        }
-                        else {
+                                    pstItems->fConfidence, pstItems->stCropFrame.nFrameWidth,
+                                    pstItems->stCropFrame.nFrameHeight);
+                        } else {
                             sprintf(arrDat, "frame%lld_panora_%s[%lld]_Score[%f]_%dx%d.jpg",
                                     pstItems->stCropFrame.nFrameId, pstItems->pstrObjectCategory, pstItems->nTrackId,
-                                    pstItems->fConfidence,
-                                    pstItems->stCropFrame.nFrameWidth, pstItems->stCropFrame.nFrameHeight);
+                                    pstItems->fConfidence, pstItems->stCropFrame.nFrameWidth,
+                                    pstItems->stCropFrame.nFrameHeight);
                         }
 
-                        sprintf(strFile, "%s/%s/%s.jpg",
-                                SaveResultPath,
-                                pstItems->pstrObjectCategory,
-                                arrDat);
+                        sprintf(strFile, "%s/%s/%s.jpg", SaveResultPath, pstItems->pstrObjectCategory, arrDat);
 
                         FILE *fp_w = fopen(strFile, "wb");
 
                         if (fp_w) {
                             ALOGI("Write panora jpg to file: %s", strFile);
-                            fwrite((AX_U8 *)pstItems->stPanoraFrame.pFrameData, 1, pstItems->stPanoraFrame.nFrameDataSize, fp_w);
+                            fwrite((AX_U8 *)pstItems->stPanoraFrame.pFrameData, 1,
+                                   pstItems->stPanoraFrame.nFrameDataSize, fp_w);
                             fclose(fp_w);
                         }
                     }
@@ -2041,42 +2031,37 @@ AX_S32 main(AX_S32 argc, AX_CHAR *argv[]) {
 
                 // feature
                 ALOGI("\t\tFeature Size: %d", pstItems->nFeatureSize);
-                if (pstItems->pstFeatureItem
-                    && 0 < pstItems->nFeatureSize
-                    && SaveResultPath) {
+                if (pstItems->pstFeatureItem && 0 < pstItems->nFeatureSize && SaveResultPath) {
                     AX_CHAR strFile[256] = {0};
-                    sprintf(strFile, "%s/%s/frame%lld_feature_%s_%d.db",
-                        SaveResultPath, pstItems->pstrObjectCategory,
-                        pstItems->stCropFrame.nFrameId,
-                        pstItems->pstrObjectCategory, i);
+                    sprintf(strFile, "%s/%s/frame%lld_feature_%s_%d.db", SaveResultPath, pstItems->pstrObjectCategory,
+                            pstItems->stCropFrame.nFrameId, pstItems->pstrObjectCategory, i);
                     FILE *fp_w = fopen(strFile, "wb");
 
                     if (fp_w) {
-                        ALOGI("\t\t\tWrite feature to file: %s, nValueSize: %d",
-                                strFile,
-                                pstItems->pstFeatureItem[0].nValueSize);
-                        fwrite((AX_U8 *)pstItems->pstFeatureItem[0].pstrValue, 1, pstItems->pstFeatureItem[0].nValueSize, fp_w);
+                        ALOGI("\t\t\tWrite feature to file: %s, nValueSize: %d", strFile,
+                              pstItems->pstFeatureItem[0].nValueSize);
+                        fwrite((AX_U8 *)pstItems->pstFeatureItem[0].pstrValue, 1,
+                               pstItems->pstFeatureItem[0].nValueSize, fp_w);
                         fclose(fp_w);
                     }
                 }
 
                 // meta
                 ALOGI("\t\tMeta Size: %d", pstItems->nMetaInfoSize);
-                if (pstItems->pstMetaInfo
-                    && 0 < pstItems->nMetaInfoSize) {
+                if (pstItems->pstMetaInfo && 0 < pstItems->nMetaInfoSize) {
                     for (AX_U32 i = 0; i < pstItems->nMetaInfoSize; i++) {
-                        ALOGI("\t\tMetaInfo[%d] %s: \n%s", i, pstItems->pstMetaInfo[i].pstrType, pstItems->pstMetaInfo[i].pstrValue);
+                        ALOGI("\t\tMetaInfo[%d] %s: \n%s", i, pstItems->pstMetaInfo[i].pstrType,
+                              pstItems->pstMetaInfo[i].pstrValue);
                     }
                 }
 
                 // binds
                 ALOGI("\t\tBind Size: %d", pstItems->nObjectBindSize);
-                if (pstItems->pstObjectBind
-                    && 0 < pstItems->nObjectBindSize) {
+                if (pstItems->pstObjectBind && 0 < pstItems->nObjectBindSize) {
                     for (AX_U32 i = 0; i < pstItems->nObjectBindSize; i++) {
                         ALOGI("\t\t[%s] [TrackId] %lld bind to ObjectBind[%d]: %s [TrackId] %lld",
-                            pstItems->pstrObjectCategory, pstItems->nTrackId, i,
-                            pstItems->pstObjectBind[i].pstrObjectCategoryBind, pstItems->pstObjectBind[i].nTrackId);
+                              pstItems->pstrObjectCategory, pstItems->nTrackId, i,
+                              pstItems->pstObjectBind[i].pstrObjectCategoryBind, pstItems->pstObjectBind[i].nTrackId);
                     }
                 }
             }
@@ -2092,41 +2077,41 @@ AX_S32 main(AX_S32 argc, AX_CHAR *argv[]) {
                 memcpy(YUVDataWrVir, YUVDataVir, nFrameSize);
 
                 YUV_IMAGE_T YUVImage = {0};
-                YUVImage.pImage = YUVDataWrVir;
-                YUVImage.nWidth = nWidth;
-                YUVImage.nHeight = nHeight;
-                YUVImage.stride = nStride;
-                YUVImage.nSize = nFrameSize;
-                YUVImage.eType = AX_FORMAT_YUV420_SEMIPLANAR;
+                YUVImage.pImage      = YUVDataWrVir;
+                YUVImage.nWidth      = nWidth;
+                YUVImage.nHeight     = nHeight;
+                YUVImage.stride      = nStride;
+                YUVImage.nSize       = nFrameSize;
+                YUVImage.eType       = AX_FORMAT_YUV420_SEMIPLANAR;
 
                 for (size_t i = 0; i < nSkelSize; i++) {
                     // draw rect
                     AX_CHAR ObjectCategory = Skels[i].pstrObjectCategory[0];
-                    AX_S16 x0 = Skels[i].tBox.fX;
-                    AX_S16 y0 = Skels[i].tBox.fY;
-                    AX_U16 w = Skels[i].tBox.fW;
-                    AX_U16 h = Skels[i].tBox.fH;
-                    YUV_COLOR RectColor = YUV_WHITE;
+                    AX_S16 x0              = Skels[i].tBox.fX;
+                    AX_S16 y0              = Skels[i].tBox.fY;
+                    AX_U16 w               = Skels[i].tBox.fW;
+                    AX_U16 h               = Skels[i].tBox.fH;
+                    YUV_COLOR RectColor    = YUV_WHITE;
 
-                    switch(ObjectCategory){
-                        case 'b': //body
-                        RectColor = YUV_WHITE;
-                        break;
-                        case 'v': //vehicle
-                        RectColor = YUV_PURPLE;
-                        break;
-                        case 'c': //cycle
-                        RectColor = YUV_GREEN;
-                        break;
-                        case 'f': //face
-                        RectColor = YUV_YELLOW;
-                        break;
-                        case 'p': //plate
-                        RectColor = YUV_RED;
-                        break;
-                        default :
-                        RectColor = YUV_WHITE;
-                        break;
+                    switch (ObjectCategory) {
+                        case 'b':  // body
+                            RectColor = YUV_WHITE;
+                            break;
+                        case 'v':  // vehicle
+                            RectColor = YUV_PURPLE;
+                            break;
+                        case 'c':  // cycle
+                            RectColor = YUV_GREEN;
+                            break;
+                        case 'f':  // face
+                            RectColor = YUV_YELLOW;
+                            break;
+                        case 'p':  // plate
+                            RectColor = YUV_RED;
+                            break;
+                        default:
+                            RectColor = YUV_WHITE;
+                            break;
                     }
 
                     DrawRect(&YUVImage, x0, y0, w, h, RectColor);
@@ -2145,13 +2130,13 @@ AX_S32 main(AX_S32 argc, AX_CHAR *argv[]) {
                 AX_CHAR arrWrFile[512] = {0};
                 sprintf(arrWrFile, "%s_result_%d_%d.jpg", InputFile, nFrameCnt + 1, nRepeat + 1);
 
-                AX_CHAR *fileName = NULL;
-                AX_U32 fileNameLen = strlen(arrWrFile);
+                AX_CHAR *fileName         = NULL;
+                AX_U32 fileNameLen        = strlen(arrWrFile);
                 AX_CHAR fullFileName[256] = {0};
-                AX_S32 i = fileNameLen - 1;
+                AX_S32 i                  = fileNameLen - 1;
 
                 if (fileNameLen > 0) {
-                    for (; i >= 0; i --) {
+                    for (; i >= 0; i--) {
                         if (arrWrFile[i] == '/') {
                             break;
                         }
@@ -2160,16 +2145,16 @@ AX_S32 main(AX_S32 argc, AX_CHAR *argv[]) {
 
                 if (i < 0) {
                     i = 0;
-                }
-                else if (i < fileNameLen - 1) {
-                    i ++;
+                } else if (i < fileNameLen - 1) {
+                    i++;
                 }
 
                 fileName = (AX_CHAR *)&arrWrFile[i];
 
                 sprintf(fullFileName, "%s/%s", ReWritePath, fileName);
 
-                EncodeOneFrameToJpeg((AX_CHAR *)fullFileName, nStride, nWidth, nHeight, YUVDataWrPhy, YUVDataWrVir, nFrameSize);
+                EncodeOneFrameToJpeg((AX_CHAR *)fullFileName, nStride, nWidth, nHeight, YUVDataWrPhy, YUVDataWrVir,
+                                     nFrameSize);
             }
 
             if (pstResult) {
@@ -2184,32 +2169,20 @@ AX_S32 main(AX_S32 argc, AX_CHAR *argv[]) {
         }
 
         ALOGN("SKEL Process Objects Statistics: Body[%d], Vehicle[%d], Cycle[%d], Face[%d], Plate[%d]",
-                tObjectTrackNum.nBodyNum,
-                tObjectTrackNum.nVehicleNum,
-                tObjectTrackNum.nCycleNum,
-                tObjectTrackNum.nFaceNum,
-                tObjectTrackNum.nPlateNum);
+              tObjectTrackNum.nBodyNum, tObjectTrackNum.nVehicleNum, tObjectTrackNum.nCycleNum,
+              tObjectTrackNum.nFaceNum, tObjectTrackNum.nPlateNum);
 
         OUTPUT_LOG_SAVE("\nSKEL Process Objects Statistics: Body[%d], Vehicle[%d], Cycle[%d], Face[%d], Plate[%d]",
-                        tObjectTrackNum.nBodyNum,
-                        tObjectTrackNum.nVehicleNum,
-                        tObjectTrackNum.nCycleNum,
-                        tObjectTrackNum.nFaceNum,
-                        tObjectTrackNum.nPlateNum);
+                        tObjectTrackNum.nBodyNum, tObjectTrackNum.nVehicleNum, tObjectTrackNum.nCycleNum,
+                        tObjectTrackNum.nFaceNum, tObjectTrackNum.nPlateNum);
 
         ALOGN("SKEL Process Push Statistics: Body[%d], Vehicle[%d], Cycle[%d], Face[%d], Plate[%d]",
-                tObjectPushNum.nBodyNum,
-                tObjectPushNum.nVehicleNum,
-                tObjectPushNum.nCycleNum,
-                tObjectPushNum.nFaceNum,
-                tObjectPushNum.nPlateNum);
+              tObjectPushNum.nBodyNum, tObjectPushNum.nVehicleNum, tObjectPushNum.nCycleNum, tObjectPushNum.nFaceNum,
+              tObjectPushNum.nPlateNum);
 
         OUTPUT_LOG_SAVE("SKEL Process Push Statistics: Body[%d], Vehicle[%d], Cycle[%d], Face[%d], Plate[%d]\n",
-                        tObjectPushNum.nBodyNum,
-                        tObjectPushNum.nVehicleNum,
-                        tObjectPushNum.nCycleNum,
-                        tObjectPushNum.nFaceNum,
-                        tObjectPushNum.nPlateNum);
+                        tObjectPushNum.nBodyNum, tObjectPushNum.nVehicleNum, tObjectPushNum.nCycleNum,
+                        tObjectPushNum.nFaceNum, tObjectPushNum.nPlateNum);
 
         if (InputFileHandle) {
             ReLoadFile(InputFileHandle);
@@ -2220,16 +2193,11 @@ AX_S32 main(AX_S32 argc, AX_CHAR *argv[]) {
     //     ALOGE("AX_POOL_DestroyPool failed! Error Code:0x%X\n", nRet);
     // }
 
-    ALOGN("SKEL Process Elapsed Info: Repeats: %d, (min: %lld ms, avr: %lld ms, max: %lld ms)",
-            nRepeatTimes,
-            nResultElaspedMin,
-            (nSkelFrameId > 1) ? (nResultElaspedTotal / (nSkelFrameId - 1)) : 0,
-            nResultElaspedMax);
+    ALOGN("SKEL Process Elapsed Info: Repeats: %d, (min: %lld ms, avr: %lld ms, max: %lld ms)", nRepeatTimes,
+          nResultElaspedMin, (nSkelFrameId > 1) ? (nResultElaspedTotal / (nSkelFrameId - 1)) : 0, nResultElaspedMax);
 
-    OUTPUT_LOG_SAVE("SKEL Process Elapsed Info: Repeats: %d, (min: %lld ms, avr: %lld ms, max: %lld ms)",
-                    nRepeatTimes,
-                    nResultElaspedMin,
-                    (nSkelFrameId > 1) ? (nResultElaspedTotal / (nSkelFrameId - 1)) : 0,
+    OUTPUT_LOG_SAVE("SKEL Process Elapsed Info: Repeats: %d, (min: %lld ms, avr: %lld ms, max: %lld ms)", nRepeatTimes,
+                    nResultElaspedMin, (nSkelFrameId > 1) ? (nResultElaspedTotal / (nSkelFrameId - 1)) : 0,
                     nResultElaspedMax);
 
 EXIT3:

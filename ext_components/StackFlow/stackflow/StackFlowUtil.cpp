@@ -265,17 +265,37 @@ std::string StackFlows::unit_call(const std::string &unit_name, const std::strin
     return value;
 }
 
-std::list<std::string> StackFlows::get_config_file_paths(const std::string &base_model_path,
+std::list<std::string> StackFlows::get_config_file_paths(std::string &base_model_path,
+                                                         std::string &base_model_config_path,
                                                          const std::string &mode_name)
 {
-    std::shared_ptr<std::string> base_path((std::string *)(&base_model_path), [](std::string *Npt) {});
-    if (base_path->empty()) base_path = std::make_shared<std::string>("/opt/m5stack/data/");
+    if (base_model_path.empty()) {
+        base_model_path = sample_unescapeString(unit_call("sys", "sql_select", "config_base_mode_path"));
+        if (base_model_path.empty()) {
+            base_model_path = "/opt/m5stack/data/";
+        }
+    }
+    if (base_model_config_path.empty()) {
+        base_model_config_path = sample_unescapeString(unit_call("sys", "sql_select", "config_base_mode_config_path"));
+        if (base_model_config_path.empty()) {
+            base_model_config_path = "/opt/m5stack/etc/";
+        }
+    }
+    std::string config_model_d = sample_unescapeString(unit_call("sys", "sql_select", "config_model_d"));
+    if (config_model_d.empty()) config_model_d = "/opt/m5stack/data/models/";
+
     std::list<std::string> config_file_paths;
     config_file_paths.push_back(std::string("./") + mode_name + ".json");
-    config_file_paths.push_back(std::string("./asr_mode_") + mode_name + ".json");
-    config_file_paths.push_back((*base_path) + "../share/" + mode_name + ".json");
-    config_file_paths.push_back((*base_path) + "../share/asr_mode_" + mode_name + ".json");
-    config_file_paths.push_back((*base_path) + mode_name + ".json");
-    config_file_paths.push_back((*base_path) + "asr_mode_" + mode_name + ".json");
+    config_file_paths.push_back(std::string("./mode_") + mode_name + ".json");
+    config_file_paths.push_back(base_model_path + mode_name + std::string("/") + mode_name + ".json");
+    config_file_paths.push_back(base_model_path + mode_name + std::string("/") + std::string("./mode_") + mode_name +
+                                ".json");
+    config_file_paths.push_back(config_model_d + mode_name + ".json");
+    config_file_paths.push_back(config_model_d + std::string("./mode_") + mode_name + ".json");
+    config_file_paths.push_back(base_model_config_path + mode_name + ".json");
+    config_file_paths.push_back(base_model_config_path + std::string("./mode_") + mode_name + ".json");
+    config_file_paths.push_back(base_model_path + std::string("../share/") + mode_name + ".json");
+    config_file_paths.push_back(base_model_path + std::string("../share/") + std::string("./mode_") + mode_name +
+                                ".json");
     return config_file_paths;
 }

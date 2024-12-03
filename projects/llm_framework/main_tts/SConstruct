@@ -25,9 +25,7 @@ REQUIREMENTS += ['tts']
 
 INCLUDE += [ADir('src/runner/eigen-3.4.0'), ADir('src/runner/src/tn/header'), ADir('src/runner/include'), ADir('src/runner/src/header')]
 
-STATIC_FILES += [AFile('single_speaker_english_fast.json'),
-                 AFile('single_speaker_fast.json')
-                 ]
+STATIC_FILES += Glob('mode_*.json')
 
 env['COMPONENTS'].append({'target':'llm_tts',
                           'SRCS':SRCS,

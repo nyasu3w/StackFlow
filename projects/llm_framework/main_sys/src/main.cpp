@@ -52,6 +52,7 @@ void get_run_config()
     key_sql["config_zmq_s_format"]          = std::string("ipc:///tmp/llm/%i.sock");
     key_sql["config_zmq_c_format"]          = std::string("ipc:///tmp/llm/%i.sock");
     key_sql["config_lsmod_dir"]             = std::string("/opt/m5stack/data/models/");
+    key_sql["config_model_d"]               = std::string("/opt/m5stack/data/models/");
     key_sql["config_base_mode_path"]        = std::string("/opt/m5stack/data/");
     key_sql["config_base_mode_config_path"] = std::string("/opt/m5stack/etc/");
     key_sql["config_tcp_server"]            = 10001;
