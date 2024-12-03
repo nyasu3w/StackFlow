@@ -157,11 +157,13 @@ def create_data_deb(package_name, version, src_folder, revision = 'm5stack1'):
     if os.path.exists(zip_file_extrpath):
         shutil.copytree(zip_file_extrpath, os.path.join(deb_folder, 'opt/m5stack/data'))
 
+    RED = "\033[31m"
+    RESET = "\033[0m"
     os.makedirs(os.path.join(deb_folder, 'opt/m5stack/data/models'), exist_ok = True)
     if os.path.exists(os.path.join(src_folder,'mode_{}.json'.format(package_name[4:]))):
         shutil.copy2(os.path.join(src_folder,'mode_{}.json'.format(package_name[4:])), os.path.join(deb_folder, 'opt/m5stack/data/models', 'mode_{}.json'.format(package_name[4:])))
     else:
-        print(os.path.join(src_folder,'mode_{}.json'.format(package_name[4:])), " miss")
+        print(RED, os.path.join(src_folder,'mode_{}.json'.format(package_name[4:])), " miss", RESET)
 
     os.makedirs(os.path.join(deb_folder, 'DEBIAN'), exist_ok = True)
     with open(os.path.join(deb_folder, 'DEBIAN/control'),'w') as f:

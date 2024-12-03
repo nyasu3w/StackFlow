@@ -127,7 +127,8 @@ public:
             return -1;
         }
         nlohmann::json file_body;
-        std::list<std::string> config_file_paths = get_config_file_paths(base_model_path_, base_model_config_path_, model_);
+        std::list<std::string> config_file_paths =
+            get_config_file_paths(base_model_path_, base_model_config_path_, model_);
         // Compatible operation
         if (model_ == "melotts_zh-cn")
             config_file_paths = get_config_file_paths(base_model_path_, base_model_config_path_, "melotts-zh-cn");
@@ -427,7 +428,8 @@ public:
             }
             next_data = &tmp_msg2;
         }
-        std::vector<std::string> tmp_data = llm_task_obj->lexicon_->splitEachChar((*next_data));
+        std::string user_msg = sample_unescapeString(*next_data);
+        std::vector<std::string> tmp_data = llm_task_obj->lexicon_->splitEachChar(user_msg);
         for (auto cutf8 : tmp_data) {
             if (is_breakpoint(cutf8)) {
                 llm_task_obj->tts_string_stream_buff += cutf8;

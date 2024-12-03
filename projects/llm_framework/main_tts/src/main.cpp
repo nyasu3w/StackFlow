@@ -268,7 +268,8 @@ public:
             }
             next_data = &tmp_msg2;
         }
-        std::vector<std::string> tmp_data = splitEachChar((*next_data));
+        std::string user_msg              = sample_unescapeString(*next_data);
+        std::vector<std::string> tmp_data = splitEachChar(user_msg);
         for (auto cutf8 : tmp_data) {
             if (cutf8 == "，" || cutf8 == "、" || cutf8 == "," || cutf8 == "。" || cutf8 == "." || cutf8 == "!" ||
                 cutf8 == "！" || cutf8 == "?" || cutf8 == "？" || cutf8 == ";" || cutf8 == "；") {
