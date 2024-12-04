@@ -167,3 +167,65 @@ waiting return status:
 ```
 
 **Please enjoy the large model voice assistant.**
+
+
+## cv mode
+1、reset
+
+send :
+
+```json
+{
+    "request_id": "11212155", 
+    "work_id": "sys",
+    "action": "reset"
+}
+```
+waiting reset over!
+
+2、init camera unit
+
+send :
+
+```json
+{
+   "request_id":"4",
+   "work_id":"camera",
+   "action":"setup",
+   "object":"camera.setup",
+   "data":{
+      "response_format":"camera.raw",
+      "input":"/dev/video0",
+      "enoutput":false,
+      "frame_width":320,
+      "frame_height":320
+   }
+}
+```
+waiting return work_id:
+```json
+{"created":1731488371,"data":"None","error":{"code":0,"message":""},"object":"None","request_id":"4","work_id":"camera.1000"}
+```
+
+2、init yolo unit
+
+send :
+
+```json
+{
+   "request_id":"5",
+   "work_id":"yolo",
+   "action":"setup",
+   "object":"yolo.setup",
+   "data":{
+      "model":"yolo11n_anquanmao",
+      "response_format":"yolo.yolobox",
+      "input":"camera.1000",
+      "enoutput":true
+   }
+}
+```
+waiting return work_id:
+```json
+{"created":1731488371,"data":"None","error":{"code":0,"message":""},"object":"None","request_id":"5","work_id":"yolo.1001"}
+```
