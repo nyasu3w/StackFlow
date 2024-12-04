@@ -37,7 +37,6 @@ private:
 
 public:
     std::string response_format_;
-    std::vector<std::string> inputs_;
     task_callback_t out_callback_;
     bool enoutput_;
     bool enstream_;
@@ -95,19 +94,10 @@ public:
         try {
             response_format_ = config_body.at("response_format");
             enoutput_        = config_body.at("enoutput");
-            devname_         = config_body.at("devname");
+            devname_         = config_body.at("input");
             frame_width_     = config_body.at("frame_width");
             frame_height_    = config_body.at("frame_height");
 
-            if (config_body.contains("input")) {
-                if (config_body["input"].is_string()) {
-                    inputs_.push_back(config_body["input"].get<std::string>());
-                } else if (config_body["input"].is_array()) {
-                    for (auto _in : config_body["input"]) {
-                        inputs_.push_back(_in.get<std::string>());
-                    }
-                }
-            }
         } catch (...) {
             return true;
         }
@@ -263,7 +253,9 @@ public:
             auto llm_task_obj           = llm_task_[work_id_num];
             req_body["response_format"] = llm_task_obj->response_format_;
             req_body["enoutput"]        = llm_task_obj->enoutput_;
-            req_body["inputs"]          = llm_task_obj->inputs_;
+            req_body["input"]           = llm_task_obj->devname_;
+            req_body["frame_width"]     = llm_task_obj->frame_width_;
+            req_body["frame_height"]    = llm_task_obj->frame_height_;
             send("camera.taskinfo", req_body, LLM_NO_ERROR, work_id);
         }
     }
