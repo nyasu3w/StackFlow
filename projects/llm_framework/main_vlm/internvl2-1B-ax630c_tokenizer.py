@@ -6,20 +6,18 @@ import argparse
 
 class Tokenizer_Http:
 
-    def __init__(self):
-
-        path = "internvl2_tokenizer"
+    def __init__(self, model_id):
         self.tokenizer = AutoTokenizer.from_pretrained(
-            path, trust_remote_code=True, use_fast=False
+            model_id, trust_remote_code=True, use_fast=False
         )
 
-    def encode(self, content):
-        prompt = f"<|im_start|>system\n你是由上海人工智能实验室联合商汤科技开发的书生多模态大模型，英文名叫InternVL, 是一个有用无害的人工智能助手。<|im_end|><|im_start|>user\n{content}<|im_end|><|im_start|>assistant\n"
+    def encode(self, prompt, content):
+        prompt = f"<|im_start|>system\n{content}<|im_end|><|im_start|>user\n{prompt}<|im_end|><|im_start|>assistant\n"
         input_ids = self.tokenizer.encode(prompt)
         return input_ids
 
-    def encode_vpm(self, content="Please describe the image shortly."):
-        prompt = f"<|im_start|>system\n你是由上海人工智能实验室联合商汤科技开发的书生多模态大模型，英文名叫InternVL, 是一个有用无害的人工智能助手。<|im_end|><|im_start|>user\n<img><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT></img>\n{content}<|im_end|><|im_start|>assistant\n"
+    def encode_vpm(self, prompt, content="Please describe the image shortly."):
+        prompt = f"<|im_start|>system\n{content}<|im_end|><|im_start|>user\n<img><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT><IMG_CONTEXT></img>\n{prompt}<|im_end|><|im_start|>assistant\n"
         input_ids = self.tokenizer.encode(prompt)
         return input_ids
 
@@ -41,26 +39,6 @@ class Tokenizer_Http:
     @property
     def eos_token(self):
         return self.tokenizer.eos_token
-
-
-tokenizer = Tokenizer_Http()
-
-print(tokenizer.bos_id, tokenizer.bos_token, tokenizer.eos_id, tokenizer.eos_token)
-token_ids = tokenizer.encode_vpm()
-# [151644, 8948, 198, 56568, 104625, 100633, 104455, 104800, 101101, 32022, 102022, 99602, 100013, 9370, 90286, 21287, 42140, 53772, 35243, 26288, 104949, 3837, 105205, 109641, 67916, 30698, 11, 54851, 46944, 115404, 42192, 99441, 100623, 48692, 100168, 110498, 1773, 151645, 151644, 872, 198,
-# 151646,
-# 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648, 151648,
-# 151647,
-# 198, 5501, 7512, 279, 2168, 19620, 13, 151645, 151644, 77091, 198]
-# 118
-print(token_ids)
-print(len(token_ids))
-token_ids = tokenizer.encode("hello world")
-# [151644, 8948, 198, 56568, 104625, 100633, 104455, 104800, 101101, 32022, 102022, 99602, 100013, 9370, 90286, 21287, 42140, 53772, 35243, 26288, 104949, 3837, 105205, 109641, 67916, 30698, 11, 54851, 46944, 115404, 42192, 99441, 100623, 48692, 100168, 110498, 1773, 151645, 151644, 872, 198, 14990, 1879, 151645, 151644, 77091, 198]
-# 47
-print(token_ids)
-print(len(token_ids))
-
 
 class Request(BaseHTTPRequestHandler):
     # 通过类继承，新定义类
@@ -117,7 +95,7 @@ class Request(BaseHTTPRequestHandler):
             if b_img_prompt:
                 token_ids = tokenizer.encode_vpm(prompt)
             else:
-                token_ids = tokenizer.encode(prompt)
+                token_ids = tokenizer.encode(prompt, args.content)
             if token_ids is None:
                 msg = json.dumps({"token_ids": -1})
             else:
@@ -144,7 +122,15 @@ if __name__ == "__main__":
     args = argparse.ArgumentParser()
     args.add_argument("--host", type=str, default="localhost")
     args.add_argument("--port", type=int, default=8080)
+    args.add_argument('--model_id', type=str, default='internvl2_tokenizer')
+    args.add_argument('--content', type=str, default='你是由上海人工智能实验室联合商汤科技开发的书生多模态大模型，英文名叫InternVL, 是一个有用无害的人工智能助手。')
     args = args.parse_args()
+
+    tokenizer = Tokenizer_Http(args.model_id)
+
+
+    # print(tokenizer.bos_id, tokenizer.bos_token, tokenizer.eos_id, tokenizer.eos_token)
+    # print(tokenizer.encode("hello world", args.content))
 
     host = (args.host, args.port)  # 设定地址与端口号，'localhost'等价于'127.0.0.1'
     print("http://%s:%s" % host)
