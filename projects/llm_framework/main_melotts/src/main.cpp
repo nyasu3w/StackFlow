@@ -428,7 +428,7 @@ public:
             }
             next_data = &tmp_msg2;
         }
-        std::string user_msg = sample_unescapeString(*next_data);
+        std::string user_msg              = sample_unescapeString(*next_data);
         std::vector<std::string> tmp_data = llm_task_obj->lexicon_->splitEachChar(user_msg);
         for (auto cutf8 : tmp_data) {
             if (is_breakpoint(cutf8)) {

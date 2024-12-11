@@ -160,28 +160,25 @@ int _sys_hwinfo(int com_id, const nlohmann::json &json_obj)
     std::vector<ifconfig_t> ifcs;
     ifconfig(ifcs);
     std::vector<nlohmann::json> jifcs;
-    for (auto& item : ifcs)
-    {
+    for (auto &item : ifcs) {
         nlohmann::json eth_info;
-        eth_info["name"] = item.name;
-        eth_info["ip"] = item.ip;
+        eth_info["name"]      = item.name;
+        eth_info["ip"]        = item.ip;
         char eth_ip_buff[128] = {0};
         sprintf(eth_ip_buff, "/sys/class/net/%s/speed", item.name);
         FILE *file = fopen(eth_ip_buff, "r");
         memset(eth_ip_buff, 0, sizeof(eth_ip_buff));
-        if(file != NULL)
-        {
+        if (file != NULL) {
             int size = fread(eth_ip_buff, 1, sizeof(eth_ip_buff), file);
-            if(size > 0)
-                eth_ip_buff[size-1] = '\0';
+            if (size > 0) eth_ip_buff[size - 1] = '\0';
             fclose(file);
         }
         eth_info["speed"] = eth_ip_buff;
         jifcs.push_back(eth_info);
     }
     data_body["eth_info"] = jifcs;
-    out_body["data"] = data_body;
-    std::string out  = out_body.dump();
+    out_body["data"]      = data_body;
+    std::string out       = out_body.dump();
     zmq_com_send(com_id, out);
     return 0;
 }
@@ -251,6 +248,15 @@ int sys_lsmode(int com_id, const nlohmann::json &json_obj)
 
 sys_lsmode_err_1:
     zmq_com_send(com_id, out_body.dump());
+    return out;
+}
+
+int sys_rmmode(int com_id, const nlohmann::json &json_obj)
+{
+    std::string rmmode_name   = json_obj["data"];
+    const std::string command = "dpkg -P llm-" + rmmode_name;
+    int out                   = system(command.c_str());
+    usr_print_error(json_obj["request_id"], json_obj["work_id"], "{\"code\":0, \"message\":\"\"}", com_id);
     return out;
 }
 
@@ -349,6 +355,7 @@ sys_update_err_1:
                     "{\"code\":-10, \"message\":\"Not available at the moment.\"}", com_id);
     return out;
 }
+
 int sys_upgrade(int com_id, const nlohmann::json &json_obj)
 {
     int out;
@@ -521,6 +528,7 @@ void server_work()
     key_sql["sys.reset"]     = sys_reset;
     key_sql["sys.reboot"]    = sys_reboot;
     key_sql["sys.version"]   = sys_version;
+    key_sql["sys.rmmode"]    = sys_rmmode;
 }
 
 void server_stop_work()
@@ -554,8 +562,7 @@ void unit_action_match(int com_id, const std::string &json_str)
         usr_print_error("0", "sys", "{\"code\":-2, \"message\":\"json format error\"}", com_id);
         return;
     }
-    if(work_id.empty())
-        work_id = "sys";
+    if (work_id.empty()) work_id = "sys";
     std::string action;
     error = doc["action"].get_string(action);
     if (error) {

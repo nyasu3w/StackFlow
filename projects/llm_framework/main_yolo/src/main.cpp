@@ -89,7 +89,8 @@ public:
             return -1;
         }
         nlohmann::json file_body;
-        std::list<std::string> config_file_paths = get_config_file_paths(base_model_path_, base_model_config_path_, model_);
+        std::list<std::string> config_file_paths =
+            get_config_file_paths(base_model_path_, base_model_config_path_, model_);
         try {
             for (auto file_name : config_file_paths) {
                 std::ifstream config_file(file_name);
@@ -160,7 +161,7 @@ public:
         if (msg.size() != mode_config_.img_w * mode_config_.img_h * 2) {
             throw std::string("img size error");
         }
-        cv::Mat camera_data(mode_config_.img_h, mode_config_.img_w, CV_8UC2, (void *)msg.data());        
+        cv::Mat camera_data(mode_config_.img_h, mode_config_.img_w, CV_8UC2, (void *)msg.data());
         cv::Mat rgb;
         cv::cvtColor(camera_data, rgb, cv::COLOR_YUV2RGB_YUYV);
         return inference(rgb, false);
@@ -428,8 +429,8 @@ public:
                     std::string input_url_name = input + ".out_port";
                     std::string input_url      = unit_call("sys", "sql_select", input_url_name);
                     if (!input_url.empty()) {
-                        std::weak_ptr<llm_task> _llm_task_obj = llm_task_obj;
-                        std::weak_ptr<llm_channel_obj> _llm_channel  = llm_channel;
+                        std::weak_ptr<llm_task> _llm_task_obj       = llm_task_obj;
+                        std::weak_ptr<llm_channel_obj> _llm_channel = llm_channel;
                         llm_channel->subscriber(
                             input_url, [this, _llm_task_obj, _llm_channel](pzmq *_pzmq, const std::string &raw) {
                                 this->task_camera_data(_llm_task_obj, _llm_channel, raw);
@@ -471,16 +472,16 @@ public:
                 std::bind(&llm_yolo::task_user_data, this, std::weak_ptr<llm_task>(llm_task_obj),
                           std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1, std::placeholders::_2));
             llm_task_obj->inputs_.push_back(data);
-        } else if (data.find("camera") != std::string::npos){
+        } else if (data.find("camera") != std::string::npos) {
             std::string input_url_name = data + ".out_port";
             std::string input_url      = unit_call("sys", "sql_select", input_url_name);
             if (!input_url.empty()) {
-                std::weak_ptr<llm_task> _llm_task_obj = llm_task_obj;
-                std::weak_ptr<llm_channel_obj> _llm_channel  = llm_channel;
-                llm_channel->subscriber(
-                    input_url, [this, _llm_task_obj, _llm_channel](pzmq *_pzmq, const std::string &raw) {
-                        this->task_camera_data(_llm_task_obj, _llm_channel, raw);
-                    });
+                std::weak_ptr<llm_task> _llm_task_obj       = llm_task_obj;
+                std::weak_ptr<llm_channel_obj> _llm_channel = llm_channel;
+                llm_channel->subscriber(input_url,
+                                        [this, _llm_task_obj, _llm_channel](pzmq *_pzmq, const std::string &raw) {
+                                            this->task_camera_data(_llm_task_obj, _llm_channel, raw);
+                                        });
             }
             llm_task_obj->inputs_.push_back(data);
         }
@@ -541,7 +542,7 @@ public:
             req_body["model"]           = llm_task_obj->model_;
             req_body["response_format"] = llm_task_obj->response_format_;
             req_body["enoutput"]        = llm_task_obj->enoutput_;
-            req_body["inputs"]         = llm_task_obj->inputs_;
+            req_body["inputs"]          = llm_task_obj->inputs_;
             send("yolo.taskinfo", req_body, LLM_NO_ERROR, work_id);
         }
     }

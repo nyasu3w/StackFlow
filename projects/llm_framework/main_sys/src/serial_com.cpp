@@ -41,8 +41,7 @@ public:
 
     void send_data(const std::string &data)
     {
-        if(exit_flage)
-            linux_uart_write(uart_fd, data.length(), (void *)data.c_str());
+        if (exit_flage) linux_uart_write(uart_fd, data.length(), (void *)data.c_str());
     }
 
     void reace_data_event()
@@ -55,7 +54,7 @@ public:
             struct timeval timeout = {0, 500000};
             if ((select(uart_fd + 1, &readfds, NULL, NULL, &timeout) <= 0) || (!FD_ISSET(uart_fd, &readfds))) continue;
             ssize_t len = linux_uart_read(uart_fd, buff.size(), buff.data());
-            if(len <= 0) continue;
+            if (len <= 0) continue;
             {
                 try {
                     select_json_str(std::string(buff.data(), len),

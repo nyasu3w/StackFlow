@@ -42,7 +42,7 @@ public:
     void send_data(const std::string& data)
     {
         // tcp_server_mutex.lock();
-        // if (exit_flage) 
+        // if (exit_flage)
         // {
         //     auto tcp_channel = channel.lock();
         //     if(tcp_channel)
@@ -52,8 +52,7 @@ public:
         // }
         // tcp_server_mutex.unlock();
         auto tcp_channel = channel.lock();
-        if(tcp_channel)
-        {
+        if (tcp_channel) {
             tcp_channel->write(data);
         }
     }
@@ -62,7 +61,7 @@ public:
 void onConnection(const SocketChannelPtr& channel)
 {
     if (channel->isConnected()) {
-        auto p_com = channel->newContextPtr<tcp_com>();
+        auto p_com     = channel->newContextPtr<tcp_com>();
         p_com->channel = channel;
         p_com->work(zmq_s_format, counter_port.fetch_add(1));
         if (counter_port.load() > 65535) counter_port.store(8000);
@@ -77,13 +76,12 @@ void onConnection(const SocketChannelPtr& channel)
 
 void onMessage(const SocketChannelPtr& channel, Buffer* buf)
 {
-    int len           = (int)buf->size();
-    char* data        = (char*)buf->data();
+    int len    = (int)buf->size();
+    char* data = (char*)buf->data();
     auto p_com = channel->getContextPtr<tcp_com>();
     p_com->tcp_server_mutex.lock();
     try {
-        p_com->select_json_str(std::string(data, len),
-                                  std::bind(&tcp_com::on_data, p_com, std::placeholders::_1));
+        p_com->select_json_str(std::string(data, len), std::bind(&tcp_com::on_data, p_com, std::placeholders::_1));
     } catch (...) {
         std::string out_str;
         out_str += "{\"request_id\": \"0\",\"work_id\": \"sys\",\"created\": ";
