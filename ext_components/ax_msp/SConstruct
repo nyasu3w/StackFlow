@@ -17,14 +17,18 @@ if 'CONFIG_AX_620E_MSP_ENABLED' in os.environ:
     LDFLAGS=[]
     LINK_SEARCH_PATH=[]
     
-    INCLUDE += [os.path.join(MSP_PATH, 'out/arm64_glibc/include'), os.path.join(MSP_PATH, 'sample/common')]
+    env["MSP_PATH"] = MSP_PATH
+    INCLUDE += [os.path.join(MSP_PATH, 'out/arm64_glibc/include'), os.path.join(MSP_PATH, 'sample'), os.path.join(MSP_PATH, 'sample/common'), os.path.join(MSP_PATH, 'sample/rtsp')]
     LINK_SEARCH_PATH += [os.path.join(MSP_PATH, 'out/arm64_glibc/lib')]
     REQUIREMENTS += ['dl', 'm', 'pthread']
-    third_party = ['cmdline','drm','faac','fdk-aac','ffmpeg','libsamplerate','live','mp4','opencv','openssl','optee','opus','swupdate','tinyalsa']
+    third_party = ['drm','faac','fdk-aac','ffmpeg','libsamplerate','mp4','opencv','opus','tinyalsa']
     for dirn in third_party:
         INCLUDE.append(os.path.join(MSP_PATH,'third-party',dirn,'include'))
         LINK_SEARCH_PATH.append(os.path.join(MSP_PATH,'third-party',dirn,'lib/arm64/glibc'))
-
+    INCLUDE.append(os.path.join(MSP_PATH,'third-party/live/out/arm64/glibc/include'))
+    LINK_SEARCH_PATH.append(os.path.join(MSP_PATH,'third-party/live/out/arm64/glibc/lib'))
+    INCLUDE.append(os.path.join(MSP_PATH,'third-party/openssl/arm64/include'))
+    LINK_SEARCH_PATH.append(os.path.join(MSP_PATH,'third-party/openssl/arm64/glibc/lib'))
     LINK_SEARCH_PATH.append(os.path.join(MSP_PATH,'app/lib'))
 
     env['COMPONENTS'].append({'target':os.path.basename(env['component_dir']),
