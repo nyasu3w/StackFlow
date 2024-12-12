@@ -26,11 +26,12 @@
 #include <memory>
 
 class serial_com : public zmq_bus_com {
-   private:
+private:
     int uart_fd;
 
-   public:
-    serial_com(uart_t *uart_parm, const std::string &dev_name) : zmq_bus_com() {
+public:
+    serial_com(uart_t *uart_parm, const std::string &dev_name) : zmq_bus_com()
+    {
         uart_fd = linux_uart_init((char *)dev_name.c_str(), uart_parm);
         if (uart_fd <= 0) {
             SLOGE("open %s false!", dev_name.c_str());
@@ -38,57 +39,45 @@ class serial_com : public zmq_bus_com {
         }
     }
 
-    void send_data(const std::string &data) {
-        SLOGD("serial send:%s", data.c_str());
-        linux_uart_write(uart_fd, data.length(), (void *)data.c_str());
+    void send_data(const std::string &data)
+    {
+        if (exit_flage) linux_uart_write(uart_fd, data.length(), (void *)data.c_str());
     }
 
-    void reace_data_event() {
-        std::string json_str;
-        int flage = 0;
+    void reace_data_event()
+    {
         fd_set readfds;
+        std::vector<char> buff(1024);
         while (exit_flage) {
-            char reace_buf[128] = {0};
             FD_ZERO(&readfds);
             FD_SET(uart_fd, &readfds);
             struct timeval timeout = {0, 500000};
             if ((select(uart_fd + 1, &readfds, NULL, NULL, &timeout) <= 0) || (!FD_ISSET(uart_fd, &readfds))) continue;
-            int len = linux_uart_read(uart_fd, 128, reace_buf);
+            ssize_t len = linux_uart_read(uart_fd, buff.size(), buff.data());
+            if (len <= 0) continue;
             {
-                char *data = reace_buf;
-                for (int i = 0; i < len; i++) {
-                    json_str += data[i];
-                    if (data[i] == '{') flage++;
-                    if (data[i] == '}') flage--;
-                    if (flage == 0) {
-                        if (json_str[0] == '{') {
-                            SLOGD("uart reace:%s", json_str.c_str());
-                            on_data(json_str);
-                        }
-                        json_str.clear();
-                    }
-                    if (flage < 0) {
-                        flage = 0;
-                        json_str.clear();
-                        {
-                            std::string out_str;
-                            out_str += "{\"request_id\": \"0\",\"work_id\": \"sys\",\"created\": ";
-                            out_str += std::to_string(time(NULL));
-                            out_str += ",\"error\":{\"code\":-1, \"message\":\"reace reset\"}}";
-                            send_data(out_str);
-                        }
-                    }
+                try {
+                    select_json_str(std::string(buff.data(), len),
+                                    std::bind(&serial_com::on_data, this, std::placeholders::_1));
+                } catch (...) {
+                    std::string out_str;
+                    out_str += "{\"request_id\": \"0\",\"work_id\": \"sys\",\"created\": ";
+                    out_str += std::to_string(time(NULL));
+                    out_str += ",\"error\":{\"code\":-1, \"message\":\"reace reset\"}}";
+                    send_data(out_str);
                 }
             }
         }
     }
 
-    void stop() {
+    void stop()
+    {
         zmq_bus_com::stop();
         linux_uart_deinit(uart_fd);
     }
-    
-    ~serial_com() {
+
+    ~serial_com()
+    {
         if (exit_flage) {
             stop();
         }
@@ -96,7 +85,8 @@ class serial_com : public zmq_bus_com {
 };
 std::unique_ptr<serial_com> serial_con_;
 
-void serial_work() {
+void serial_work()
+{
     uart_t uart_parm;
     std::string dev_name;
     int port;
@@ -120,8 +110,8 @@ void serial_work() {
         out_str += ",\"error\":{\"code\":0, \"message\":\"upgrade over\"}}";
         serial_con_->send_data(out_str);
     }
-    if (access("/tmp/llm/reset.lock", F_OK) == 0) {
-        remove("/tmp/llm/reset.lock");
+    if (access("/tmp/llm_reset.lock", F_OK) == 0) {
+        remove("/tmp/llm_reset.lock");
         sync();
         std::string out_str;
         out_str += "{\"request_id\": \"0\",\"work_id\": \"sys\",\"created\": ";
@@ -132,6 +122,7 @@ void serial_work() {
     sync();
 }
 
-void serial_stop_work() {
+void serial_stop_work()
+{
     serial_con_.reset();
 }

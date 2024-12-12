@@ -23,21 +23,25 @@ int port_list_start;
 std::vector<bool> port_list;
 std::unique_ptr<pzmq> sys_rpc_server_;
 
-std::string sys_sql_select(const std::string &key) {
+std::string sys_sql_select(const std::string &key)
+{
     std::string out;
     SAFE_READING(out, std::string, key);
     return out;
 }
 
-void sys_sql_set(const std::string &key, const std::string &val) {
+void sys_sql_set(const std::string &key, const std::string &val)
+{
     SAFE_SETTING(key, val);
 }
 
-void sys_sql_unset(const std::string &key) {
+void sys_sql_unset(const std::string &key)
+{
     SAFE_ERASE(key);
 }
 
-unit_data *sys_allocate_unit(const std::string &unit) {
+unit_data *sys_allocate_unit(const std::string &unit)
+{
     unit_data *unit_p = new unit_data();
     {
         unit_p->port_     = work_id_number_counter++;
@@ -112,7 +116,8 @@ unit_data *sys_allocate_unit(const std::string &unit) {
     return unit_p;
 }
 
-int sys_release_unit(const std::string &unit) {
+int sys_release_unit(const std::string &unit)
+{
     unit_data *unit_p = NULL;
     SAFE_READING(unit_p, unit_data *, unit);
     if (NULL == unit_p) {
@@ -133,21 +138,25 @@ int sys_release_unit(const std::string &unit) {
     return 0;
 }
 
-char const *c_sys_sql_select(char const *key) {
+char const *c_sys_sql_select(char const *key)
+{
     static std::string val;
     val = sys_sql_select(key);
     return val.c_str();
 }
 
-void c_sys_sql_set(char const *key, char const *val) {
+void c_sys_sql_set(char const *key, char const *val)
+{
     sys_sql_set(key, val);
 }
 
-void c_sys_sql_unset(char const *key) {
+void c_sys_sql_unset(char const *key)
+{
     sys_sql_unset(key);
 }
 
-void c_sys_allocate_unit(char const *unit, char *input_url, char *output_url, int *work_id) {
+void c_sys_allocate_unit(char const *unit, char *input_url, char *output_url, int *work_id)
+{
     unit_data *unit_p = sys_allocate_unit(unit);
     strcpy(input_url, unit_p->inference_url.c_str());
     strcpy(output_url, unit_p->output_url.c_str());
@@ -157,32 +166,35 @@ void c_sys_allocate_unit(char const *unit, char *input_url, char *output_url, in
     sscanf(unit_p->work_id.c_str(), work_id_format.c_str(), work_id);
 }
 
-int c_sys_release_unit(char const *unit) {
+int c_sys_release_unit(char const *unit)
+{
     return sys_release_unit(unit);
 }
 
-std::string rpc_sql_select(const std::string &raw) {
-    return sys_sql_select(raw);
-}
-
-std::string rpc_allocate_unit(const std::string &raw) {
+std::string rpc_allocate_unit(pzmq *_pzmq, const std::string &raw)
+{
     unit_data *unit_info = sys_allocate_unit(raw);
-    std::string retval   = "{\"work_id_number\":";
-    retval += std::to_string(unit_info->port_);
-    retval += ",\"out_port\":\"";
-    retval += unit_info->output_url;
-    retval += "\",\"inference_port\":\"";
-    retval += unit_info->inference_url;
-    retval += "\"}";
-    return retval;
+    std::string send_data;
+    std::string send_data1;
+    std::string str_port = std::to_string(unit_info->port_);
+    RPC_PUSH_PARAM(send_data1, unit_info->output_url, unit_info->inference_url);
+    RPC_PUSH_PARAM(send_data, str_port, send_data1);
+    return send_data;
 }
 
-std::string rpc_release_unit(const std::string &raw) {
+std::string rpc_release_unit(pzmq *_pzmq, const std::string &raw)
+{
     sys_release_unit(raw);
     return "Success";
 }
 
-std::string rpc_sql_set(const std::string &raw) {
+std::string rpc_sql_select(pzmq *_pzmq, const std::string &raw)
+{
+    return sys_sql_select(raw);
+}
+
+std::string rpc_sql_set(pzmq *_pzmq, const std::string &raw)
+{
     std::string key = sample_json_str_get(raw, "key");
     std::string val = sample_json_str_get(raw, "val");
     if (key.empty()) return "False";
@@ -190,12 +202,14 @@ std::string rpc_sql_set(const std::string &raw) {
     return "Success";
 }
 
-std::string rpc_sql_unset(const std::string &raw) {
+std::string rpc_sql_unset(pzmq *_pzmq, const std::string &raw)
+{
     sys_sql_unset(raw);
     return "Success";
 }
 
-void remote_server_work() {
+void remote_server_work()
+{
     int port_list_end;
     SAFE_READING(work_id_number_counter, int, "config_work_id");
     SAFE_READING(port_list_start, int, "config_zmq_min_port");
@@ -203,13 +217,19 @@ void remote_server_work() {
     port_list.resize(port_list_end - port_list_start, 0);
 
     sys_rpc_server_ = std::make_unique<pzmq>("sys");
-    sys_rpc_server_->register_rpc_action("sql_select", std::bind(rpc_sql_select, std::placeholders::_1));
-    sys_rpc_server_->register_rpc_action("register_unit", std::bind(rpc_allocate_unit, std::placeholders::_1));
-    sys_rpc_server_->register_rpc_action("release_unit", std::bind(rpc_release_unit, std::placeholders::_1));
-    sys_rpc_server_->register_rpc_action("sql_set", std::bind(rpc_sql_set, std::placeholders::_1));
-    sys_rpc_server_->register_rpc_action("sql_unset", std::bind(rpc_sql_unset, std::placeholders::_1));
+    sys_rpc_server_->register_rpc_action("sql_select",
+                                         std::bind(rpc_sql_select, std::placeholders::_1, std::placeholders::_2));
+    sys_rpc_server_->register_rpc_action("register_unit",
+                                         std::bind(rpc_allocate_unit, std::placeholders::_1, std::placeholders::_2));
+    sys_rpc_server_->register_rpc_action("release_unit",
+                                         std::bind(rpc_release_unit, std::placeholders::_1, std::placeholders::_2));
+    sys_rpc_server_->register_rpc_action("sql_set",
+                                         std::bind(rpc_sql_set, std::placeholders::_1, std::placeholders::_2));
+    sys_rpc_server_->register_rpc_action("sql_unset",
+                                         std::bind(rpc_sql_unset, std::placeholders::_1, std::placeholders::_2));
 }
 
-void remote_server_stop_work() {
+void remote_server_stop_work()
+{
     sys_rpc_server_.reset();
 }

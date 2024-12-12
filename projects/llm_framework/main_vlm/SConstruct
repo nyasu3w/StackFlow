@@ -49,9 +49,8 @@ static_file += [AFile('../static_lib/libopencv-4.6-aarch64-none/lib/libtegra_hal
 static_file += [AFile('../static_lib/libopencv-4.6-aarch64-none/lib/libzlib.a')]
 STATIC_LIB += static_file * 4
 
-STATIC_FILES += [AFile('internvl2-1b-ax630c.json'),
-                 AFile('internvl2-1b-ax630c_tokenizer.py')
-                 ]
+STATIC_FILES += [AFile('internvl2-1B-ax630c_tokenizer.py')]
+STATIC_FILES += Glob('mode_*.json')
 
 env['COMPONENTS'].append({'target':'llm_vlm',
                           'SRCS':SRCS,

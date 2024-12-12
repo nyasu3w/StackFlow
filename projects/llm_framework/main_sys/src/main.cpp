@@ -31,12 +31,14 @@ std::string zmq_s_format;
 std::string zmq_c_format;
 int main_exit_flage = 0;
 
-static void __sigint(int iSigNo) {
+static void __sigint(int iSigNo)
+{
     printf("llm_sys will be exit!\n");
     main_exit_flage = 1;
 }
 
-void get_run_config() {
+void get_run_config()
+{
     key_sql["config_serial_dev"]            = std::string("/dev/ttyS1");
     key_sql["config_serial_baud"]           = 115200;
     key_sql["config_serial_data_bits"]      = 8;
@@ -50,6 +52,7 @@ void get_run_config() {
     key_sql["config_zmq_s_format"]          = std::string("ipc:///tmp/llm/%i.sock");
     key_sql["config_zmq_c_format"]          = std::string("ipc:///tmp/llm/%i.sock");
     key_sql["config_lsmod_dir"]             = std::string("/opt/m5stack/data/models/");
+    key_sql["config_model_d"]               = std::string("/opt/m5stack/data/models/");
     key_sql["config_base_mode_path"]        = std::string("/opt/m5stack/data/");
     key_sql["config_base_mode_config_path"] = std::string("/opt/m5stack/etc/");
     key_sql["config_tcp_server"]            = 10001;
@@ -72,7 +75,8 @@ void get_run_config() {
         reset_init = 1;                   \
     }
 
-void uart_reset_check() {
+void uart_reset_check()
+{
     uart_t uart_parm;
     uart_parm.baud      = any_cast<int>(key_sql["config_serial_baud"]);
     uart_parm.data_bits = any_cast<int>(key_sql["config_serial_data_bits"]);
@@ -126,7 +130,8 @@ void tcp_work();
 
 void tcp_stop_work();
 
-void all_work() {
+void all_work()
+{
     zmq_s_format = any_cast<std::string>(key_sql["config_zmq_s_format"]);
     zmq_c_format = any_cast<std::string>(key_sql["config_zmq_c_format"]);
     server_work();
@@ -139,7 +144,8 @@ void all_work() {
     if (enable_tcp) tcp_work();
 }
 
-void all_stop_work() {
+void all_stop_work()
+{
     int enable_tcp = 0;
     SAFE_READING(enable_tcp, int, "config_enable_tcp");
 
@@ -150,10 +156,12 @@ void all_stop_work() {
     zmq_bus_stop_work();
 }
 
-void all_work_check() {
+void all_work_check()
+{
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
     signal(SIGTERM, __sigint);
     signal(SIGINT, __sigint);
     mkdir("/tmp/llm", 0777);

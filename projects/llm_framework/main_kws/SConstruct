@@ -31,8 +31,7 @@ LDFLAGS += ['-l:libcargs.a', '-l:libonnxruntime.a',
             '-l:libsherpa-onnx-core.a', '-l:libkaldi-native-fbank-core.a',
             '-l:libkaldi-decoder-core.a', '-l:libssentencepiece_core.a']
 
-STATIC_FILES += [AFile('sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01.json'),
-                 AFile('sherpa-onnx-kws-zipformer-wenetspeech-3.3M-2024-01-01.json')]
+STATIC_FILES += Glob('mode_*.json')
 
 env['COMPONENTS'].append({'target':'llm_kws',
                           'SRCS':SRCS,

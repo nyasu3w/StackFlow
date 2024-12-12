@@ -1,5 +1,5 @@
 {
-    "mode":"internvl2-1b-ax630c",
+    "mode":"internvl2-1B-ax630c",
     "type":"vlm",
     "capabilities":[
         "text_generation",

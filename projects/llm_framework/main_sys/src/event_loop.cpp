@@ -34,9 +34,12 @@
 #include "subprocess.h"
 #include "zmq_bus.h"
 #include "remote_action.h"
+#include <simdjson.h>
+#include "hv/ifconfig.h"
 
 void usr_print_error(const std::string &request_id, const std::string &work_id, const std::string &error_msg,
-                     int zmq_out) {
+                     int zmq_out)
+{
     nlohmann::json out_body;
     out_body["request_id"] = request_id;
     out_body["work_id"]    = work_id;
@@ -49,7 +52,8 @@ void usr_print_error(const std::string &request_id, const std::string &work_id, 
 }
 
 template <typename T>
-void usr_out(const std::string &request_id, const std::string &work_id, const T &data, int zmq_out) {
+void usr_out(const std::string &request_id, const std::string &work_id, const T &data, int zmq_out)
+{
     nlohmann::json out_body;
     out_body["request_id"] = request_id;
     out_body["work_id"]    = work_id;
@@ -65,13 +69,15 @@ void usr_out(const std::string &request_id, const std::string &work_id, const T 
     zmq_com_send(zmq_out, out);
 }
 
-int sys_ping(int com_id, const nlohmann::json &json_obj) {
+int sys_ping(int com_id, const nlohmann::json &json_obj)
+{
     int out = 0;
     usr_print_error(json_obj["request_id"], json_obj["work_id"], "{\"code\":0, \"message\":\"\"}", com_id);
     return out;
 }
 
-void _sys_uartsetup(int com_id, const nlohmann::json &json_obj) {
+void _sys_uartsetup(int com_id, const nlohmann::json &json_obj)
+{
     SAFE_SETTING("config_serial_baud", (int)json_obj["data"]["baud"]);
     SAFE_SETTING("config_serial_data_bits", (int)json_obj["data"]["data_bits"]);
     SAFE_SETTING("config_serial_stop_bits", (int)json_obj["data"]["stop_bits"]);
@@ -82,14 +88,16 @@ void _sys_uartsetup(int com_id, const nlohmann::json &json_obj) {
     serial_work();
 }
 
-int sys_uartsetup(int com_id, const nlohmann::json &json_obj) {
+int sys_uartsetup(int com_id, const nlohmann::json &json_obj)
+{
     int out = 0;
     std::thread t(_sys_uartsetup, com_id, json_obj);
     t.detach();
     return out;
 }
 
-void get_memory_info(unsigned long *total_memory, unsigned long *free_memory) {
+void get_memory_info(unsigned long *total_memory, unsigned long *free_memory)
+{
     FILE *meminfo = fopen("/proc/meminfo", "r");
     if (meminfo == NULL) {
         perror("fopen");
@@ -113,7 +121,8 @@ struct cpu_use_t {
     long time;
 };
 
-int _sys_hwinfo(int com_id, const nlohmann::json &json_obj) {
+int _sys_hwinfo(int com_id, const nlohmann::json &json_obj)
+{
     unsigned long one;
     unsigned long two;
     unsigned long temp;
@@ -148,20 +157,42 @@ int _sys_hwinfo(int com_id, const nlohmann::json &json_obj) {
     get_memory_info(&one, &two);
     float use        = ((one * 1.0f) - (two * 1.0f)) / (one * 1.0f);
     data_body["mem"] = (int)(use * 100);
-    out_body["data"] = data_body;
-    std::string out  = out_body.dump();
+    std::vector<ifconfig_t> ifcs;
+    ifconfig(ifcs);
+    std::vector<nlohmann::json> jifcs;
+    for (auto &item : ifcs) {
+        nlohmann::json eth_info;
+        eth_info["name"]      = item.name;
+        eth_info["ip"]        = item.ip;
+        char eth_ip_buff[128] = {0};
+        sprintf(eth_ip_buff, "/sys/class/net/%s/speed", item.name);
+        FILE *file = fopen(eth_ip_buff, "r");
+        memset(eth_ip_buff, 0, sizeof(eth_ip_buff));
+        if (file != NULL) {
+            int size = fread(eth_ip_buff, 1, sizeof(eth_ip_buff), file);
+            if (size > 0) eth_ip_buff[size - 1] = '\0';
+            fclose(file);
+        }
+        eth_info["speed"] = eth_ip_buff;
+        jifcs.push_back(eth_info);
+    }
+    data_body["eth_info"] = jifcs;
+    out_body["data"]      = data_body;
+    std::string out       = out_body.dump();
     zmq_com_send(com_id, out);
     return 0;
 }
 
-int sys_hwinfo(int com_id, const nlohmann::json &json_obj) {
+int sys_hwinfo(int com_id, const nlohmann::json &json_obj)
+{
     int out = 0;
     std::thread t(_sys_hwinfo, com_id, json_obj);
     t.detach();
     return out;
 }
 
-int sys_lsmode(int com_id, const nlohmann::json &json_obj) {
+int sys_lsmode(int com_id, const nlohmann::json &json_obj)
+{
     int out;
     nlohmann::json out_body;
     int stream = false;
@@ -220,7 +251,17 @@ sys_lsmode_err_1:
     return out;
 }
 
-int sys_lstask(int com_id, const nlohmann::json &json_obj) {
+int sys_rmmode(int com_id, const nlohmann::json &json_obj)
+{
+    std::string rmmode_name   = json_obj["data"];
+    const std::string command = "dpkg -P llm-" + rmmode_name;
+    int out                   = system(command.c_str());
+    usr_print_error(json_obj["request_id"], json_obj["work_id"], "{\"code\":0, \"message\":\"\"}", com_id);
+    return out;
+}
+
+int sys_lstask(int com_id, const nlohmann::json &json_obj)
+{
     int out;
 
 sys_lstask_err_1:
@@ -229,7 +270,8 @@ sys_lstask_err_1:
     return out;
 }
 
-int sys_push(int com_id, const nlohmann::json &json_obj) {
+int sys_push(int com_id, const nlohmann::json &json_obj)
+{
     int out;
     nlohmann::json out_body;
     out_body["request_id"] = json_obj["request_id"];
@@ -279,7 +321,8 @@ sys_push_err_1:
     return out;
 }
 
-int sys_pull(int com_id, const nlohmann::json &json_obj) {
+int sys_pull(int com_id, const nlohmann::json &json_obj)
+{
     int out;
 
 sys_pull_err_1:
@@ -288,7 +331,8 @@ sys_pull_err_1:
     return out;
 }
 
-int sys_update(int com_id, const nlohmann::json &json_obj) {
+int sys_update(int com_id, const nlohmann::json &json_obj)
+{
     int out;
     const std::string command = "find /mnt -name \"llm_update_*.deb\" >> /tmp/find_update_file_out.txt 2>&1 ";
     out                       = system(command.c_str());
@@ -311,7 +355,9 @@ sys_update_err_1:
                     "{\"code\":-10, \"message\":\"Not available at the moment.\"}", com_id);
     return out;
 }
-int sys_upgrade(int com_id, const nlohmann::json &json_obj) {
+
+int sys_upgrade(int com_id, const nlohmann::json &json_obj)
+{
     int out;
     std::string version;
     try {
@@ -336,8 +382,8 @@ sys_upgrade_err_1:
     return out;
 }
 
-int _sys_bashexec(int com_id, std::string request_id, std::string work_id, std::string bashcmd, int stream,
-                  int base64) {
+int _sys_bashexec(int com_id, std::string request_id, std::string work_id, std::string bashcmd, int stream, int base64)
+{
     int out;
     int stream_size = 512;
     /****************************************************/
@@ -404,7 +450,8 @@ sys_bashexec_err_1:
     return out;
 }
 
-int sys_bashexec(int com_id, const nlohmann::json &json_obj) {
+int sys_bashexec(int com_id, const nlohmann::json &json_obj)
+{
     std::string request_id = json_obj["request_id"];
     std::string work_id    = json_obj["work_id"];
     std::string bashcmd;
@@ -438,24 +485,27 @@ int sys_bashexec(int com_id, const nlohmann::json &json_obj) {
     return 0;
 }
 
-int sys_reset(int com_id, const nlohmann::json &json_obj) {
+int sys_reset(int com_id, const nlohmann::json &json_obj)
+{
     int out = 0;
     usr_print_error(json_obj["request_id"], json_obj["work_id"],
                     "{\"code\":0, \"message\":\"llm server restarting ...\"}", com_id);
     const char *cmd =
-        "[ -f '/tmp/llm/reset.lock' ] || bash -c \"touch /tmp/llm/reset.lock ; sync ; sleep 1 ; systemctl restart "
-        "llm-* \" > /dev/null 2>&1 & ";
+        "[ -f '/tmp/llm/reset.lock' ] || bash -c \"touch /tmp/llm_reset.lock ; sync ; "
+        "systemctl restart llm-* \" > /dev/null 2>&1 & ";
     system(cmd);
     return out;
 }
 
-int sys_version(int com_id, const nlohmann::json &json_obj) {
-    usr_out(json_obj["request_id"], json_obj["work_id"], std::string("v1.2"), com_id);
+int sys_version(int com_id, const nlohmann::json &json_obj)
+{
+    usr_out(json_obj["request_id"], json_obj["work_id"], std::string("v1.3"), com_id);
     int out = 0;
     return out;
 }
 
-int sys_reboot(int com_id, const nlohmann::json &json_obj) {
+int sys_reboot(int com_id, const nlohmann::json &json_obj)
+{
     int out = 0;
     usr_print_error(json_obj["request_id"], json_obj["work_id"], "{\"code\":0, \"message\":\"rebooting ...\"}", com_id);
     usleep(200000);
@@ -463,7 +513,8 @@ int sys_reboot(int com_id, const nlohmann::json &json_obj) {
     return out;
 }
 
-void server_work() {
+void server_work()
+{
     key_sql["sys.ping"]      = sys_ping;
     key_sql["sys.lsmode"]    = sys_lsmode;
     key_sql["sys.lstask"]    = sys_lstask;
@@ -476,31 +527,50 @@ void server_work() {
     key_sql["sys.uartsetup"] = sys_uartsetup;
     key_sql["sys.reset"]     = sys_reset;
     key_sql["sys.reboot"]    = sys_reboot;
-    key_sql["sys.version"]    = sys_version;
+    key_sql["sys.version"]   = sys_version;
+    key_sql["sys.rmmode"]    = sys_rmmode;
 }
 
-void server_stop_work() {
+void server_stop_work()
+{
 }
-
+std::mutex unit_action_match_mtx;
+simdjson::ondemand::parser parser;
 typedef int (*sys_fun_call)(int, const nlohmann::json &);
-void unit_action_match(int com_id, const std::string &json_str) {
-    int ret;
-    std::string out_str;
-    nlohmann::json req_body;
-
-    std::string action;
-    std::string request_id;
-    std::string work_id;
-    try {
-        req_body   = nlohmann::json::parse(json_str);
-        action     = req_body["action"];
-        request_id = req_body["request_id"];
-        work_id    = req_body["work_id"];
-    } catch (...) {
+void unit_action_match(int com_id, const std::string &json_str)
+{
+    std::lock_guard<std::mutex> guard(unit_action_match_mtx);
+    simdjson::padded_string json_string(json_str);
+    simdjson::ondemand::document doc;
+    auto error = parser.iterate(json_string).get(doc);
+    if (error) {
         SLOGE("json format error:%s", json_str.c_str());
         usr_print_error("0", "sys", "{\"code\":-2, \"message\":\"json format error\"}", com_id);
         return;
     }
+    std::string request_id;
+    error = doc["request_id"].get_string(request_id);
+    if (error) {
+        SLOGE("miss request_id, error:%s", simdjson::error_message(error));
+        usr_print_error("0", "sys", "{\"code\":-2, \"message\":\"json format error\"}", com_id);
+        return;
+    }
+    std::string work_id;
+    error = doc["work_id"].get_string(work_id);
+    if (error) {
+        SLOGE("miss work_id, error:%s", simdjson::error_message(error));
+        usr_print_error("0", "sys", "{\"code\":-2, \"message\":\"json format error\"}", com_id);
+        return;
+    }
+    if (work_id.empty()) work_id = "sys";
+    std::string action;
+    error = doc["action"].get_string(action);
+    if (error) {
+        SLOGE("miss action, error:%s", simdjson::error_message(error));
+        usr_print_error("0", "sys", "{\"code\":-2, \"message\":\"json format error\"}", com_id);
+        return;
+    }
+    // SLOGI("request_id:%s work_id:%s action:%s", request_id.c_str(), work_id.c_str(), action.c_str());
     std::vector<std::string> work_id_fragment;
     std::string fragment;
     for (auto c : work_id) {
@@ -512,22 +582,29 @@ void unit_action_match(int com_id, const std::string &json_str) {
         }
     }
     if (fragment.length()) work_id_fragment.push_back(fragment);
-
-    if ((work_id_fragment.size() > 0) && (work_id_fragment[0] == "sys")) {
-        std::string unit_action = "sys." + action;
-        sys_fun_call call_fun = NULL;
-        SAFE_READING(call_fun, sys_fun_call, unit_action);
-        if (call_fun)
-            call_fun(com_id, req_body);
-        else
-            usr_print_error(request_id, work_id, "{\"code\":-3, \"message\":\"action match false\"}", com_id);
-    } else if (action == "inference") {
+    if (action == "inference") {
         char zmq_push_url[128];
-        sprintf(zmq_push_url, zmq_c_format.c_str(), com_id);
-        req_body["zmq_com"] = std::string(zmq_push_url);
-        int ret             = zmq_bus_publisher_push(work_id, req_body.dump());
+        int post = sprintf(zmq_push_url, zmq_c_format.c_str(), com_id);
+        std::string inference_raw_data;
+        inference_raw_data.resize(post + json_str.length() + 13);
+        post = sprintf(inference_raw_data.data(), "{\"zmq_com\":\"");
+        post += sprintf(inference_raw_data.data() + post, "%s", zmq_push_url);
+        post += sprintf(inference_raw_data.data() + post, "\",");
+        memcpy(inference_raw_data.data() + post, json_str.data() + 1, json_str.length() - 1);
+        // post += json_str.length() - 1;
+        // SLOGI("inference_raw_data:%s  size:%d  %d", inference_raw_data.c_str(), inference_raw_data.length(), post);
+        int ret = zmq_bus_publisher_push(work_id, inference_raw_data);
         if (ret) {
             usr_print_error(request_id, work_id, "{\"code\":-4, \"message\":\"inference data push false\"}", com_id);
+        }
+    } else if ((work_id_fragment.size() > 0) && (work_id_fragment[0] == "sys")) {
+        std::string unit_action = "sys." + action;
+        sys_fun_call call_fun   = NULL;
+        SAFE_READING(call_fun, sys_fun_call, unit_action);
+        if (call_fun) {
+            call_fun(com_id, nlohmann::json::parse(json_str));
+        } else {
+            usr_print_error(request_id, work_id, "{\"code\":-3, \"message\":\"action match false\"}", com_id);
         }
     } else {
         if ((work_id_fragment[0].length() != 0) && (remote_call(com_id, json_str) != 0)) {

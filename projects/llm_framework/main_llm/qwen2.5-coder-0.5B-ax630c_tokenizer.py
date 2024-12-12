@@ -122,8 +122,8 @@ if __name__ == "__main__":
 
     tokenizer = Tokenizer_Http(args.model_id)
 
-    print(tokenizer.bos_id, tokenizer.bos_token, tokenizer.eos_id, tokenizer.eos_token)
-    print(tokenizer.encode("hello world", args.content))
+    # print(tokenizer.bos_id, tokenizer.bos_token, tokenizer.eos_id, tokenizer.eos_token)
+    # print(tokenizer.encode("hello world", args.content))
 
     host = (args.host, args.port)  #设定地址与端口号，'localhost'等价于'127.0.0.1'
     print('http://%s:%s' % host)

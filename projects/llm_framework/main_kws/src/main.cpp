@@ -25,7 +25,8 @@
 using namespace StackFlows;
 
 int main_exit_flage = 0;
-static void __sigint(int iSigNo) {
+static void __sigint(int iSigNo)
+{
     SLOGW("llm_kws will be exit!");
     main_exit_flage = 1;
 }
@@ -40,12 +41,12 @@ static std::string base_model_config_path_;
         mode_config_.key = obj[#key];
 
 class llm_task {
-   private:
+private:
     sherpa_onnx::KeywordSpotterConfig mode_config_;
     std::unique_ptr<sherpa_onnx::KeywordSpotter> spotter_;
     std::unique_ptr<sherpa_onnx::OnlineStream> spotter_stream_;
 
-   public:
+public:
     std::string model_;
     std::string response_format_;
     std::vector<std::string> inputs_;
@@ -61,7 +62,8 @@ class llm_task {
     std::function<void(const std::string &)> out_callback_;
     std::function<void(const std::string &)> play_awake_wav;
 
-    bool parse_config(const nlohmann::json &config_body) {
+    bool parse_config(const nlohmann::json &config_body)
+    {
         try {
             model_           = config_body.at("model");
             response_format_ = config_body.at("response_format");
@@ -89,15 +91,15 @@ class llm_task {
         return false;
     }
 
-    int load_model(const nlohmann::json &config_body) {
+    int load_model(const nlohmann::json &config_body)
+    {
         if (parse_config(config_body)) {
             return -1;
         }
 
         nlohmann::json file_body;
-        std::list<std::string> config_file_paths;
-        config_file_paths.push_back(std::string("./") + model_ + ".json");
-        config_file_paths.push_back(base_model_path_ + "../share/" + model_ + ".json");
+        std::list<std::string> config_file_paths =
+            get_config_file_paths(base_model_path_, base_model_config_path_, model_);
         try {
             for (auto file_name : config_file_paths) {
                 std::ifstream config_file(file_name);
@@ -195,11 +197,13 @@ class llm_task {
         return 0;
     }
 
-    void set_output(std::function<void(const std::string &)> out_callback) {
+    void set_output(std::function<void(const std::string &)> out_callback)
+    {
         out_callback_ = out_callback;
     }
 
-    void sys_pcm_on_data(const std::string &raw) {
+    void sys_pcm_on_data(const std::string &raw)
+    {
         static int count = 0;
         if (count < delay_audio_frame_) {
             buffer_write_char(pcmdata, raw.c_str(), raw.length());
@@ -234,16 +238,19 @@ class llm_task {
         }
     }
 
-    bool delete_model() {
+    bool delete_model()
+    {
         spotter_.reset();
         return true;
     }
 
-    llm_task(const std::string &workid) : audio_flage_(false) {
+    llm_task(const std::string &workid) : audio_flage_(false)
+    {
         pcmdata = buffer_create();
     }
 
-    ~llm_task() {
+    ~llm_task()
+    {
         if (spotter_stream_) {
             spotter_stream_.reset();
         }
@@ -253,32 +260,19 @@ class llm_task {
 #undef CONFIG_AUTO_SET
 
 class llm_kws : public StackFlow {
-   private:
+private:
     int task_count_;
     std::string audio_url_;
     std::unordered_map<int, std::shared_ptr<llm_task>> llm_task_;
-    int _load_config() {
-        if (base_model_path_.empty()) {
-            base_model_path_ = sys_sql_select("config_base_mode_path");
-        }
-        if (base_model_config_path_.empty()) {
-            base_model_config_path_ = sys_sql_select("config_base_mode_config_path");
-        }
-        if (base_model_path_.empty() || base_model_config_path_.empty()) {
-            return -1;
-        } else {
-            SLOGI("llm_kws::_load_config success");
-            return 0;
-        }
-    }
 
-   public:
-    llm_kws() : StackFlow("kws") {
+public:
+    llm_kws() : StackFlow("kws")
+    {
         task_count_ = 1;
-        repeat_event(1000, std::bind(&llm_kws::_load_config, this));
     }
 
-    void play_awake_wav(const std::string &wav_file) {
+    void play_awake_wav(const std::string &wav_file)
+    {
         FILE *fp = fopen(wav_file.c_str(), "rb");
         if (!fp) {
             printf("Open %s failed!\n", wav_file.c_str());
@@ -299,26 +293,43 @@ class llm_kws : public StackFlow {
             }
         }
         if (post != 0) {
-            unit_call("audio", "play", std::string((char *)(wav_data.data() + post), size - post));
+            unit_call("audio", "play_raw", std::string((char *)(wav_data.data() + post), size - post));
         }
     }
 
-    void task_pause(const std::shared_ptr<llm_task> llm_task_obj, const std::shared_ptr<llm_channel_obj> llm_channel) {
+    void task_pause(const std::weak_ptr<llm_task> llm_task_obj_weak,
+                    const std::weak_ptr<llm_channel_obj> llm_channel_weak)
+    {
+        auto llm_task_obj = llm_task_obj_weak.lock();
+        auto llm_channel  = llm_channel_weak.lock();
+        if (!(llm_task_obj && llm_channel)) {
+            return;
+        }
         if (llm_task_obj->audio_flage_) {
             if (!audio_url_.empty()) llm_channel->stop_subscriber(audio_url_);
             llm_task_obj->audio_flage_ = false;
         }
     }
 
-    void task_work(const std::shared_ptr<llm_task> llm_task_obj, const std::shared_ptr<llm_channel_obj> llm_channel) {
+    void task_work(const std::weak_ptr<llm_task> llm_task_obj_weak,
+                   const std::weak_ptr<llm_channel_obj> llm_channel_weak)
+    {
+        auto llm_task_obj = llm_task_obj_weak.lock();
+        auto llm_channel  = llm_channel_weak.lock();
+        if (!(llm_task_obj && llm_channel)) {
+            return;
+        }
         if ((!audio_url_.empty()) && (llm_task_obj->audio_flage_ == false)) {
-            llm_channel->subscriber(audio_url_,
-                                    std::bind(&llm_task::sys_pcm_on_data, llm_task_obj.get(), std::placeholders::_1));
+            std::weak_ptr<llm_task> _llm_task_obj = llm_task_obj;
+            llm_channel->subscriber(audio_url_, [_llm_task_obj](pzmq *_pzmq, const std::string &raw) {
+                _llm_task_obj.lock()->sys_pcm_on_data(raw);
+            });
             llm_task_obj->audio_flage_ = true;
         }
     }
 
-    void work(const std::string &work_id, const std::string &object, const std::string &data) override {
+    void work(const std::string &work_id, const std::string &object, const std::string &data) override
+    {
         SLOGI("llm_asr::work:%s", data.c_str());
 
         nlohmann::json error_body;
@@ -333,7 +344,8 @@ class llm_kws : public StackFlow {
         send("None", "None", LLM_NO_ERROR, work_id);
     }
 
-    void pause(const std::string &work_id, const std::string &object, const std::string &data) override {
+    void pause(const std::string &work_id, const std::string &object, const std::string &data) override
+    {
         SLOGI("llm_asr::work:%s", data.c_str());
 
         nlohmann::json error_body;
@@ -348,21 +360,44 @@ class llm_kws : public StackFlow {
         send("None", "None", LLM_NO_ERROR, work_id);
     }
 
-    void task_user_data(const std::shared_ptr<llm_task> llm_task_obj,
-                        const std::shared_ptr<llm_channel_obj> llm_channel, const std::string &object,
-                        const std::string &data) {
+    void task_user_data(const std::weak_ptr<llm_task> llm_task_obj_weak,
+                        const std::weak_ptr<llm_channel_obj> llm_channel_weak, const std::string &object,
+                        const std::string &data)
+    {
+        nlohmann::json error_body;
+        auto llm_task_obj = llm_task_obj_weak.lock();
+        auto llm_channel  = llm_channel_weak.lock();
+        if (!(llm_task_obj && llm_channel)) {
+            error_body["code"]    = -11;
+            error_body["message"] = "Model run failed.";
+            send("None", "None", error_body, unit_name_);
+            return;
+        }
         std::string tmp_msg1;
         const std::string *next_data = &data;
         int ret;
         if (object.find("stream") != std::string::npos) {
             static std::unordered_map<int, std::string> stream_buff;
-            if (decode_stream(data, tmp_msg1, stream_buff)) return;
+            try {
+                if (decode_stream(data, tmp_msg1, stream_buff)) {
+                    return;
+                };
+            } catch (...) {
+                stream_buff.clear();
+                error_body["code"]    = -25;
+                error_body["message"] = "Stream data index error.";
+                send("None", "None", error_body, unit_name_);
+                return;
+            }
             next_data = &tmp_msg1;
         }
         std::string tmp_msg2;
         if (object.find("base64") != std::string::npos) {
             ret = decode_base64((*next_data), tmp_msg2);
-            if (!ret) {
+            if (ret == -1) {
+                error_body["code"]    = -23;
+                error_body["message"] = "Base64 decoding error.";
+                send("None", "None", error_body, unit_name_);
                 return;
             }
             next_data = &tmp_msg2;
@@ -370,7 +405,8 @@ class llm_kws : public StackFlow {
         llm_task_obj->sys_pcm_on_data((*next_data));
     }
 
-    int setup(const std::string &work_id, const std::string &object, const std::string &data) override {
+    int setup(const std::string &work_id, const std::string &object, const std::string &data) override
+    {
         nlohmann::json error_body;
         if ((llm_task_channel_.size() - 1) == task_count_) {
             error_body["code"]    = -21;
@@ -403,13 +439,16 @@ class llm_kws : public StackFlow {
 
             for (const auto input : llm_task_obj->inputs_) {
                 if (input.find("sys") != std::string::npos) {
-                    audio_url_ = unit_call("audio", "cap", "None");
-                    llm_channel->subscriber(
-                        audio_url_, std::bind(&llm_task::sys_pcm_on_data, llm_task_obj.get(), std::placeholders::_1));
+                    audio_url_                            = unit_call("audio", "cap", "None");
+                    std::weak_ptr<llm_task> _llm_task_obj = llm_task_obj;
+                    llm_channel->subscriber(audio_url_, [_llm_task_obj](pzmq *_pzmq, const std::string &raw) {
+                        _llm_task_obj.lock()->sys_pcm_on_data(raw);
+                    });
                     llm_task_obj->audio_flage_ = true;
                 } else if (input.find("kws") != std::string::npos) {
                     llm_channel->subscriber_work_id(
-                        "", std::bind(&llm_kws::task_user_data, this, llm_task_obj, llm_channel, std::placeholders::_1,
+                        "", std::bind(&llm_kws::task_user_data, this, std::weak_ptr<llm_task>(llm_task_obj),
+                                      std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1,
                                       std::placeholders::_2));
                 }
             }
@@ -426,7 +465,8 @@ class llm_kws : public StackFlow {
         }
     }
 
-    void taskinfo(const std::string &work_id, const std::string &object, const std::string &data) override {
+    void taskinfo(const std::string &work_id, const std::string &object, const std::string &data) override
+    {
         SLOGI("llm_kws::taskinfo:%s", data.c_str());
         nlohmann::json req_body;
         int work_id_num = sample_get_work_id_num(work_id);
@@ -447,12 +487,13 @@ class llm_kws : public StackFlow {
             req_body["model"]           = llm_task_obj->model_;
             req_body["response_format"] = llm_task_obj->response_format_;
             req_body["enoutput"]        = llm_task_obj->enoutput_;
-            req_body["inputs_"]         = llm_task_obj->inputs_;
+            req_body["inputs"]          = llm_task_obj->inputs_;
             send("kws.taskinfo", req_body, LLM_NO_ERROR, work_id);
         }
     }
 
-    int exit(const std::string &work_id, const std::string &object, const std::string &data) override {
+    int exit(const std::string &work_id, const std::string &object, const std::string &data) override
+    {
         SLOGI("llm_kws::exit:%s", data.c_str());
         nlohmann::json error_body;
         int work_id_num = sample_get_work_id_num(work_id);
@@ -462,20 +503,35 @@ class llm_kws : public StackFlow {
             send("None", "None", error_body, work_id);
             return -1;
         }
+        auto llm_channel = get_channel(work_id_num);
+        llm_channel->stop_subscriber("");
         if (llm_task_[work_id_num]->audio_flage_) {
             unit_call("audio", "cap_stop", "None");
         }
-        llm_task_channel_.erase(work_id_num);
         llm_task_.erase(work_id_num);
         send("None", "None", LLM_NO_ERROR, work_id);
         return 0;
     }
 
-    ~llm_kws() {
+    ~llm_kws()
+    {
+        while (1) {
+            auto iteam = llm_task_.begin();
+            if (iteam == llm_task_.end()) {
+                break;
+            }
+            if (iteam->second->audio_flage_) {
+                unit_call("audio", "cap_stop", "None");
+            }
+            get_channel(iteam->first)->stop_subscriber("");
+            iteam->second.reset();
+            llm_task_.erase(iteam->first);
+        }
     }
 };
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
     signal(SIGTERM, __sigint);
     signal(SIGINT, __sigint);
     mkdir("/tmp/llm", 0777);

@@ -15,7 +15,8 @@
 #include "../../../../SDK/components/utilities/include/sample_log.h"
 
 int main_exit_flage = 0;
-static void __sigint(int iSigNo) {
+static void __sigint(int iSigNo)
+{
     SLOGW("llm_sys will be exit!");
     main_exit_flage = 1;
 }
@@ -31,7 +32,7 @@ static void __sigint(int iSigNo) {
 using namespace StackFlows;
 
 class llm_audio : public StackFlow {
-   private:
+private:
     enum { EVENT_LOAD_CONFIG = EVENT_EXPORT + 1, EVENT_QUEUE_PLAY };
     std::atomic_bool audio_clear_flage_;
     std::string sys_pcm_cap_channel = "ipc:///tmp/llm/pcm.cap.socket";
@@ -42,11 +43,13 @@ class llm_audio : public StackFlow {
     std::unique_ptr<std::thread> audio_cap_thread_;
     std::mutex ax_play_mtx;
 
-    static void on_cap_sample(const char *data, int size) {
+    static void on_cap_sample(const char *data, int size)
+    {
         self->pub_ctx_->send_data((const char *)data, size);
     }
 
-    void hw_queue_play(const std::string &audio_data, const std::string &None) {
+    void hw_queue_play(const std::string &audio_data, const std::string &None)
+    {
         if (audio_clear_flage_) {
             return;
         }
@@ -55,25 +58,29 @@ class llm_audio : public StackFlow {
                 play_config.bit, audio_data.c_str(), audio_data.length());
     }
 
-    void hw_play(const std::string &audio_data) {
+    void hw_play(const std::string &audio_data)
+    {
         std::lock_guard<std::mutex> guard(ax_play_mtx);
         ax_play(play_config.card, play_config.device, play_config.volume, play_config.channel, play_config.rate,
                 play_config.bit, audio_data.c_str(), audio_data.length());
     }
 
-    void hw_cap() {
+    void hw_cap()
+    {
         ax_cap_start(cap_config.card, cap_config.device, cap_config.volume, cap_config.channel, cap_config.rate,
                      cap_config.bit, llm_audio::on_cap_sample);
     }
 
-    void _play(const std::string &audio_data) {
+    void _play(const std::string &audio_data)
+    {
         if (audio_play_thread_) {
             _play_stop();
         }
         audio_play_thread_ = std::make_unique<std::thread>(std::bind(&llm_audio::hw_play, this, audio_data));
     }
 
-    void _play_stop() {
+    void _play_stop()
+    {
         ax_close_play();
         if (audio_play_thread_) {
             audio_play_thread_->join();
@@ -81,14 +88,16 @@ class llm_audio : public StackFlow {
         }
     }
 
-    void _cap() {
+    void _cap()
+    {
         if (!audio_cap_thread_) {
             pub_ctx_          = std::make_unique<pzmq>(sys_pcm_cap_channel, ZMQ_PUB);
             audio_cap_thread_ = std::make_unique<std::thread>(std::bind(&llm_audio::hw_cap, this));
         }
     }
 
-    void _cap_stop() {
+    void _cap_stop()
+    {
         ax_close_cap();
         if (audio_cap_thread_) {
             audio_cap_thread_->join();
@@ -97,34 +106,43 @@ class llm_audio : public StackFlow {
         }
     }
 
-   public:
-    llm_audio() : StackFlow("audio") {
+public:
+    llm_audio() : StackFlow("audio")
+    {
         event_queue_.appendListener(
             EVENT_QUEUE_PLAY, std::bind(&llm_audio::hw_queue_play, this, std::placeholders::_1, std::placeholders::_2));
-        setup("", "{\"object\":\"audio.play\",\"data\":{\"None\":\"None\"}}");
-        setup("", "{\"object\":\"audio.cap\",\"data\":{\"None\":\"None\"}}");
+        setup("", "audio.play", "{\"None\":\"None\"}");
+        setup("", "audio.cap", "{\"None\":\"None\"}");
         self        = this;
         cap_status_ = 0;
-        rpc_ctx_->register_rpc_action("play", std::bind(&llm_audio::play, this, std::placeholders::_1));
-        rpc_ctx_->register_rpc_action("queue_play", std::bind(&llm_audio::enqueue_play, this, std::placeholders::_1));
-        rpc_ctx_->register_rpc_action("play_stop", std::bind(&llm_audio::play_stop, this, std::placeholders::_1));
-        rpc_ctx_->register_rpc_action("queue_play_stop",
-                                      std::bind(&llm_audio::queue_play_stop, this, std::placeholders::_1));
-        rpc_ctx_->register_rpc_action("audio_status", std::bind(&llm_audio::audio_status, this, std::placeholders::_1));
-        rpc_ctx_->register_rpc_action("cap", std::bind(&llm_audio::cap, this, std::placeholders::_1));
-        rpc_ctx_->register_rpc_action("cap_stop", std::bind(&llm_audio::cap_stop, this, std::placeholders::_1));
-        rpc_ctx_->register_rpc_action("cap_stop_all", std::bind(&llm_audio::cap_stop_all, this, std::placeholders::_1));
+        rpc_ctx_->register_rpc_action("play",
+                                      std::bind(&llm_audio::play, this, std::placeholders::_1, std::placeholders::_2));
+        rpc_ctx_->register_rpc_action(
+            "play_raw", std::bind(&llm_audio::play_raw, this, std::placeholders::_1, std::placeholders::_2));
+        rpc_ctx_->register_rpc_action(
+            "queue_play", std::bind(&llm_audio::enqueue_play, this, std::placeholders::_1, std::placeholders::_2));
+        rpc_ctx_->register_rpc_action(
+            "play_stop", std::bind(&llm_audio::play_stop, this, std::placeholders::_1, std::placeholders::_2));
+        rpc_ctx_->register_rpc_action("queue_play_stop", std::bind(&llm_audio::queue_play_stop, this,
+                                                                   std::placeholders::_1, std::placeholders::_2));
+        rpc_ctx_->register_rpc_action(
+            "audio_status", std::bind(&llm_audio::audio_status, this, std::placeholders::_1, std::placeholders::_2));
+        rpc_ctx_->register_rpc_action("cap",
+                                      std::bind(&llm_audio::cap, this, std::placeholders::_1, std::placeholders::_2));
+        rpc_ctx_->register_rpc_action(
+            "cap_stop", std::bind(&llm_audio::cap_stop, this, std::placeholders::_1, std::placeholders::_2));
+        rpc_ctx_->register_rpc_action(
+            "cap_stop_all", std::bind(&llm_audio::cap_stop_all, this, std::placeholders::_1, std::placeholders::_2));
     }
-
-    int setup(const std::string &zmq_url, const std::string &raw) override {
-        std::string object = sample_json_str_get(raw, "object");
-        std::string data   = sample_json_str_get(raw, "data");
+    int setup(const std::string &work_id, const std::string &object, const std::string &data) override
+    {
         nlohmann::json config_body;
         nlohmann::json file_body;
         nlohmann::json error_body;
-        std::list<std::string> config_file_paths;
-        config_file_paths.push_back("./audio.json");
-        config_file_paths.push_back("/opt/m5stack/share/audio.json");
+        std::string base_model_path;
+        std::string base_model_config_path;
+        std::list<std::string> config_file_paths =
+            get_config_file_paths(base_model_path, base_model_config_path, "audio");
         try {
             config_body = nlohmann::json::parse(data);
             for (auto file_name : config_file_paths) {
@@ -288,7 +306,8 @@ class llm_audio : public StackFlow {
         return -1;
     }
 
-    bool destream(const std::string &indata, std::string &outdata) {
+    bool destream(const std::string &indata, std::string &outdata)
+    {
         static std::unordered_map<int, std::string> _stream_data_buff;
         int index                = std::stoi(sample_json_str_get(indata, "index"));
         std::string finish       = sample_json_str_get(indata, "finish");
@@ -308,7 +327,8 @@ class llm_audio : public StackFlow {
         return true;
     }
 
-    std::string dewav(const std::string &rawdata) {
+    std::string dewav(const std::string &rawdata)
+    {
         int post = 0;
         if (rawdata.length() > 10)
             for (int i = 0; i < rawdata.length() - 4; i++) {
@@ -326,15 +346,18 @@ class llm_audio : public StackFlow {
         return std::string("playwav");
     }
 
-    std::string demp3(const std::string &rawdata) {
+    std::string demp3(const std::string &rawdata)
+    {
         return LLM_NONE;
     }
 
-    std::string depcm(const std::string &rawdata) {
+    std::string depcm(const std::string &rawdata)
+    {
         return LLM_NONE;
     }
 
-    std::string parse_data(const std::string &object, const std::string &data) {
+    std::string parse_data(const std::string &object, const std::string &data)
+    {
         std::string _data;
         bool s   = (object.find("stream") == std::string::npos) ? false : true;
         bool wav = (object.find("wav") == std::string::npos) ? false : true;
@@ -354,24 +377,33 @@ class llm_audio : public StackFlow {
         return LLM_NONE;
     }
 
-    std::string play(const std::string &rawdata) {
-        if (rawdata.size() < 3) return LLM_NONE;
-        if ((rawdata[0] == '{') && (rawdata[rawdata.size() - 1] == '}')) {
-            std::string src_data = sample_unescapeString(sample_json_str_get(rawdata, "raw_data"));
-            return parse_data(sample_json_str_get(src_data, "object"), sample_json_str_get(src_data, "data"));
-        } else {
-            _play(rawdata);
-        }
+    std::string play(pzmq *_pzmq, const std::string &rawdata)
+    {
+        std::string zmq_url    = RPC_PARSE_TO_FIRST(rawdata);
+        std::string audio_json = RPC_PARSE_TO_SECOND(rawdata);
+        std::string ret_val =
+            parse_data(sample_json_str_get(audio_json, "object"), sample_json_str_get(audio_json, "data"));
+        request_id_ = sample_json_str_get(audio_json, "request_id");
+        send(LLM_NONE, LLM_NONE, LLM_NO_ERROR, sample_json_str_get(audio_json, "work_id"), zmq_url);
+        return ret_val;
+    }
+
+    std::string play_raw(pzmq *_pzmq, const std::string &rawdata)
+    {
+        if (rawdata.empty()) return std::string("rawdata empty");
+        _play(rawdata);
         return LLM_NONE;
     }
 
-    std::string enqueue_play(const std::string &rawdata) {
+    std::string enqueue_play(pzmq *_pzmq, const std::string &rawdata)
+    {
         audio_clear_flage_ = false;
         event_queue_.enqueue(EVENT_QUEUE_PLAY, rawdata, "");
         return LLM_NONE;
     }
 
-    std::string audio_status(const std::string &rawdata) {
+    std::string audio_status(pzmq *_pzmq, const std::string &rawdata)
+    {
         if (rawdata == "play") {
             if (ax_play_status()) {
                 return std::string("None");
@@ -403,17 +435,20 @@ class llm_audio : public StackFlow {
         }
     }
 
-    std::string play_stop(const std::string &rawdata) {
+    std::string play_stop(pzmq *_pzmq, const std::string &rawdata)
+    {
         _play_stop();
         return LLM_NONE;
     }
 
-    std::string queue_play_stop(const std::string &rawdata) {
+    std::string queue_play_stop(pzmq *_pzmq, const std::string &rawdata)
+    {
         audio_clear_flage_ = true;
         return LLM_NONE;
     }
 
-    std::string cap(const std::string &rawdata) {
+    std::string cap(pzmq *_pzmq, const std::string &rawdata)
+    {
         if (cap_status_ == 0) {
             _cap();
         }
@@ -421,7 +456,8 @@ class llm_audio : public StackFlow {
         return sys_pcm_cap_channel;
     }
 
-    std::string cap_stop(const std::string &rawdata) {
+    std::string cap_stop(pzmq *_pzmq, const std::string &rawdata)
+    {
         if (cap_status_ > 0) {
             cap_status_--;
             if (cap_status_ == 0) {
@@ -431,20 +467,23 @@ class llm_audio : public StackFlow {
         return LLM_NONE;
     }
 
-    std::string cap_stop_all(const std::string &rawdata) {
+    std::string cap_stop_all(pzmq *_pzmq, const std::string &rawdata)
+    {
         cap_status_ = 0;
         _cap_stop();
         return LLM_NONE;
     }
 
-    ~llm_audio() {
+    ~llm_audio()
+    {
         _play_stop();
         _cap_stop();
     }
 };
 
 llm_audio *llm_audio::self;
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
     signal(SIGTERM, __sigint);
     signal(SIGINT, __sigint);
     mkdir("/tmp/llm", 0777);
