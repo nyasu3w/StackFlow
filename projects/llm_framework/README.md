@@ -218,7 +218,7 @@ send :
    "action":"setup",
    "object":"yolo.setup",
    "data":{
-      "model":"yolo11n_anquanmao",
+      "model":"yolo11n",
       "response_format":"yolo.yolobox",
       "input":"camera.1000",
       "enoutput":true
