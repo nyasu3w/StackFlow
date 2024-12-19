@@ -160,7 +160,7 @@ public:
         cv::Mat camera_data(mode_config_.img_h, mode_config_.img_w, CV_8UC2, (void *)msg.data());
         cv::Mat rgb;
         cv::cvtColor(camera_data, rgb, cv::COLOR_YUV2RGB_YUYV);
-        return inference(rgb, false);
+        return inference(rgb, true);
     }
 
     bool inference_raw_rgb(const std::string &msg)
@@ -195,13 +195,14 @@ public:
             int ret = -1;
             std::vector<uint8_t> image(mode_config_.img_w * mode_config_.img_h * 3, 0);
             common::get_input_data_no_letterbox(src, image, mode_config_.img_h, mode_config_.img_w, bgr2rgb);
+            cv::Mat img_mat(mode_config_.img_h, mode_config_.img_w, CV_8UC3, image.data());
             depth_anything_->SetInput((void *)image.data(), 0);
             if (0 != depth_anything_->RunSync()) {
                 SLOGE("Run depth_anything model failed!\n");
                 throw std::string("depth_anything_ RunSync error");
             }
             std::vector<detection::Object> objects;
-            depth_anything_->Post_Process(src, mode_config_.model_type);
+            depth_anything_->Post_Process(img_mat, mode_config_.model_type);
             std::vector<nlohmann::json> depth_anything_output;
             if (out_callback_) out_callback_(depth_anything_output, true);
         } catch (...) {

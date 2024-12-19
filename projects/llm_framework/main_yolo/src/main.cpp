@@ -199,13 +199,14 @@ public:
             int ret = -1;
             std::vector<uint8_t> image(mode_config_.img_w * mode_config_.img_h * 3, 0);
             common::get_input_data_letterbox(src, image, mode_config_.img_h, mode_config_.img_w, bgr2rgb);
+            cv::Mat img_mat(mode_config_.img_h, mode_config_.img_w, CV_8UC3, image.data());
             yolo_->SetInput((void *)image.data(), 0);
             if (0 != yolo_->RunSync()) {
                 SLOGE("Run yolo model failed!\n");
                 throw std::string("yolo_ RunSync error");
             }
             std::vector<detection::Object> objects;
-            yolo_->Post_Process(src, mode_config_.img_w, mode_config_.img_h, mode_config_.cls_num,
+            yolo_->Post_Process(img_mat, mode_config_.img_w, mode_config_.img_h, mode_config_.cls_num,
                                 mode_config_.pron_threshold, mode_config_.nms_threshold, objects,
                                 mode_config_.model_type);
             std::vector<nlohmann::json> yolo_output;
