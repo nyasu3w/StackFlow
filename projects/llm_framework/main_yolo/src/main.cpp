@@ -164,7 +164,7 @@ public:
         cv::Mat camera_data(mode_config_.img_h, mode_config_.img_w, CV_8UC2, (void *)msg.data());
         cv::Mat rgb;
         cv::cvtColor(camera_data, rgb, cv::COLOR_YUV2RGB_YUYV);
-        return inference(rgb, false);
+        return inference(rgb, true);
     }
 
     bool inference_raw_rgb(const std::string &msg)
@@ -198,7 +198,7 @@ public:
         try {
             int ret = -1;
             std::vector<uint8_t> image(mode_config_.img_w * mode_config_.img_h * 3, 0);
-            common::get_input_data_letterbox(src, image, mode_config_.img_w, mode_config_.img_h, bgr2rgb);
+            common::get_input_data_letterbox(src, image, mode_config_.img_h, mode_config_.img_w, bgr2rgb);
             yolo_->SetInput((void *)image.data(), 0);
             if (0 != yolo_->RunSync()) {
                 SLOGE("Run yolo model failed!\n");

@@ -368,10 +368,10 @@ void post_process(AX_ENGINE_IO_INFO_T* io_info, AX_ENGINE_IO_T* io_data, const c
     }
 }
 
-int EngineWrapper::Post_Process(cv::Mat& mat, int& input_w, int& input_, int& cls_num, float& pron_threshold,
+int EngineWrapper::Post_Process(cv::Mat& mat, int& input_w, int& input_h, int& cls_num, float& pron_threshold,
                                 float& nms_threshold, std::vector<detection::Object>& objects, std::string& model_type)
 {
-    post_process(m_io_info, &m_io, mat, input_w, input_, cls_num, pron_threshold, nms_threshold, objects, model_type);
+    post_process(m_io_info, &m_io, mat, input_w, input_h, cls_num, pron_threshold, nms_threshold, objects, model_type);
     return 0;
 }
 
