@@ -49,7 +49,7 @@ public:
 
     int RunSync();
 
-    int Post_Process(cv::Mat& mat, std::string& model_type);
+    int Post_Process(cv::Mat& mat, std::string& model_type, std::string& byteString);
 
     int GetOutput(void* pOutput, int index);
 

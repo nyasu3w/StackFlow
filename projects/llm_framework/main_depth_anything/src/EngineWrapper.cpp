@@ -252,7 +252,8 @@ int EngineWrapper::RunSync()
     return 0;
 }
 
-void post_process(AX_ENGINE_IO_INFO_T* io_info, AX_ENGINE_IO_T* io_data, const cv::Mat& mat, std::string& model_type)
+void post_process(AX_ENGINE_IO_INFO_T* io_info, AX_ENGINE_IO_T* io_data, const cv::Mat& mat, std::string& model_type,
+                  std::string& byteString)
 {
     if (model_type == "segment") {
         auto& output = io_data->pOutputs[0];
@@ -272,15 +273,16 @@ void post_process(AX_ENGINE_IO_INFO_T* io_info, AX_ENGINE_IO_T* io_data, const c
         cv::Mat dst(info.pShape[2], info.pShape[3], CV_8UC3);
         cv::applyColorMap(feature, dst, cv::ColormapTypes::COLORMAP_MAGMA);
         cv::resize(dst, dst, cv::Size(mat.cols, mat.rows));
-        cv::hconcat(std::vector<cv::Mat>{mat, dst}, dst);
-        cv::imwrite("mat.png", mat);
-        cv::imwrite("depth_anything_out.png", dst);
+
+        std::vector<uchar> buf;
+        cv::imencode(".jpg", dst, buf);
+        byteString.assign(buf.begin(), buf.end());
     }
 }
 
-int EngineWrapper::Post_Process(cv::Mat& mat, std::string& model_type)
+int EngineWrapper::Post_Process(cv::Mat& mat, std::string& model_type, std::string& byteString)
 {
-    post_process(m_io_info, &m_io, mat, model_type);
+    post_process(m_io_info, &m_io, mat, model_type, byteString);
     return 0;
 }
 

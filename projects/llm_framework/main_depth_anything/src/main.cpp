@@ -35,7 +35,7 @@ typedef struct {
     float nms_threshold  = 0.45;
 } yolo_config;
 
-typedef std::function<void(const std::vector<nlohmann::json> &data, bool finish)> task_callback_t;
+typedef std::function<void(const std::string &data, bool finish)> task_callback_t;
 
 #define CONFIG_AUTO_SET(obj, key)             \
     if (config_body.contains(#key))           \
@@ -202,8 +202,8 @@ public:
                 throw std::string("depth_anything_ RunSync error");
             }
             std::vector<detection::Object> objects;
-            depth_anything_->Post_Process(img_mat, mode_config_.model_type);
-            std::vector<nlohmann::json> depth_anything_output;
+            std::string depth_anything_output;
+            depth_anything_->Post_Process(img_mat, mode_config_.model_type, depth_anything_output);
             if (out_callback_) out_callback_(depth_anything_output, true);
         } catch (...) {
             SLOGW("yolo_->Run have error!");
@@ -265,31 +265,29 @@ public:
     }
 
     void task_output(const std::weak_ptr<llm_task> llm_task_obj_weak,
-                     const std::weak_ptr<llm_channel_obj> llm_channel_weak, const std::vector<nlohmann::json> &data,
-                     bool finish)
+                     const std::weak_ptr<llm_channel_obj> llm_channel_weak, const std::string &data, bool finish)
     {
         auto llm_task_obj = llm_task_obj_weak.lock();
         auto llm_channel  = llm_channel_weak.lock();
         if (!(llm_task_obj && llm_channel)) {
             return;
         }
+        std::string base64_data;
+        int len = encode_base64(data, base64_data);
         if (llm_channel->enstream_) {
             static int count = 0;
             nlohmann::json data_body;
             data_body["index"] = count++;
-            for (const auto &jsonObj : data) {
-                data_body["delta"].push_back(jsonObj);
-            }
-            if (!finish)
-                data_body["delta"] = data;
-            else
-                data_body["delta"] = std::string("");
+            // if (!finish)
+            data_body["delta"] = base64_data;
+            // else
+            // data_body["delta"] = std::string("");
             data_body["finish"] = finish;
             if (finish) count = 0;
             llm_channel->send(llm_task_obj->response_format_, data_body, LLM_NO_ERROR);
         } else if (finish) {
             // SLOGI("send utf-8");
-            llm_channel->send(llm_task_obj->response_format_, data, LLM_NO_ERROR);
+            llm_channel->send(llm_task_obj->response_format_, base64_data, LLM_NO_ERROR);
         }
     }
 
