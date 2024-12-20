@@ -12,7 +12,7 @@
     "vad.bool"
   ],
   "mode_param": {
-    "silero_vad.model": "silero_vad.onnx"
+    "silero_vad.model": "silero_vad.ort"
   },
   "mode_param_bak": {
     "silero_vad.threshold": 0.5,

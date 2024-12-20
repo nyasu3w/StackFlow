@@ -12,7 +12,7 @@
         "sys.play.0_1"
     ],
     "mode_param": {
-        "encoder": "encoder.onnx",
+        "encoder": "encoder.ort",
         "decoder": "decoder.axmodel",
         "gbin": "g.bin",
         "tokens": "tokens.txt",

@@ -12,10 +12,10 @@
     "output_type":[
         "kws.bool"
     ],
-    "mode_param":{
-        "model_config.transducer.encoder":"encoder-epoch-12-avg-2-chunk-16-left-64.int8.onnx",
-        "model_config.transducer.decoder":"decoder-epoch-12-avg-2-chunk-16-left-64.onnx",
-        "model_config.transducer.joiner":"joiner-epoch-12-avg-2-chunk-16-left-64.int8.onnx",
+    "mode_param": {
+        "model_config.transducer.encoder":"encoder-epoch-12-avg-2-chunk-16-left-64.int8.ort",
+        "model_config.transducer.decoder":"decoder-epoch-12-avg-2-chunk-16-left-64.ort",
+        "model_config.transducer.joiner":"joiner-epoch-12-avg-2-chunk-16-left-64.int8.ort",
         "model_config.tokens":"tokens.txt",
         "model_config.modeling_unit":"cjkchar",
         "keywords_file":"keywords.txt",

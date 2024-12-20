@@ -26,6 +26,9 @@ REQUIREMENTS += ['onnxruntime', 'samplerate']
 INCLUDE += [ADir('../include')]
 INCLUDE += [ADir('src/runner'), ADir('../include/onnxruntime/core/session')]
 
+LINK_SEARCH_PATH += [ADir('../static_lib/sherpa/onnx')]
+LDFLAGS += ['-l:libcargs.a', '-l:libonnxruntime.a']
+
 STATIC_FILES += Glob('mode_*.json')
 
 env['COMPONENTS'].append({'target':'llm_melotts',
