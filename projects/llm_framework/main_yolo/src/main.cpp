@@ -220,8 +220,20 @@ public:
                 output["bbox"].push_back(format_float(obj.rect.y, 0));
                 output["bbox"].push_back(format_float(obj.rect.x + obj.rect.width, 0));
                 output["bbox"].push_back(format_float(obj.rect.y + obj.rect.height, 0));
-                if (mode_config_.model_type == "segment") output["mask"] = obj.mask_feat;
-                if (mode_config_.model_type == "pose") output["kps"] = obj.kps_feat;
+                if (mode_config_.model_type == "segment") {
+                    std::vector<std::string> formatted_mask_feat;
+                    for (const auto &mask : obj.mask_feat) {
+                        formatted_mask_feat.push_back(format_float(mask, 2));
+                    }
+                    output["mask"] = formatted_mask_feat;
+                }
+                if (mode_config_.model_type == "pose") {
+                    std::vector<std::string> formatted_kps_feat;
+                    for (const auto &kps : obj.kps_feat) {
+                        formatted_kps_feat.push_back(format_float(kps, 2));
+                    }
+                    output["kps"] = formatted_kps_feat;
+                }
                 if (mode_config_.model_type == "obb") output["angle"] = obj.angle;
                 yolo_output.push_back(output);
                 if (out_callback_) out_callback_(yolo_output, false);

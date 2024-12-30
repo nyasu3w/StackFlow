@@ -376,7 +376,7 @@ public:
     {
         std::vector<int> input_ids = tokenizer->Encode(prompt, true);
 
-        constexpr int IMG_CONTEXT = 151648;
+        constexpr int IMG_CONTEXT = 151667;
         int offset = 0;
 
         for (size_t i = 0; i < input_ids.size(); i++)

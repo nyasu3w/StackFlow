@@ -24,7 +24,7 @@ def create_lib_deb(package_name, version, src_folder, revision = 'm5stack1'):
     if os.path.exists(deb_folder):
         shutil.rmtree(deb_folder)
     os.makedirs(deb_folder, exist_ok = True)
-    
+
     for item in os.listdir(src_folder):
         if item.startswith('llm_'):
             continue
@@ -245,7 +245,7 @@ def create_bin_deb(package_name, version, src_folder, revision = 'm5stack1'):
 
     os.chmod(os.path.join(deb_folder, 'DEBIAN/postinst'), 0o755)
     os.chmod(os.path.join(deb_folder, 'DEBIAN/prerm'), 0o755)
-    
+
     subprocess.run(["dpkg-deb", "-b", deb_folder, deb_file], check=True)
     print(f"Debian package created: {deb_file}")
     shutil.rmtree(deb_folder)
@@ -282,8 +282,9 @@ if __name__ == "__main__":
         create_bin_deb('llm-vlm', version, src_folder, revision)
         create_bin_deb('llm-yolo', version, src_folder, revision)
         create_bin_deb('llm-skel', version, src_folder, revision)
+        create_bin_deb('llm-depth-anything', version, src_folder, revision)
         # create_bin_deb('llm-tokenizer', version, src_folder, revision)
-        
+
     if (create_data):
         create_data_deb('llm-audio-en-us', data_version, src_folder, revision)
         create_data_deb('llm-audio-zh-cn', data_version, src_folder, revision)
