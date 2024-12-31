@@ -31,6 +31,7 @@ typedef struct {
     int img_h            = 640;
     int img_w            = 640;
     int cls_num          = 80;
+    int point_num        = 17;
     float pron_threshold = 0.45f;
     float nms_threshold  = 0.45;
 } yolo_config;
@@ -115,6 +116,7 @@ public:
             CONFIG_AUTO_SET(file_body["mode_param"], nms_threshold);
             CONFIG_AUTO_SET(file_body["mode_param"], cls_name);
             CONFIG_AUTO_SET(file_body["mode_param"], cls_num);
+            CONFIG_AUTO_SET(file_body["mode_param"], point_num);
             CONFIG_AUTO_SET(file_body["mode_param"], model_type);
             mode_config_.yolo_model = base_model + mode_config_.yolo_model;
             yolo_                   = std::make_unique<EngineWrapper>();
@@ -207,8 +209,8 @@ public:
             }
             std::vector<detection::Object> objects;
             yolo_->Post_Process(img_mat, mode_config_.img_w, mode_config_.img_h, mode_config_.cls_num,
-                                mode_config_.pron_threshold, mode_config_.nms_threshold, objects,
-                                mode_config_.model_type);
+                                mode_config_.point_num, mode_config_.pron_threshold, mode_config_.nms_threshold,
+                                objects, mode_config_.model_type);
             std::vector<nlohmann::json> yolo_output;
             for (size_t i = 0; i < objects.size(); i++) {
                 const detection::Object &obj = objects[i];
@@ -216,10 +218,10 @@ public:
                 output["class"]      = mode_config_.cls_name[obj.label];
                 output["confidence"] = format_float(obj.prob, 2);
                 output["bbox"]       = nlohmann::json::array();
-                output["bbox"].push_back(format_float(obj.rect.x, 0));
-                output["bbox"].push_back(format_float(obj.rect.y, 0));
-                output["bbox"].push_back(format_float(obj.rect.x + obj.rect.width, 0));
-                output["bbox"].push_back(format_float(obj.rect.y + obj.rect.height, 0));
+                output["bbox"].push_back(format_float(obj.rect.x, 2));
+                output["bbox"].push_back(format_float(obj.rect.y, 2));
+                output["bbox"].push_back(format_float(obj.rect.x + obj.rect.width, 2));
+                output["bbox"].push_back(format_float(obj.rect.y + obj.rect.height, 2));
                 if (mode_config_.model_type == "segment") {
                     std::vector<std::string> formatted_mask_feat;
                     for (const auto &mask : obj.mask_feat) {

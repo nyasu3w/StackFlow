@@ -311,8 +311,8 @@ static const std::vector<std::vector<uint8_t>> SKELETON = {
     {8, 10},  {9, 11},  {2, 3},   {1, 2},   {1, 3},   {2, 4},  {3, 5},  {4, 6}, {5, 7}};
 
 void post_process(AX_ENGINE_IO_INFO_T* io_info, AX_ENGINE_IO_T* io_data, const cv::Mat& mat, int& input_w, int& input_h,
-                  int& cls_num, float& prob_threshold, float& nms_threshold, std::vector<detection::Object>& objects,
-                  std::string& model_type)
+                  int& cls_num, int& point_num, float& prob_threshold, float& nms_threshold,
+                  std::vector<detection::Object>& objects, std::string& model_type)
 {
     // std::vector<detection::Object> objects;
     std::vector<detection::Object> proposals;
@@ -352,7 +352,7 @@ void post_process(AX_ENGINE_IO_INFO_T* io_info, AX_ENGINE_IO_T* io_data, const c
             auto feat_kps_ptr = output_kps_ptr[i];
             int32_t stride    = (1 << i) * 8;
             detection::generate_proposals_yolov8_pose_native(stride, feat_ptr, feat_kps_ptr, prob_threshold, proposals,
-                                                             input_h, input_w, 17, cls_num);
+                                                             input_h, input_w, point_num, cls_num);
         }
         detection::get_out_bbox_kps(proposals, objects, nms_threshold, input_h, input_w, mat.rows, mat.cols);
         // detection::draw_keypoints(mat, objects, KPS_COLORS, LIMB_COLORS, SKELETON, "yolo11_pose_out");
@@ -368,10 +368,12 @@ void post_process(AX_ENGINE_IO_INFO_T* io_info, AX_ENGINE_IO_T* io_data, const c
     }
 }
 
-int EngineWrapper::Post_Process(cv::Mat& mat, int& input_w, int& input_h, int& cls_num, float& pron_threshold,
-                                float& nms_threshold, std::vector<detection::Object>& objects, std::string& model_type)
+int EngineWrapper::Post_Process(cv::Mat& mat, int& input_w, int& input_h, int& cls_num, int& point_num,
+                                float& pron_threshold, float& nms_threshold, std::vector<detection::Object>& objects,
+                                std::string& model_type)
 {
-    post_process(m_io_info, &m_io, mat, input_w, input_h, cls_num, pron_threshold, nms_threshold, objects, model_type);
+    post_process(m_io_info, &m_io, mat, input_w, input_h, cls_num, point_num, pron_threshold, nms_threshold, objects,
+                 model_type);
     return 0;
 }
 
