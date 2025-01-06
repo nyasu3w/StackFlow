@@ -1,5 +1,5 @@
 {
-    "mode":"yolo11n-pose",
+    "mode":"yolo11n-hand-pose",
     "type":"cv",
     "capabilities":[
         "Pose"
@@ -11,16 +11,16 @@
         "yolo.yolobox"
     ],
     "mode_param":{
-        "yolo_model":"yolo11n-pose.axmodel",
+        "yolo_model":"yolo11n-hand-pose.axmodel",
         "model_type":"pose",
         "img_h":320,
         "img_w":320,
         "cls_num":1,
-        "point_num":17,
+        "point_num":21,
         "pron_threshold":0.45,
         "nms_threshold":0.45,
         "cls_name":[
-            "person"
+            "hand"
         ]
     },
     "mode_param_bak":{
