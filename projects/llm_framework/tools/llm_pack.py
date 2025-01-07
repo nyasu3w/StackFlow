@@ -225,10 +225,7 @@ def create_bin_deb(package_name, version, src_folder, revision = 'm5stack1'):
     with open(os.path.join(deb_folder, f'lib/systemd/system/{package_name}.service'),'w') as f:
         f.write(f'[Unit]\n')
         f.write(f'Description={package_name} Service\n')
-        if package_name == 'llm-sys':
-            f.write(f'After=ubus.service\n')
-            f.write(f'Requires=ubus.service\n')
-        else:
+        if package_name != 'llm-sys':
             f.write(f'After=llm-sys.service\n')
             f.write(f'Requires=llm-sys.service\n')
         f.write(f'\n')
@@ -259,7 +256,7 @@ if __name__ == "__main__":
         os.system('rm ./*.deb m5stack_* -rf')
         exit(0)
 
-    version = '1.3'
+    version = '1.4'
     data_version = '0.2'
     src_folder = '../dist'
     revision = 'm5stack1'

@@ -29,14 +29,13 @@ if "CONFIG_AX_SAMPLES_ENABLED" in os.environ:
     LINK_SEARCH_PATH = []
 
     INCLUDE += [
-        os.path.join(env["GIT_REPO_LISTS"]["ax-samples"]["path"], "examples/base"),
-        os.path.join(env["GIT_REPO_LISTS"]["ax-samples"]["path"], "examples/utilities"),
+        os.path.join(env["GIT_REPO_LISTS"]["ax-samples"]["path"], "examples"),
     ]
     if "CONFIG_AX_620E_MSP_ENABLED" in os.environ:
         INCLUDE += [
             os.path.join(
                 env["GIT_REPO_LISTS"]["ax-samples"]["path"],
-                "examples/ax620e/middleware",
+                "examples/ax620e",
             )
         ]
 

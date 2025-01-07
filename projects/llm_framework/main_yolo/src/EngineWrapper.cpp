@@ -7,7 +7,7 @@
  * written consent of Axera Semiconductor (Ningbo) Co., Ltd.
  *
  **************************************************************************************************/
-#include "detection.hpp"
+#include "base/detection.hpp"
 #define UNUSE_STRUCT_OBJECT
 #include "EngineWrapper.hpp"
 #include "utils/io.hpp"
