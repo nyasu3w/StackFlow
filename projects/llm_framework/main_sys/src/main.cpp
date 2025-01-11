@@ -66,6 +66,7 @@ void get_run_config()
     key_sql["config_sys_pcm_rate"]          = std::string("16000");
     key_sql["config_sys_pcm_bit"]           = std::string("S16_LE");
     key_sql["config_sys_pcm_cap_channel"]   = std::string("ipc:///tmp/llm/pcm.cap.socket");
+    key_sql["config_sys_stream_length"]     = 1024;
     load_default_config();
 }
 
