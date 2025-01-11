@@ -18,7 +18,7 @@
         "encoder": "tiny-encoder.axmodel",
         "decoder_main": "tiny-decoder-main.axmodel",
         "decoder_loop": "tiny-decoder-loop.axmodel",
-        "position_embedding": "tiny-positional_embedding.bin",
+        "positional_embedding": "tiny-positional_embedding.bin",
         "tokens": "tiny-tokens.txt",
         "t2s": "t2s.json",
         "whisper_sample_rate": 16000,
