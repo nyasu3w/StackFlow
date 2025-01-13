@@ -48,22 +48,22 @@ typedef struct {
     std::string model_type;
     std::string language;
     std::string t2s;
-    int whisper_sample_rate;
-    int whisper_n_fft;
-    int awake_delay;
-    int whisper_hop_length;
-    int whisper_chunk_size;
-    int whisper_n_mels;
-    int whisper_sot;
-    int whisper_eot;
-    int whisper_blank;
-    int whisper_no_timestamps;
-    int whisper_no_speech;
-    int whisper_translate;
-    int whisper_transcribe;
-    int whisper_vocab_size;
-    int whisper_n_text_ctx;
-    float neg_inf = -std::numeric_limits<float>::infinity();
+    int whisper_sample_rate   = 16000;
+    int whisper_n_fft         = 400;
+    int awake_delay           = 1;
+    int whisper_hop_length    = 160;
+    int whisper_chunk_size    = 30;
+    int whisper_n_mels        = 400;
+    int whisper_sot           = 50258;
+    int whisper_eot           = 50257;
+    int whisper_blank         = 220;
+    int whisper_no_timestamps = 50363;
+    int whisper_no_speech     = 50362;
+    int whisper_translate     = 50358;
+    int whisper_transcribe    = 50359;
+    int whisper_vocab_size    = 51865;
+    int whisper_n_text_ctx    = 448;
+    float neg_inf             = -std::numeric_limits<float>::infinity();
 } whisper_config;
 
 typedef std::function<void(const std::string &data, bool finish)> task_callback_t;
@@ -149,6 +149,7 @@ public:
 
     void supress_tokens(std::vector<float> &logits, bool is_initial)
     {
+        mode_config_.neg_inf = -std::numeric_limits<float>::infinity();
         if (is_initial) {
             logits[mode_config_.whisper_eot]   = mode_config_.neg_inf;
             logits[mode_config_.whisper_blank] = mode_config_.neg_inf;
@@ -177,6 +178,14 @@ public:
         }
 
         return WHISPER_LANG_CODES[i];
+    }
+
+    double get_current_time()
+    {
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+
+        return tv.tv_sec * 1000.0 + tv.tv_usec / 1000.0;
     }
 
     int load_model(const nlohmann::json &config_body)
@@ -290,14 +299,6 @@ public:
         out_callback_ = out_callback;
     }
 
-    double get_current_time()
-    {
-        struct timeval tv;
-        gettimeofday(&tv, NULL);
-
-        return tv.tv_sec * 1000.0 + tv.tv_usec / 1000.0;
-    }
-
     void sys_pcm_on_data(const std::string &raw)
     {
         if (WHISPER_N_TEXT_STATE_MAP.find(mode_config_.model_type) == WHISPER_N_TEXT_STATE_MAP.end()) {
@@ -373,6 +374,8 @@ public:
         }
         end = get_current_time();
         printf("Encoder run take %.2f ms\n", (end - start));
+
+        // detect language
         SOT_SEQUENCE[1] = detect_language(mode_config_.language);
 
         // decoder_main
@@ -394,17 +397,10 @@ public:
         std::copy(decoder_main_logits.begin() + 3 * mode_config_.whisper_vocab_size, decoder_main_logits.end(),
                   logits.begin());
         supress_tokens(logits, true);
-        for (int i = 0; i < logits.size(); i++) {
-            printf("logits[%d] = %f\n", i, logits[i]);
-        }
-        max_token_id = argmax(logits);
-        FILE* fp = fopen("logits.bin", "wb");
-        fwrite(logits.data(), sizeof(float), logits.size(), fp);
-        fclose(fp);
-        std::cout << "Data written successfully!" << std::endl;
-        printf("max_token_id = %d\n", max_token_id);
-        printf("First token: %d \t take %.2fms\n", max_token_id, (end - start));
 
+        max_token_id = argmax(logits);
+        printf("First token: %d \t take %.2fms\n", max_token_id, (end - start));
+        mode_config_.neg_inf = -std::numeric_limits<float>::infinity();
         std::vector<float> mask(mode_config_.whisper_n_text_ctx);
         for (int n = 0; n < mode_config_.whisper_n_text_ctx - offset - 1; n++) {
             mask[n] = mode_config_.neg_inf;
@@ -532,7 +528,8 @@ public:
             }
             AX_ENGINE_NPU_ATTR_T npu_attr;
             memset(&npu_attr, 0, sizeof(npu_attr));
-            ret = AX_ENGINE_Init(&npu_attr);
+            npu_attr.eHardMode = AX_ENGINE_VIRTUAL_NPU_DISABLE;
+            ret                = AX_ENGINE_Init(&npu_attr);
             if (0 != ret) {
                 fprintf(stderr, "Init ax-engine failed{0x%8x}.\n", ret);
             }
