@@ -32,6 +32,8 @@ static void __sigint(int iSigNo)
 static std::string base_model_path_;
 static std::string base_model_config_path_;
 
+typedef std::function<void(const bool &data)> task_callback_t;
+
 #define CONFIG_AUTO_SET(obj, key)             \
     if (config_body.contains(#key))           \
         mode_config_.key = config_body[#key]; \
@@ -50,16 +52,14 @@ public:
     bool enoutput_;
     bool enstream_;
     bool printed = false;
+    task_callback_t out_callback_;
     std::atomic_bool audio_flage_;
     int delay_audio_frame_ = 100;
     buffer_t *pcmdata;
     std::string wake_wav_file_;
 
-    std::function<void(const std::string &)> out_callback_;
-
     bool parse_config(const nlohmann::json &config_body)
     {
-        fprintf(stderr, "%s\n", mode_config_.ToString().c_str());
         try {
             model_           = config_body.at("model");
             response_format_ = config_body.at("response_format");
@@ -136,7 +136,7 @@ public:
         return 0;
     }
 
-    void set_output(std::function<void(const std::string &)> out_callback)
+    void set_output(task_callback_t out_callback)
     {
         out_callback_ = out_callback;
     }
@@ -144,7 +144,6 @@ public:
     void sys_pcm_on_data(const std::string &raw)
     {
         static int count = 0;
-        int32_t k        = 0;
         if (count < delay_audio_frame_) {
             buffer_write_char(pcmdata, raw.c_str(), raw.length());
             count++;
@@ -167,6 +166,9 @@ public:
         if (vad_->IsSpeechDetected() && !printed) {
             printed = true;
             SLOGI("Detected speech!");
+            if (out_callback_) {
+                out_callback_(true);
+            }
         }
         if (!vad_->IsSpeechDetected()) {
             printed = false;
@@ -177,8 +179,11 @@ public:
             const auto &segment = vad_->Front();
             float duration      = segment.samples.size() / static_cast<float>(sample_rate);
             SLOGI("Duration: %.3f seconds", duration);
-            k += 1;
+            // k += 1;
             vad_->Pop();
+            if (out_callback_) {
+                out_callback_(false);
+            }
         }
     }
 
@@ -203,16 +208,29 @@ public:
 };
 #undef CONFIG_AUTO_SET
 
-class llm_kws : public StackFlow {
+class llm_vad : public StackFlow {
 private:
     int task_count_;
     std::string audio_url_;
     std::unordered_map<int, std::shared_ptr<llm_task>> llm_task_;
 
 public:
-    llm_kws() : StackFlow("vad")
+    llm_vad() : StackFlow("vad")
     {
         task_count_ = 1;
+    }
+
+    void task_output(const std::weak_ptr<llm_task> llm_task_obj_weak,
+                     const std::weak_ptr<llm_channel_obj> llm_channel_weak, const bool &data)
+    {
+        auto llm_task_obj = llm_task_obj_weak.lock();
+        auto llm_channel  = llm_channel_weak.lock();
+        if (!(llm_task_obj && llm_channel)) {
+            return;
+        }
+        std::string tmp_msg1;
+        const bool *next_data = &data;
+        llm_channel->send(llm_task_obj->response_format_, (*next_data), LLM_NO_ERROR);
     }
 
     void task_pause(const std::weak_ptr<llm_task> llm_task_obj_weak,
@@ -350,9 +368,8 @@ public:
         if (ret == 0) {
             llm_channel->set_output(llm_task_obj->enoutput_);
             llm_channel->set_stream(llm_task_obj->enstream_);
-            llm_task_obj->set_output([llm_task_obj, llm_channel](const std::string &data) {
-                llm_channel->send(llm_task_obj->response_format_, true, LLM_NO_ERROR);
-            });
+            llm_task_obj->set_output(std::bind(&llm_vad::task_output, this, std::weak_ptr<llm_task>(llm_task_obj),
+                                               std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1));
 
             for (const auto input : llm_task_obj->inputs_) {
                 if (input.find("sys") != std::string::npos) {
@@ -364,7 +381,7 @@ public:
                     llm_task_obj->audio_flage_ = true;
                 } else if (input.find("vad") != std::string::npos) {
                     llm_channel->subscriber_work_id(
-                        "", std::bind(&llm_kws::task_user_data, this, std::weak_ptr<llm_task>(llm_task_obj),
+                        "", std::bind(&llm_vad::task_user_data, this, std::weak_ptr<llm_task>(llm_task_obj),
                                       std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1,
                                       std::placeholders::_2));
                 }
@@ -430,7 +447,7 @@ public:
         return 0;
     }
 
-    ~llm_kws()
+    ~llm_vad()
     {
         while (1) {
             auto iteam = llm_task_.begin();
@@ -452,7 +469,7 @@ int main(int argc, char *argv[])
     signal(SIGTERM, __sigint);
     signal(SIGINT, __sigint);
     mkdir("/tmp/llm", 0777);
-    llm_kws llm;
+    llm_vad llm;
     while (!main_exit_flage) {
         sleep(1);
     }

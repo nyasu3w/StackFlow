@@ -88,15 +88,15 @@ public:
     bool enoutput_;
     bool enstream_;
     bool ensleep_;
-    bool endpoint_;
     std::atomic_bool superior_flage_;
     std::atomic_bool audio_flage_;
     std::atomic_bool awake_flage_;
+    std::atomic_bool vad_endpoint_;
     std::string superior_id_;
     static int ax_init_flage_;
     task_callback_t out_callback_;
     int awake_delay_       = 50;
-    int delay_audio_frame_ = 100;
+    int delay_audio_frame_ = 1000;
     buffer_t *pcmdata;
 
     std::function<void(void)> pause;
@@ -301,6 +301,25 @@ public:
 
     void sys_pcm_on_data(const std::string &raw)
     {
+        static int count = 0;
+        if (count < delay_audio_frame_) {
+            buffer_write_char(pcmdata, raw.c_str(), raw.length());
+            count++;
+            return;
+        }
+        buffer_write_char(pcmdata, raw.c_str(), raw.length());
+        buffer_position_set(pcmdata, 0);
+        count = 0;
+        std::vector<float> floatSamples;
+        {
+            int16_t audio_val;
+            while (buffer_read_u16(pcmdata, (unsigned short *)&audio_val, 1)) {
+                float normalizedSample = (float)audio_val / INT16_MAX;
+                floatSamples.push_back(normalizedSample);
+            }
+        }
+        buffer_position_set(pcmdata, 0);
+
         if (WHISPER_N_TEXT_STATE_MAP.find(mode_config_.model_type) == WHISPER_N_TEXT_STATE_MAP.end()) {
             fprintf(stderr, "Can NOT find n_text_state for model_type: %s\n", mode_config_.model_type.c_str());
             return;
@@ -308,16 +327,8 @@ public:
 
         int WHISPER_N_TEXT_STATE = WHISPER_N_TEXT_STATE_MAP[mode_config_.model_type];
 
-        AudioFile<float> audio_file;
-        if (!audio_file.load("demo.wav")) {
-            printf("load wav failed!\n");
-            return;
-        }
-        awake_flage_  = false;
-        auto &samples = audio_file.samples[0];
-
         auto mel = librosa::Feature::melspectrogram(
-            samples, mode_config_.whisper_sample_rate, mode_config_.whisper_n_fft, mode_config_.whisper_hop_length,
+            floatSamples, mode_config_.whisper_sample_rate, mode_config_.whisper_n_fft, mode_config_.whisper_hop_length,
             "hann", true, "reflect", 2.0f, mode_config_.whisper_n_mels, 0.0f, mode_config_.whisper_sample_rate / 2.0f);
         int n_mel = mel.size();
         int n_len = mel[0].size();
@@ -457,57 +468,18 @@ public:
             s += str;
         }
 
-        if (mode_config_.language == "en")
+        if (mode_config_.language == "en" || mode_config_.language == "ja") {
             printf("Result: %s\n", s.c_str());
-        else {
+            if (out_callback_) out_callback_(s, true);
+        } else {
             const opencc::SimpleConverter converter(mode_config_.t2s.c_str());
             std::string simple_str = converter.Convert(s);
             printf("Result: %s\n", simple_str.c_str());
+            if ((!simple_str.empty()) && out_callback_) {
+                out_callback_(simple_str, true);
+            }
         }
-        /////////////////////////////////////////////////////////////////////
-        // static int count = 0;
-        // if (count < delay_audio_frame_) {
-        //     buffer_write_char(pcmdata, raw.c_str(), raw.length());
-        //     count++;
-        //     return;
-        // }
-        // buffer_write_char(pcmdata, raw.c_str(), raw.length());
-        // buffer_position_set(pcmdata, 0);
-        // count = 0;
-        // std::vector<float> floatSamples;
-        // {
-        //     int16_t audio_val;
-        //     while (buffer_read_u16(pcmdata, (unsigned short *)&audio_val, 1)) {
-        //         float normalizedSample = (float)audio_val / INT16_MAX;
-        //         floatSamples.push_back(normalizedSample);
-        //     }
-        // }
-        // buffer_position_set(pcmdata, 0);
-        // if (awake_flage_ && recognizer_stream_) {
-        //     recognizer_stream_.reset();
-        //     awake_flage_ = false;
-        // }
-        // if (!recognizer_stream_) {
-        //     recognizer_stream_ = recognizer_->CreateStream();
-        // }
-        // recognizer_stream_->AcceptWaveform(mode_config_.feat_config.sampling_rate, floatSamples.data(),
-        //                                    floatSamples.size());
-        // while (recognizer_->IsReady(recognizer_stream_.get())) {
-        //     recognizer_->DecodeStream(recognizer_stream_.get());
-        // }
-        // std::string text = recognizer_->GetResult(recognizer_stream_.get()).text;
-        // std::string lower_text;
-        // lower_text.resize(text.size());
-        // std::transform(text.begin(), text.end(), lower_text.begin(), [](const char c) { return std::tolower(c); });
-        // if ((!lower_text.empty()) && out_callback_) out_callback_(lower_text, false);
-        // bool is_endpoint = recognizer_->IsEndpoint(recognizer_stream_.get());
-        // if (is_endpoint) {
-        //     std::cout << "asr have a is_endpoint \n";
-        //     recognizer_stream_->Finalize();
-        //     if ((!lower_text.empty()) && out_callback_) {
-        //         out_callback_(lower_text, true);
-        //     }
-        //     recognizer_stream_.reset();
+
         if (ensleep_) {
             if (pause) pause();
         }
@@ -588,24 +560,24 @@ public:
         if (!(llm_task_obj && llm_channel)) {
             return;
         }
-        std::string base64_data;
-        int len = encode_base64(data, base64_data);
+        std::string tmp_msg1;
+        const std::string *next_data = &data;
+        if (finish) {
+            tmp_msg1  = data + ".";
+            next_data = &tmp_msg1;
+        }
         if (llm_channel->enstream_) {
             static int count = 0;
             nlohmann::json data_body;
-            data_body["index"] = count++;
-            if (!finish)
-                data_body["delta"] = base64_data;
-            else
-                data_body["delta"] = std::string("");
+            data_body["index"]  = count++;
+            data_body["delta"]  = (*next_data);
             data_body["finish"] = finish;
             if (finish) count = 0;
+            SLOGI("send stream:%s", next_data->c_str());
             llm_channel->send(llm_task_obj->response_format_, data_body, LLM_NO_ERROR);
         } else if (finish) {
-            llm_channel->send(llm_task_obj->response_format_, base64_data, LLM_NO_ERROR);
-        }
-        if (llm_task_obj->response_format_.find("sys") != std::string::npos) {
-            unit_call("audio", "queue_play", data);
+            SLOGI("send utf-8:%s", next_data->c_str());
+            llm_channel->send(llm_task_obj->response_format_, (*next_data), LLM_NO_ERROR);
         }
     }
 
@@ -744,6 +716,20 @@ public:
         task_work(llm_task_obj, llm_channel);
     }
 
+    void vad_endpoint(const std::weak_ptr<llm_task> llm_task_obj_weak,
+                      const std::weak_ptr<llm_channel_obj> llm_channel_weak, const std::string &object,
+                      const std::string &data)
+    {
+        auto llm_task_obj = llm_task_obj_weak.lock();
+        auto llm_channel  = llm_channel_weak.lock();
+        if (!(llm_task_obj && llm_channel)) {
+            return;
+        }
+        if (data == "true" || data == "false") {
+            llm_task_obj->vad_endpoint_ = (data == "true");
+        }
+    }
+
     void work(const std::string &work_id, const std::string &object, const std::string &data) override
     {
         SLOGI("llm_asr::work:%s", data.c_str());
@@ -814,7 +800,7 @@ public:
                     audio_url_                            = unit_call("audio", "cap", input);
                     std::weak_ptr<llm_task> _llm_task_obj = llm_task_obj;
                     llm_channel->subscriber(audio_url_, [_llm_task_obj](pzmq *_pzmq, const std::string &raw) {
-                        // _llm_task_obj.lock()->sys_pcm_on_data(raw);
+                        _llm_task_obj.lock()->sys_pcm_on_data(raw);
                     });
                     llm_task_obj->audio_flage_ = true;
                 } else if (input.find("asr") != std::string::npos) {
@@ -830,10 +816,10 @@ public:
                                          std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1,
                                          std::placeholders::_2));
                 } else if (input.find("vad") != std::string::npos) {
-                    llm_task_obj->endpoint_ = true;
-                    task_pause(work_id, "");
+                    llm_task_obj->vad_endpoint_ = true;
+                    // task_pause(work_id, "");
                     llm_channel->subscriber_work_id(
-                        input, std::bind(&llm_whisper::kws_awake, this, std::weak_ptr<llm_task>(llm_task_obj),
+                        input, std::bind(&llm_whisper::vad_endpoint, this, std::weak_ptr<llm_task>(llm_task_obj),
                                          std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1,
                                          std::placeholders::_2));
                 }
@@ -880,6 +866,12 @@ public:
                 std::bind(&llm_whisper::kws_awake, this, std::weak_ptr<llm_task>(llm_task_obj),
                                              std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1, std::placeholders::_2));
             llm_task_obj->inputs_.push_back(data);
+        } else if (data.find("vad") != std::string::npos) {
+            llm_task_obj->vad_endpoint_ = true;
+            ret                         = llm_channel->subscriber_work_id(
+                data,
+                std::bind(&llm_whisper::vad_endpoint, this, std::weak_ptr<llm_task>(llm_task_obj),
+                                                  std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1, std::placeholders::_2));
         }
         if (ret) {
             error_body["code"]    = -20;

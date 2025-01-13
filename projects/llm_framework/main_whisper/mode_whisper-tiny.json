@@ -14,7 +14,7 @@
     ],
     "mode_param": {
         "model_type": "tiny",
-        "language": "zh",
+        "language": "ja",
         "encoder": "tiny-encoder.axmodel",
         "decoder_main": "tiny-decoder-main.axmodel",
         "decoder_loop": "tiny-decoder-loop.axmodel",
