@@ -292,6 +292,8 @@ if __name__ == "__main__":
             futures.append(executor.submit(create_bin_deb,'llm-yolo', version, src_folder, revision))
             futures.append(executor.submit(create_bin_deb,'llm-skel', version, src_folder, revision))
             futures.append(executor.submit(create_bin_deb,'llm-depth-anything', version, src_folder, revision))
+            futures.append(executor.submit(create_bin_deb,'llm-vad', version, src_folder, revision))
+            futures.append(executor.submit(create_bin_deb,'llm-whisper', version, src_folder, revision))
         if (create_data):
             futures.append(executor.submit(create_data_deb,'llm-audio-en-us', data_version, src_folder, revision))
             futures.append(executor.submit(create_data_deb,'llm-audio-zh-cn', data_version, src_folder, revision))
@@ -315,6 +317,8 @@ if __name__ == "__main__":
             futures.append(executor.submit(create_data_deb,'llm-openbuddy-llama3.2-1B-ax630c', data_version, src_folder, revision))
             futures.append(executor.submit(create_data_deb,'llm-internvl2.5-1B-ax630c', '0.3', src_folder, revision))
             futures.append(executor.submit(create_data_deb,'llm-depth-anything-ax630c', '0.3', src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-whisper-tiny', '0.3', src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-silero-vad', '0.3', src_folder, revision))
         for future in concurrent.futures.as_completed(futures):
             result = future.result()
             print(result)
