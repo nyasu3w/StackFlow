@@ -29,6 +29,7 @@
 using namespace StackFlows;
 
 int main_exit_flage = 0;
+
 static void __sigint(int iSigNo)
 {
     SLOGW("llm_sys will be exit!");
@@ -85,13 +86,14 @@ public:
     std::string model_;
     std::string response_format_;
     std::vector<std::string> inputs_;
+    std::string language_;
     bool enoutput_;
     bool enstream_;
     bool ensleep_;
     std::atomic_bool superior_flage_;
     std::atomic_bool audio_flage_;
     std::atomic_bool awake_flage_;
-    std::atomic_bool vad_endpoint_;
+    std::atomic_bool endpoint_flage_;
     std::string superior_id_;
     static int ax_init_flage_;
     task_callback_t out_callback_;
@@ -107,6 +109,7 @@ public:
             model_           = config_body.at("model");
             response_format_ = config_body.at("response_format");
             enoutput_        = config_body.at("enoutput");
+            language_        = config_body.at("language");
             if (config_body.contains("input")) {
                 if (config_body["input"].is_string()) {
                     inputs_.push_back(config_body["input"].get<std::string>());
@@ -199,7 +202,8 @@ public:
         // Compatible operation
         if (model_ == "whisper-tiny")
             config_file_paths = get_config_file_paths(base_model_path_, base_model_config_path_, "whisper-tiny");
-
+        else if (model_ == "whisper-base")
+            config_file_paths = get_config_file_paths(base_model_path_, base_model_config_path_, "whisper-base");
         try {
             for (auto file_name : config_file_paths) {
                 std::ifstream config_file(file_name);
@@ -302,7 +306,10 @@ public:
     void sys_pcm_on_data(const std::string &raw)
     {
         static int count = 0;
-        if (count < delay_audio_frame_) {
+        double start, end;
+        double start_all, end_all;
+
+        if (count < delay_audio_frame_ || endpoint_flage_) {
             buffer_write_char(pcmdata, raw.c_str(), raw.length());
             count++;
             return;
@@ -373,8 +380,6 @@ public:
             memcpy(continous_mel.data() + i * n_len, mel[i].data(), sizeof(float) * n_len);
         }
 
-        double start, end;
-        double start_all, end_all;
         start     = get_current_time();
         start_all = get_current_time();
         encoder_->SetInput(continous_mel.data(), 0);
@@ -387,7 +392,7 @@ public:
         printf("Encoder run take %.2f ms\n", (end - start));
 
         // detect language
-        SOT_SEQUENCE[1] = detect_language(mode_config_.language);
+        SOT_SEQUENCE[1] = detect_language(language_);
 
         // decoder_main
         start = get_current_time();
@@ -483,7 +488,6 @@ public:
         if (ensleep_) {
             if (pause) pause();
         }
-        // }
     }
 
     void kws_awake()
@@ -534,6 +538,7 @@ public:
         buffer_destroy(pcmdata);
     }
 };
+
 int llm_task::ax_init_flage_ = 0;
 #undef CONFIG_AUTO_SET
 
@@ -545,6 +550,7 @@ private:
 
 public:
     enum { EVENT_LOAD_CONFIG = EVENT_EXPORT + 1, EVENT_TASK_PAUSE };
+
     llm_whisper() : StackFlow("whisper")
     {
         task_count_ = 1;
@@ -726,7 +732,7 @@ public:
             return;
         }
         if (data == "true" || data == "false") {
-            llm_task_obj->vad_endpoint_ = (data == "true");
+            llm_task_obj->endpoint_flage_ = (data == "true");
         }
     }
 
@@ -816,7 +822,7 @@ public:
                                          std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1,
                                          std::placeholders::_2));
                 } else if (input.find("vad") != std::string::npos) {
-                    llm_task_obj->vad_endpoint_ = true;
+                    llm_task_obj->endpoint_flage_ = false;
                     // task_pause(work_id, "");
                     llm_channel->subscriber_work_id(
                         input, std::bind(&llm_whisper::vad_endpoint, this, std::weak_ptr<llm_task>(llm_task_obj),
@@ -867,11 +873,11 @@ public:
                                              std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1, std::placeholders::_2));
             llm_task_obj->inputs_.push_back(data);
         } else if (data.find("vad") != std::string::npos) {
-            llm_task_obj->vad_endpoint_ = true;
-            ret                         = llm_channel->subscriber_work_id(
+            llm_task_obj->endpoint_flage_ = false;
+            ret                           = llm_channel->subscriber_work_id(
                 data,
                 std::bind(&llm_whisper::vad_endpoint, this, std::weak_ptr<llm_task>(llm_task_obj),
-                                                  std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1, std::placeholders::_2));
+                                                    std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1, std::placeholders::_2));
         }
         if (ret) {
             error_body["code"]    = -20;
