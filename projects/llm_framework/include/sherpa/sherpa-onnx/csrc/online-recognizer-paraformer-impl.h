@@ -99,8 +99,14 @@ class OnlineRecognizerParaformerImpl : public OnlineRecognizerImpl {
       : OnlineRecognizerImpl(config),
         config_(config),
         model_(config.model_config),
-        sym_(config.model_config.tokens),
         endpoint_(config_.endpoint_config) {
+    if (!config.model_config.tokens_buf.empty()) {
+      sym_ = SymbolTable(config.model_config.tokens_buf, false);
+    } else {
+      /// assuming tokens_buf and tokens are guaranteed not being both empty
+      sym_ = SymbolTable(config.model_config.tokens, true);
+    }
+
     if (config.decoding_method != "greedy_search") {
       SHERPA_ONNX_LOGE(
           "Unsupported decoding method: %s. Support only greedy_search at "
@@ -114,8 +120,8 @@ class OnlineRecognizerParaformerImpl : public OnlineRecognizerImpl {
     config_.feat_config.normalize_samples = false;
   }
 
-#if __ANDROID_API__ >= 9
-  explicit OnlineRecognizerParaformerImpl(AAssetManager *mgr,
+  template <typename Manager>
+  explicit OnlineRecognizerParaformerImpl(Manager *mgr,
                                           const OnlineRecognizerConfig &config)
       : OnlineRecognizerImpl(mgr, config),
         config_(config),
@@ -132,7 +138,7 @@ class OnlineRecognizerParaformerImpl : public OnlineRecognizerImpl {
     // [-32768, 32767], so we set normalize_samples to false
     config_.feat_config.normalize_samples = false;
   }
-#endif
+
   OnlineRecognizerParaformerImpl(const OnlineRecognizerParaformerImpl &) =
       delete;
 

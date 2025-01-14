@@ -14,11 +14,6 @@
 #include <utility>
 #include <vector>
 
-#if __ANDROID_API__ >= 9
-#include "android/asset_manager.h"
-#include "android/asset_manager_jni.h"
-#endif
-
 #include "sherpa-onnx/csrc/file-utils.h"
 #include "sherpa-onnx/csrc/macros.h"
 #include "sherpa-onnx/csrc/online-lm.h"
@@ -83,8 +78,14 @@ class OnlineRecognizerTransducerImpl : public OnlineRecognizerImpl {
       : OnlineRecognizerImpl(config),
         config_(config),
         model_(OnlineTransducerModel::Create(config.model_config)),
-        sym_(config.model_config.tokens),
         endpoint_(config_.endpoint_config) {
+    if (!config.model_config.tokens_buf.empty()) {
+      sym_ = SymbolTable(config.model_config.tokens_buf, false);
+    } else {
+      /// assuming tokens_buf and tokens are guaranteed not being both empty
+      sym_ = SymbolTable(config.model_config.tokens, true);
+    }
+
     if (sym_.Contains("<unk>")) {
       unk_id_ = sym_["<unk>"];
     }
@@ -97,7 +98,9 @@ class OnlineRecognizerTransducerImpl : public OnlineRecognizerImpl {
             config_.model_config.bpe_vocab);
       }
 
-      if (!config_.hotwords_file.empty()) {
+      if (!config_.hotwords_buf.empty()) {
+        InitHotwordsFromBufStr();
+      } else if (!config_.hotwords_file.empty()) {
         InitHotwords();
       }
 
@@ -107,8 +110,8 @@ class OnlineRecognizerTransducerImpl : public OnlineRecognizerImpl {
 
       decoder_ = std::make_unique<OnlineTransducerModifiedBeamSearchDecoder>(
           model_.get(), lm_.get(), config_.max_active_paths,
-          config_.lm_config.scale, unk_id_, config_.blank_penalty,
-          config_.temperature_scale);
+          config_.lm_config.scale, config_.lm_config.shallow_fusion, unk_id_,
+          config_.blank_penalty, config_.temperature_scale);
 
     } else if (config.decoding_method == "greedy_search") {
       decoder_ = std::make_unique<OnlineTransducerGreedySearchDecoder>(
@@ -122,8 +125,8 @@ class OnlineRecognizerTransducerImpl : public OnlineRecognizerImpl {
     }
   }
 
-#if __ANDROID_API__ >= 9
-  explicit OnlineRecognizerTransducerImpl(AAssetManager *mgr,
+  template <typename Manager>
+  explicit OnlineRecognizerTransducerImpl(Manager *mgr,
                                           const OnlineRecognizerConfig &config)
       : OnlineRecognizerImpl(mgr, config),
         config_(config),
@@ -156,8 +159,8 @@ class OnlineRecognizerTransducerImpl : public OnlineRecognizerImpl {
 
       decoder_ = std::make_unique<OnlineTransducerModifiedBeamSearchDecoder>(
           model_.get(), lm_.get(), config_.max_active_paths,
-          config_.lm_config.scale, unk_id_, config_.blank_penalty,
-          config_.temperature_scale);
+          config_.lm_config.scale, config_.lm_config.shallow_fusion, unk_id_,
+          config_.blank_penalty, config_.temperature_scale);
 
     } else if (config.decoding_method == "greedy_search") {
       decoder_ = std::make_unique<OnlineTransducerGreedySearchDecoder>(
@@ -170,7 +173,6 @@ class OnlineRecognizerTransducerImpl : public OnlineRecognizerImpl {
       exit(-1);
     }
   }
-#endif
 
   std::unique_ptr<OnlineStream> CreateStream() const override {
     auto stream =
@@ -358,11 +360,14 @@ class OnlineRecognizerTransducerImpl : public OnlineRecognizerImpl {
   }
 
   void Reset(OnlineStream *s) const override {
+    int32_t context_size = model_->ContextSize();
+
     {
       // segment is incremented only when the last
-      // result is not empty
+      // result is not empty, contains non-blanks and longer than context_size)
       const auto &r = s->GetResult();
-      if (!r.tokens.empty() && r.tokens.back() != 0) {
+      if (!r.tokens.empty() && r.tokens.back() != 0 &&
+          r.tokens.size() > context_size) {
         s->GetCurrentSegment() += 1;
       }
     }
@@ -370,19 +375,27 @@ class OnlineRecognizerTransducerImpl : public OnlineRecognizerImpl {
     // reset encoder states
     // s->SetStates(model_->GetEncoderInitStates());
 
-    // we keep the decoder_out
-    decoder_->UpdateDecoderOut(&s->GetResult());
-    Ort::Value decoder_out = std::move(s->GetResult().decoder_out);
-
     auto r = decoder_->GetEmptyResult();
+    auto last_result = s->GetResult();
+    // if last result is not empty, then
+    // preserve last tokens as the context for next result
+    if (static_cast<int32_t>(last_result.tokens.size()) > context_size) {
+      std::vector<int64_t> context(last_result.tokens.end() - context_size,
+                                   last_result.tokens.end());
+
+      Hypotheses context_hyp({{context, 0}});
+      r.hyps = std::move(context_hyp);
+      r.tokens = std::move(context);
+    }
+
     if (config_.decoding_method == "modified_beam_search" &&
         nullptr != s->GetContextGraph()) {
       for (auto it = r.hyps.begin(); it != r.hyps.end(); ++it) {
         it->second.context_state = s->GetContextGraph()->Root();
       }
     }
+
     s->SetResult(r);
-    s->GetResult().decoder_out = std::move(decoder_out);
 
     // Note: We only update counters. The underlying audio samples
     // are not discarded.
@@ -410,8 +423,8 @@ class OnlineRecognizerTransducerImpl : public OnlineRecognizerImpl {
         hotwords_, config_.hotwords_score, boost_scores_);
   }
 
-#if __ANDROID_API__ >= 9
-  void InitHotwords(AAssetManager *mgr) {
+  template <typename Manager>
+  void InitHotwords(Manager *mgr) {
     // each line in hotwords_file contains space-separated words
 
     auto buf = ReadFile(mgr, config_.hotwords_file);
@@ -433,7 +446,20 @@ class OnlineRecognizerTransducerImpl : public OnlineRecognizerImpl {
     hotwords_graph_ = std::make_shared<ContextGraph>(
         hotwords_, config_.hotwords_score, boost_scores_);
   }
-#endif
+
+  void InitHotwordsFromBufStr() {
+    // each line in hotwords_file contains space-separated words
+
+    std::istringstream iss(config_.hotwords_buf);
+    if (!EncodeHotwords(iss, config_.model_config.modeling_unit, sym_,
+                        bpe_encoder_.get(), &hotwords_, &boost_scores_)) {
+      SHERPA_ONNX_LOGE(
+          "Failed to encode some hotwords, skip them already, see logs above "
+          "for details.");
+    }
+    hotwords_graph_ = std::make_shared<ContextGraph>(
+        hotwords_, config_.hotwords_score, boost_scores_);
+  }
 
   void InitOnlineStream(OnlineStream *stream) const {
     auto r = decoder_->GetEmptyResult();

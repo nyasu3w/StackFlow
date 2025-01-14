@@ -6,15 +6,9 @@
 
 #include <memory>
 #include <string>
+#include <strstream>
 #include <utility>
 #include <vector>
-
-#if __ANDROID_API__ >= 9
-#include <strstream>
-
-#include "android/asset_manager.h"
-#include "android/asset_manager_jni.h"
-#endif
 
 #include "fst/extensions/far/far.h"
 #include "kaldifst/csrc/kaldi-fst-io.h"
@@ -46,7 +40,11 @@ class OfflineTtsVitsImpl : public OfflineTtsImpl {
       tn_list_.reserve(files.size());
       for (const auto &f : files) {
         if (config.model.debug) {
+#if __OHOS__
+          SHERPA_ONNX_LOGE("rule fst: %{public}s", f.c_str());
+#else
           SHERPA_ONNX_LOGE("rule fst: %s", f.c_str());
+#endif
         }
         tn_list_.push_back(std::make_unique<kaldifst::TextNormalizer>(f));
       }
@@ -63,7 +61,11 @@ class OfflineTtsVitsImpl : public OfflineTtsImpl {
 
       for (const auto &f : files) {
         if (config.model.debug) {
+#if __OHOS__
+          SHERPA_ONNX_LOGE("rule far: %{public}s", f.c_str());
+#else
           SHERPA_ONNX_LOGE("rule far: %s", f.c_str());
+#endif
         }
         std::unique_ptr<fst::FarReader<fst::StdArc>> reader(
             fst::FarReader<fst::StdArc>::Open(f));
@@ -82,8 +84,8 @@ class OfflineTtsVitsImpl : public OfflineTtsImpl {
     }
   }
 
-#if __ANDROID_API__ >= 9
-  OfflineTtsVitsImpl(AAssetManager *mgr, const OfflineTtsConfig &config)
+  template <typename Manager>
+  OfflineTtsVitsImpl(Manager *mgr, const OfflineTtsConfig &config)
       : config_(config),
         model_(std::make_unique<OfflineTtsVitsModel>(mgr, config.model)) {
     InitFrontend(mgr);
@@ -94,7 +96,11 @@ class OfflineTtsVitsImpl : public OfflineTtsImpl {
       tn_list_.reserve(files.size());
       for (const auto &f : files) {
         if (config.model.debug) {
+#if __OHOS__
+          SHERPA_ONNX_LOGE("rule fst: %{public}s", f.c_str());
+#else
           SHERPA_ONNX_LOGE("rule fst: %s", f.c_str());
+#endif
         }
         auto buf = ReadFile(mgr, f);
         std::istrstream is(buf.data(), buf.size());
@@ -109,7 +115,11 @@ class OfflineTtsVitsImpl : public OfflineTtsImpl {
 
       for (const auto &f : files) {
         if (config.model.debug) {
+#if __OHOS__
+          SHERPA_ONNX_LOGE("rule far: %{public}s", f.c_str());
+#else
           SHERPA_ONNX_LOGE("rule far: %s", f.c_str());
+#endif
         }
 
         auto buf = ReadFile(mgr, f);
@@ -130,7 +140,6 @@ class OfflineTtsVitsImpl : public OfflineTtsImpl {
       }    // for (const auto &f : files)
     }      // if (!config.rule_fars.empty())
   }
-#endif
 
   int32_t SampleRate() const override {
     return model_->GetMetaData().sample_rate;
@@ -163,14 +172,22 @@ class OfflineTtsVitsImpl : public OfflineTtsImpl {
 
     std::string text = _text;
     if (config_.model.debug) {
+#if __OHOS__
+      SHERPA_ONNX_LOGE("Raw text: %{public}s", text.c_str());
+#else
       SHERPA_ONNX_LOGE("Raw text: %s", text.c_str());
+#endif
     }
 
     if (!tn_list_.empty()) {
       for (const auto &tn : tn_list_) {
         text = tn->Normalize(text);
         if (config_.model.debug) {
+#if __OHOS__
+          SHERPA_ONNX_LOGE("After normalizing: %{public}s", text.c_str());
+#else
           SHERPA_ONNX_LOGE("After normalizing: %s", text.c_str());
+#endif
         }
       }
     }
@@ -233,10 +250,17 @@ class OfflineTtsVitsImpl : public OfflineTtsImpl {
     int32_t num_batches = x_size / batch_size;
 
     if (config_.model.debug) {
+#if __OHOS__
+      SHERPA_ONNX_LOGE(
+          "Text is too long. Split it into %{public}d batches. batch size: "
+          "%{public}d. Number of sentences: %{public}d",
+          num_batches, batch_size, x_size);
+#else
       SHERPA_ONNX_LOGE(
           "Text is too long. Split it into %d batches. batch size: %d. Number "
           "of sentences: %d",
           num_batches, batch_size, x_size);
+#endif
     }
 
     GeneratedAudio ans;
@@ -262,7 +286,7 @@ class OfflineTtsVitsImpl : public OfflineTtsImpl {
                          audio.samples.end());
       if (callback) {
         should_continue = callback(audio.samples.data(), audio.samples.size(),
-                                   b * 1.0 / num_batches);
+                                   (b + 1) * 1.0 / num_batches);
         // Caution(fangjun): audio is freed when the callback returns, so users
         // should copy the data if they want to access the data after
         // the callback returns to avoid segmentation fault.
@@ -297,13 +321,23 @@ class OfflineTtsVitsImpl : public OfflineTtsImpl {
   }
 
  private:
-#if __ANDROID_API__ >= 9
-  void InitFrontend(AAssetManager *mgr) {
+  template <typename Manager>
+  void InitFrontend(Manager *mgr) {
     const auto &meta_data = model_->GetMetaData();
 
     if (meta_data.frontend == "characters") {
       frontend_ = std::make_unique<OfflineTtsCharacterFrontend>(
           mgr, config_.model.vits.tokens, meta_data);
+    } else if (meta_data.jieba && !config_.model.vits.dict_dir.empty() &&
+               meta_data.is_melo_tts) {
+      frontend_ = std::make_unique<MeloTtsLexicon>(
+          mgr, config_.model.vits.lexicon, config_.model.vits.tokens,
+          config_.model.vits.dict_dir, model_->GetMetaData(),
+          config_.model.debug);
+    } else if (meta_data.is_melo_tts && meta_data.language == "English") {
+      frontend_ = std::make_unique<MeloTtsLexicon>(
+          mgr, config_.model.vits.lexicon, config_.model.vits.tokens,
+          model_->GetMetaData(), config_.model.debug);
     } else if ((meta_data.is_piper || meta_data.is_coqui ||
                 meta_data.is_icefall) &&
                !config_.model.vits.data_dir.empty()) {
@@ -323,7 +357,6 @@ class OfflineTtsVitsImpl : public OfflineTtsImpl {
           meta_data.punctuations, meta_data.language, config_.model.debug);
     }
   }
-#endif
 
   void InitFrontend() {
     const auto &meta_data = model_->GetMetaData();
@@ -349,6 +382,10 @@ class OfflineTtsVitsImpl : public OfflineTtsImpl {
           config_.model.vits.lexicon, config_.model.vits.tokens,
           config_.model.vits.dict_dir, model_->GetMetaData(),
           config_.model.debug);
+    } else if (meta_data.is_melo_tts && meta_data.language == "English") {
+      frontend_ = std::make_unique<MeloTtsLexicon>(
+          config_.model.vits.lexicon, config_.model.vits.tokens,
+          model_->GetMetaData(), config_.model.debug);
     } else if (meta_data.jieba && !config_.model.vits.dict_dir.empty()) {
       frontend_ = std::make_unique<JiebaLexicon>(
           config_.model.vits.lexicon, config_.model.vits.tokens,
