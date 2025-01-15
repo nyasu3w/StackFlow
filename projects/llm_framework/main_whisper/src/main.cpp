@@ -309,12 +309,12 @@ public:
         static int count = 0;
         double start, end;
         double start_all, end_all;
-
-        if (count < delay_audio_frame_ || endpoint_flage_) {
+        if (count < delay_audio_frame_) {
             buffer_write_char(pcmdata, raw.c_str(), raw.length());
             count++;
-            return;
+            if (endpoint_flage_) return;
         }
+        endpoint_flage_ = true;
         buffer_write_char(pcmdata, raw.c_str(), raw.length());
         buffer_position_set(pcmdata, 0);
         count = 0;
@@ -823,7 +823,7 @@ public:
                                          std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1,
                                          std::placeholders::_2));
                 } else if (input.find("vad") != std::string::npos) {
-                    llm_task_obj->endpoint_flage_ = false;
+                    llm_task_obj->endpoint_flage_ = true;
                     // task_pause(work_id, "");
                     llm_channel->subscriber_work_id(
                         input, std::bind(&llm_whisper::vad_endpoint, this, std::weak_ptr<llm_task>(llm_task_obj),
@@ -874,7 +874,7 @@ public:
                                              std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1, std::placeholders::_2));
             llm_task_obj->inputs_.push_back(data);
         } else if (data.find("vad") != std::string::npos) {
-            llm_task_obj->endpoint_flage_ = false;
+            llm_task_obj->endpoint_flage_ = true;
             ret                           = llm_channel->subscriber_work_id(
                 data,
                 std::bind(&llm_whisper::vad_endpoint, this, std::weak_ptr<llm_task>(llm_task_obj),

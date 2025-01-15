@@ -380,7 +380,7 @@ public:
                         "", std::bind(&llm_llm::task_user_data, this, std::weak_ptr<llm_task>(llm_task_obj),
                                       std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1,
                                       std::placeholders::_2));
-                } else if (input.find("asr") != std::string::npos) {
+                } else if ((input.find("asr") != std::string::npos) || (input.find("whisper") != std::string::npos)) {
                     llm_channel->subscriber_work_id(
                         input, std::bind(&llm_llm::task_asr_data, this, std::weak_ptr<llm_task>(llm_task_obj),
                                          std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1,
