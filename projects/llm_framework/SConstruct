@@ -26,4 +26,6 @@ if update:
         exec(f.read())
     down_url = "https://m5stack.oss-cn-shenzhen.aliyuncs.com/resource/linux/llm/static_lib_{}.tar.gz".format(version)
     down_path = check_wget_down(down_url, "static_lib_{}.tar.gz".format(version))
+    if os.path.exists(static_lib):
+        shutil.rmtree(static_lib)
     shutil.move(down_path, static_lib)
