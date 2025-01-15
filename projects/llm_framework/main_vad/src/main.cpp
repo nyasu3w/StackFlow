@@ -23,6 +23,7 @@
 using namespace StackFlows;
 
 int main_exit_flage = 0;
+
 static void __sigint(int iSigNo)
 {
     SLOGW("llm_vad will be exit!");
@@ -51,12 +52,19 @@ public:
     std::vector<std::string> inputs_;
     bool enoutput_;
     bool enstream_;
+    bool ensleep_;
     bool printed = false;
-    task_callback_t out_callback_;
+    std::atomic_bool superior_flage_;
     std::atomic_bool audio_flage_;
+    std::atomic_bool awake_flage_;
+    std::string superior_id_;
+    task_callback_t out_callback_;
+    int awake_delay_       = 50;
     int delay_audio_frame_ = 100;
     buffer_t *pcmdata;
     std::string wake_wav_file_;
+
+    std::function<void(void)> pause;
 
     bool parse_config(const nlohmann::json &config_body)
     {
@@ -184,7 +192,15 @@ public:
             if (out_callback_) {
                 out_callback_(false);
             }
+            if (ensleep_) {
+                if (pause) pause();
+            }
         }
+    }
+
+    void kws_awake()
+    {
+        awake_flage_ = true;
     }
 
     bool delete_model()
@@ -195,7 +211,9 @@ public:
 
     llm_task(const std::string &workid) : audio_flage_(false)
     {
-        pcmdata = buffer_create();
+        ensleep_     = false;
+        awake_flage_ = false;
+        pcmdata      = buffer_create();
     }
 
     ~llm_task()
@@ -215,9 +233,12 @@ private:
     std::unordered_map<int, std::shared_ptr<llm_task>> llm_task_;
 
 public:
+    enum { EVENT_LOAD_CONFIG = EVENT_EXPORT + 1, EVENT_TASK_PAUSE };
     llm_vad() : StackFlow("vad")
     {
         task_count_ = 1;
+        event_queue_.appendListener(
+            EVENT_TASK_PAUSE, std::bind(&llm_vad::_task_pause, this, std::placeholders::_1, std::placeholders::_2));
     }
 
     void task_output(const std::weak_ptr<llm_task> llm_task_obj_weak,
@@ -231,69 +252,6 @@ public:
         std::string tmp_msg1;
         const bool *next_data = &data;
         llm_channel->send(llm_task_obj->response_format_, (*next_data), LLM_NO_ERROR);
-    }
-
-    void task_pause(const std::weak_ptr<llm_task> llm_task_obj_weak,
-                    const std::weak_ptr<llm_channel_obj> llm_channel_weak)
-    {
-        auto llm_task_obj = llm_task_obj_weak.lock();
-        auto llm_channel  = llm_channel_weak.lock();
-        if (!(llm_task_obj && llm_channel)) {
-            return;
-        }
-        if (llm_task_obj->audio_flage_) {
-            if (!audio_url_.empty()) llm_channel->stop_subscriber(audio_url_);
-            llm_task_obj->audio_flage_ = false;
-        }
-    }
-
-    void task_work(const std::weak_ptr<llm_task> llm_task_obj_weak,
-                   const std::weak_ptr<llm_channel_obj> llm_channel_weak)
-    {
-        auto llm_task_obj = llm_task_obj_weak.lock();
-        auto llm_channel  = llm_channel_weak.lock();
-        if (!(llm_task_obj && llm_channel)) {
-            return;
-        }
-        if ((!audio_url_.empty()) && (llm_task_obj->audio_flage_ == false)) {
-            std::weak_ptr<llm_task> _llm_task_obj = llm_task_obj;
-            llm_channel->subscriber(audio_url_, [_llm_task_obj](pzmq *_pzmq, const std::string &raw) {
-                _llm_task_obj.lock()->sys_pcm_on_data(raw);
-            });
-            llm_task_obj->audio_flage_ = true;
-        }
-    }
-
-    void work(const std::string &work_id, const std::string &object, const std::string &data) override
-    {
-        SLOGI("llm_asr::work:%s", data.c_str());
-
-        nlohmann::json error_body;
-        int work_id_num = sample_get_work_id_num(work_id);
-        if (llm_task_.find(work_id_num) == llm_task_.end()) {
-            error_body["code"]    = -6;
-            error_body["message"] = "Unit Does Not Exist";
-            send("None", "None", error_body, work_id);
-            return;
-        }
-        task_work(llm_task_[work_id_num], get_channel(work_id_num));
-        send("None", "None", LLM_NO_ERROR, work_id);
-    }
-
-    void pause(const std::string &work_id, const std::string &object, const std::string &data) override
-    {
-        SLOGI("llm_asr::work:%s", data.c_str());
-
-        nlohmann::json error_body;
-        int work_id_num = sample_get_work_id_num(work_id);
-        if (llm_task_.find(work_id_num) == llm_task_.end()) {
-            error_body["code"]    = -6;
-            error_body["message"] = "Unit Does Not Exist";
-            send("None", "None", error_body, work_id);
-            return;
-        }
-        task_pause(llm_task_[work_id_num], get_channel(work_id_num));
-        send("None", "None", LLM_NO_ERROR, work_id);
     }
 
     void task_user_data(const std::weak_ptr<llm_task> llm_task_obj_weak,
@@ -341,6 +299,87 @@ public:
         llm_task_obj->sys_pcm_on_data((*next_data));
     }
 
+    void _task_pause(const std::string &work_id, const std::string &data)
+    {
+        int work_id_num = sample_get_work_id_num(work_id);
+        if (llm_task_.find(work_id_num) == llm_task_.end()) {
+            return;
+        }
+        auto llm_task_obj = llm_task_[work_id_num];
+        auto llm_channel  = get_channel(work_id_num);
+        if (llm_task_obj->audio_flage_) {
+            if (!audio_url_.empty()) llm_channel->stop_subscriber(audio_url_);
+            llm_task_obj->audio_flage_ = false;
+        }
+    }
+
+    void task_pause(const std::string &work_id, const std::string &data)
+    {
+        event_queue_.enqueue(EVENT_TASK_PAUSE, work_id, "");
+    }
+
+    void task_work(const std::weak_ptr<llm_task> llm_task_obj_weak,
+                   const std::weak_ptr<llm_channel_obj> llm_channel_weak)
+    {
+        auto llm_task_obj = llm_task_obj_weak.lock();
+        auto llm_channel  = llm_channel_weak.lock();
+        if (!(llm_task_obj && llm_channel)) {
+            return;
+        }
+        if ((!audio_url_.empty()) && (llm_task_obj->audio_flage_ == false)) {
+            std::weak_ptr<llm_task> _llm_task_obj = llm_task_obj;
+            llm_channel->subscriber(audio_url_, [_llm_task_obj](pzmq *_pzmq, const std::string &raw) {
+                _llm_task_obj.lock()->sys_pcm_on_data(raw);
+            });
+            llm_task_obj->audio_flage_ = true;
+        }
+    }
+
+    void kws_awake(const std::weak_ptr<llm_task> llm_task_obj_weak,
+                   const std::weak_ptr<llm_channel_obj> llm_channel_weak, const std::string &object,
+                   const std::string &data)
+    {
+        auto llm_task_obj = llm_task_obj_weak.lock();
+        auto llm_channel  = llm_channel_weak.lock();
+        if (!(llm_task_obj && llm_channel)) {
+            return;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(llm_task_obj->awake_delay_));
+        task_work(llm_task_obj, llm_channel);
+    }
+
+    void work(const std::string &work_id, const std::string &object, const std::string &data) override
+    {
+        SLOGI("llm_vad::work:%s", data.c_str());
+
+        nlohmann::json error_body;
+        int work_id_num = sample_get_work_id_num(work_id);
+        if (llm_task_.find(work_id_num) == llm_task_.end()) {
+            error_body["code"]    = -6;
+            error_body["message"] = "Unit Does Not Exist";
+            send("None", "None", error_body, work_id);
+            return;
+        }
+        task_work(llm_task_[work_id_num], get_channel(work_id_num));
+        send("None", "None", LLM_NO_ERROR, work_id);
+    }
+
+    void pause(const std::string &work_id, const std::string &object, const std::string &data) override
+    {
+        SLOGI("llm_vad::work:%s", data.c_str());
+
+        nlohmann::json error_body;
+        int work_id_num = sample_get_work_id_num(work_id);
+        if (llm_task_.find(work_id_num) == llm_task_.end()) {
+            error_body["code"]    = -6;
+            error_body["message"] = "Unit Does Not Exist";
+            send("None", "None", error_body, work_id);
+            return;
+        }
+        task_pause(work_id, "");
+        send("None", "None", LLM_NO_ERROR, work_id);
+    }
+
     int setup(const std::string &work_id, const std::string &object, const std::string &data) override
     {
         nlohmann::json error_body;
@@ -354,6 +393,7 @@ public:
         int work_id_num   = sample_get_work_id_num(work_id);
         auto llm_channel  = get_channel(work_id);
         auto llm_task_obj = std::make_shared<llm_task>(work_id);
+
         nlohmann::json config_body;
         try {
             config_body = nlohmann::json::parse(data);
@@ -368,6 +408,7 @@ public:
         if (ret == 0) {
             llm_channel->set_output(llm_task_obj->enoutput_);
             llm_channel->set_stream(llm_task_obj->enstream_);
+            llm_task_obj->pause = std::bind(&llm_vad::task_pause, this, work_id, "");
             llm_task_obj->set_output(std::bind(&llm_vad::task_output, this, std::weak_ptr<llm_task>(llm_task_obj),
                                                std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1));
 
@@ -384,6 +425,13 @@ public:
                         "", std::bind(&llm_vad::task_user_data, this, std::weak_ptr<llm_task>(llm_task_obj),
                                       std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1,
                                       std::placeholders::_2));
+                } else if (input.find("kws") != std::string::npos) {
+                    llm_task_obj->ensleep_ = true;
+                    task_pause(work_id, "");
+                    llm_channel->subscriber_work_id(
+                        input, std::bind(&llm_vad::kws_awake, this, std::weak_ptr<llm_task>(llm_task_obj),
+                                         std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1,
+                                         std::placeholders::_2));
                 }
             }
             llm_task_[work_id_num] = llm_task_obj;
@@ -397,6 +445,74 @@ public:
             send("None", "None", error_body, "vad");
             return -1;
         }
+    }
+
+    void link(const std::string &work_id, const std::string &object, const std::string &data) override
+    {
+        SLOGI("llm_vad::link:%s", data.c_str());
+        int ret = 1;
+        nlohmann::json error_body;
+        int work_id_num = sample_get_work_id_num(work_id);
+        if (llm_task_.find(work_id_num) == llm_task_.end()) {
+            error_body["code"]    = -6;
+            error_body["message"] = "Unit Does Not Exist";
+            send("None", "None", error_body, work_id);
+            return;
+        }
+        auto llm_channel  = get_channel(work_id);
+        auto llm_task_obj = llm_task_[work_id_num];
+        if (data.find("sys") != std::string::npos) {
+            if (audio_url_.empty()) audio_url_ = unit_call("audio", "cap", data);
+            std::weak_ptr<llm_task> _llm_task_obj = llm_task_obj;
+            llm_channel->subscriber(audio_url_, [_llm_task_obj](pzmq *_pzmq, const std::string &raw) {
+                _llm_task_obj.lock()->sys_pcm_on_data(raw);
+            });
+            llm_task_obj->audio_flage_ = true;
+            llm_task_obj->inputs_.push_back(data);
+        } else if (data.find("kws") != std::string::npos) {
+            llm_task_obj->ensleep_ = true;
+            ret                    = llm_channel->subscriber_work_id(
+                data,
+                std::bind(&llm_vad::kws_awake, this, std::weak_ptr<llm_task>(llm_task_obj),
+                                             std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1, std::placeholders::_2));
+            llm_task_obj->inputs_.push_back(data);
+        }
+        if (ret) {
+            error_body["code"]    = -20;
+            error_body["message"] = "link false";
+            send("None", "None", error_body, work_id);
+            return;
+        } else {
+            send("None", "None", LLM_NO_ERROR, work_id);
+        }
+    }
+
+    void unlink(const std::string &work_id, const std::string &object, const std::string &data) override
+    {
+        SLOGI("llm_vad::unlink:%s", data.c_str());
+        int ret = 0;
+        nlohmann::json error_body;
+        int work_id_num = sample_get_work_id_num(work_id);
+        if (llm_task_.find(work_id_num) == llm_task_.end()) {
+            error_body["code"]    = -6;
+            error_body["message"] = "Unit Does Not Exist";
+            send("None", "None", error_body, work_id);
+            return;
+        }
+        auto llm_channel  = get_channel(work_id);
+        auto llm_task_obj = llm_task_[work_id_num];
+        if (llm_task_obj->superior_id_ == work_id) {
+            llm_task_obj->superior_flage_ = false;
+        }
+        llm_channel->stop_subscriber_work_id(data);
+        for (auto it = llm_task_obj->inputs_.begin(); it != llm_task_obj->inputs_.end();) {
+            if (*it == data) {
+                it = llm_task_obj->inputs_.erase(it);
+            } else {
+                ++it;
+            }
+        }
+        send("None", "None", LLM_NO_ERROR, work_id);
     }
 
     void taskinfo(const std::string &work_id, const std::string &object, const std::string &data) override
@@ -428,7 +544,7 @@ public:
 
     int exit(const std::string &work_id, const std::string &object, const std::string &data) override
     {
-        SLOGI("llm_kws::exit:%s", data.c_str());
+        SLOGI("llm_vad::exit:%s", data.c_str());
         nlohmann::json error_body;
         int work_id_num = sample_get_work_id_num(work_id);
         if (llm_task_.find(work_id_num) == llm_task_.end()) {

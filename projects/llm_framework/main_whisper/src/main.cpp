@@ -32,7 +32,7 @@ int main_exit_flage = 0;
 
 static void __sigint(int iSigNo)
 {
-    SLOGW("llm_sys will be exit!");
+    SLOGW("llm_whisper will be exit!");
     main_exit_flage = 1;
 }
 
@@ -77,11 +77,12 @@ typedef std::function<void(const std::string &data, bool finish)> task_callback_
 
 class llm_task {
 private:
-public:
     whisper_config mode_config_;
     std::unique_ptr<Encoder> encoder_;
     std::unique_ptr<DecoderMain> decoder_main_;
     std::unique_ptr<DecoderLoop> decoder_loop_;
+
+public:
     std::vector<float> positional_embedding;
     std::string model_;
     std::string response_format_;
@@ -738,7 +739,7 @@ public:
 
     void work(const std::string &work_id, const std::string &object, const std::string &data) override
     {
-        SLOGI("llm_asr::work:%s", data.c_str());
+        SLOGI("llm_whisper::work:%s", data.c_str());
 
         nlohmann::json error_body;
         int work_id_num = sample_get_work_id_num(work_id);
@@ -754,7 +755,7 @@ public:
 
     void pause(const std::string &work_id, const std::string &object, const std::string &data) override
     {
-        SLOGI("llm_asr::work:%s", data.c_str());
+        SLOGI("llm_whisper::pause:%s", data.c_str());
 
         nlohmann::json error_body;
         int work_id_num = sample_get_work_id_num(work_id);
@@ -774,7 +775,7 @@ public:
         if ((llm_task_channel_.size() - 1) == task_count_) {
             error_body["code"]    = -21;
             error_body["message"] = "task full";
-            send("None", "None", error_body, "asr");
+            send("None", "None", error_body, "whisper");
             return -1;
         }
 
@@ -809,7 +810,7 @@ public:
                         _llm_task_obj.lock()->sys_pcm_on_data(raw);
                     });
                     llm_task_obj->audio_flage_ = true;
-                } else if (input.find("asr") != std::string::npos) {
+                } else if (input.find("whisper") != std::string::npos) {
                     llm_channel->subscriber_work_id(
                         "", std::bind(&llm_whisper::task_user_data, this, std::weak_ptr<llm_task>(llm_task_obj),
                                       std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1,
@@ -845,7 +846,7 @@ public:
 
     void link(const std::string &work_id, const std::string &object, const std::string &data) override
     {
-        SLOGI("llm_melotts::link:%s", data.c_str());
+        SLOGI("llm_whisper::link:%s", data.c_str());
         int ret = 1;
         nlohmann::json error_body;
         int work_id_num = sample_get_work_id_num(work_id);
@@ -947,7 +948,7 @@ public:
 
     int exit(const std::string &work_id, const std::string &object, const std::string &data) override
     {
-        SLOGI("llm_asr::exit:%s", data.c_str());
+        SLOGI("llm_whisper::exit:%s", data.c_str());
         nlohmann::json error_body;
         int work_id_num = sample_get_work_id_num(work_id);
         if (llm_task_.find(work_id_num) == llm_task_.end()) {
