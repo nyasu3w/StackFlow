@@ -11,11 +11,6 @@
 #include <utility>
 #include <vector>
 
-#if __ANDROID_API__ >= 9
-#include "android/asset_manager.h"
-#include "android/asset_manager_jni.h"
-#endif
-
 #include "sherpa-onnx/csrc/offline-ctc-greedy-search-decoder.h"
 #include "sherpa-onnx/csrc/offline-model-config.h"
 #include "sherpa-onnx/csrc/offline-recognizer-impl.h"
@@ -52,6 +47,13 @@ static OfflineRecognitionResult ConvertSenseVoiceResult(
 
   r.words = std::move(src.words);
 
+  // parse lang, emotion and event from tokens.
+  if (src.tokens.size() >= 3) {
+    r.lang = sym_table[src.tokens[0]];
+    r.emotion = sym_table[src.tokens[1]];
+    r.event = sym_table[src.tokens[2]];
+  }
+
   return r;
 }
 
@@ -76,8 +78,8 @@ class OfflineRecognizerSenseVoiceImpl : public OfflineRecognizerImpl {
     InitFeatConfig();
   }
 
-#if __ANDROID_API__ >= 9
-  OfflineRecognizerSenseVoiceImpl(AAssetManager *mgr,
+  template <typename Manager>
+  OfflineRecognizerSenseVoiceImpl(Manager *mgr,
                                   const OfflineRecognizerConfig &config)
       : OfflineRecognizerImpl(mgr, config),
         config_(config),
@@ -96,7 +98,6 @@ class OfflineRecognizerSenseVoiceImpl : public OfflineRecognizerImpl {
 
     InitFeatConfig();
   }
-#endif
 
   std::unique_ptr<OfflineStream> CreateStream() const override {
     return std::make_unique<OfflineStream>(config_.feat_config);

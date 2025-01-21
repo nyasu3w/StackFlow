@@ -5,7 +5,7 @@
  */
 #include "StackFlow.h"
 #include "EngineWrapper.hpp"
-#include "common.hpp"
+#include "base/common.hpp"
 #include <ax_sys_api.h>
 #include <sys/stat.h>
 #include <fstream>
@@ -31,6 +31,7 @@ typedef struct {
     int img_h            = 640;
     int img_w            = 640;
     int cls_num          = 80;
+    int point_num        = 17;
     float pron_threshold = 0.45f;
     float nms_threshold  = 0.45;
 } yolo_config;
@@ -115,6 +116,7 @@ public:
             CONFIG_AUTO_SET(file_body["mode_param"], nms_threshold);
             CONFIG_AUTO_SET(file_body["mode_param"], cls_name);
             CONFIG_AUTO_SET(file_body["mode_param"], cls_num);
+            CONFIG_AUTO_SET(file_body["mode_param"], point_num);
             CONFIG_AUTO_SET(file_body["mode_param"], model_type);
             mode_config_.yolo_model = base_model + mode_config_.yolo_model;
             yolo_                   = std::make_unique<EngineWrapper>();
@@ -164,7 +166,7 @@ public:
         cv::Mat camera_data(mode_config_.img_h, mode_config_.img_w, CV_8UC2, (void *)msg.data());
         cv::Mat rgb;
         cv::cvtColor(camera_data, rgb, cv::COLOR_YUV2RGB_YUYV);
-        return inference(rgb, false);
+        return inference(rgb, true);
     }
 
     bool inference_raw_rgb(const std::string &msg)
@@ -198,16 +200,17 @@ public:
         try {
             int ret = -1;
             std::vector<uint8_t> image(mode_config_.img_w * mode_config_.img_h * 3, 0);
-            common::get_input_data_letterbox(src, image, mode_config_.img_w, mode_config_.img_h, bgr2rgb);
+            common::get_input_data_letterbox(src, image, mode_config_.img_h, mode_config_.img_w, bgr2rgb);
+            cv::Mat img_mat(mode_config_.img_h, mode_config_.img_w, CV_8UC3, image.data());
             yolo_->SetInput((void *)image.data(), 0);
             if (0 != yolo_->RunSync()) {
                 SLOGE("Run yolo model failed!\n");
                 throw std::string("yolo_ RunSync error");
             }
             std::vector<detection::Object> objects;
-            yolo_->Post_Process(src, mode_config_.img_w, mode_config_.img_h, mode_config_.cls_num,
-                                mode_config_.pron_threshold, mode_config_.nms_threshold, objects,
-                                mode_config_.model_type);
+            yolo_->Post_Process(img_mat, mode_config_.img_w, mode_config_.img_h, mode_config_.cls_num,
+                                mode_config_.point_num, mode_config_.pron_threshold, mode_config_.nms_threshold,
+                                objects, mode_config_.model_type);
             std::vector<nlohmann::json> yolo_output;
             for (size_t i = 0; i < objects.size(); i++) {
                 const detection::Object &obj = objects[i];
@@ -215,12 +218,24 @@ public:
                 output["class"]      = mode_config_.cls_name[obj.label];
                 output["confidence"] = format_float(obj.prob, 2);
                 output["bbox"]       = nlohmann::json::array();
-                output["bbox"].push_back(format_float(obj.rect.x, 0));
-                output["bbox"].push_back(format_float(obj.rect.y, 0));
-                output["bbox"].push_back(format_float(obj.rect.x + obj.rect.width, 0));
-                output["bbox"].push_back(format_float(obj.rect.y + obj.rect.height, 0));
-                if (mode_config_.model_type == "segment") output["mask"] = obj.mask_feat;
-                if (mode_config_.model_type == "pose") output["kps"] = obj.kps_feat;
+                output["bbox"].push_back(format_float(obj.rect.x, 2));
+                output["bbox"].push_back(format_float(obj.rect.y, 2));
+                output["bbox"].push_back(format_float(obj.rect.x + obj.rect.width, 2));
+                output["bbox"].push_back(format_float(obj.rect.y + obj.rect.height, 2));
+                if (mode_config_.model_type == "segment") {
+                    std::vector<std::string> formatted_mask_feat;
+                    for (const auto &mask : obj.mask_feat) {
+                        formatted_mask_feat.push_back(format_float(mask, 2));
+                    }
+                    output["mask"] = formatted_mask_feat;
+                }
+                if (mode_config_.model_type == "pose") {
+                    std::vector<std::string> formatted_kps_feat;
+                    for (const auto &kps : obj.kps_feat) {
+                        formatted_kps_feat.push_back(format_float(kps, 2));
+                    }
+                    output["kps"] = formatted_kps_feat;
+                }
                 if (mode_config_.model_type == "obb") output["angle"] = obj.angle;
                 yolo_output.push_back(output);
                 if (out_callback_) out_callback_(yolo_output, false);

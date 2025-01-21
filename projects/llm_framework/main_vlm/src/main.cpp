@@ -140,7 +140,7 @@ public:
                     tokenizer_server_flage_ = true;
                     SLOGI("port_=%s model_id=%s content=%s", std::to_string(port_).c_str(),
                           (base_model + "tokenizer").c_str(), ("'" + prompt_ + "'").c_str());
-                    std::this_thread::sleep_for(std::chrono::seconds(10));
+                    std::this_thread::sleep_for(std::chrono::seconds(15));
                 }
             } else {
                 mode_config_.filename_tokenizer_model = base_model + mode_config_.filename_tokenizer_model;
@@ -207,6 +207,7 @@ public:
                 lLaMa_->Encode(src, img_embed);
                 lLaMa_->Encode(img_embed, prompt_data_, prompt_complete(msg));
                 std::string out = lLaMa_->Run(prompt_data_);
+                if (out_callback_) out_callback_(out, true);
             }
         } catch (...) {
             SLOGW("lLaMa_->Run have error!");
@@ -232,6 +233,9 @@ public:
 
     ~llm_task()
     {
+        if (lLaMa_) {
+            lLaMa_->Deinit();
+        }
     }
 };
 

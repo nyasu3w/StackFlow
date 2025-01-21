@@ -9,11 +9,6 @@
 #include <string>
 #include <vector>
 
-#if __ANDROID_API__ >= 9
-#include "android/asset_manager.h"
-#include "android/asset_manager_jni.h"
-#endif
-
 #include "sherpa-onnx/csrc/endpoint.h"
 #include "sherpa-onnx/csrc/features.h"
 #include "sherpa-onnx/csrc/online-ctc-fst-decoder-config.h"
@@ -106,6 +101,11 @@ struct OnlineRecognizerConfig {
   // If there are multiple FST archives, they are applied from left to right.
   std::string rule_fars;
 
+  /// used only for modified_beam_search, if hotwords_buf is non-empty,
+  /// the hotwords will be loaded from the buffered string instead of from the
+  /// "hotwords_file"
+  std::string hotwords_buf;
+
   OnlineRecognizerConfig() = default;
 
   OnlineRecognizerConfig(
@@ -144,9 +144,8 @@ class OnlineRecognizer {
  public:
   explicit OnlineRecognizer(const OnlineRecognizerConfig &config);
 
-#if __ANDROID_API__ >= 9
-  OnlineRecognizer(AAssetManager *mgr, const OnlineRecognizerConfig &config);
-#endif
+  template <typename Manager>
+  OnlineRecognizer(Manager *mgr, const OnlineRecognizerConfig &config);
 
   ~OnlineRecognizer();
 

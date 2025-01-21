@@ -12,11 +12,6 @@
 #include <utility>
 #include <vector>
 
-#if __ANDROID_API__ >= 9
-#include "android/asset_manager.h"
-#include "android/asset_manager_jni.h"
-#endif
-
 #include "sherpa-onnx/csrc/offline-ctc-decoder.h"
 #include "sherpa-onnx/csrc/offline-ctc-fst-decoder.h"
 #include "sherpa-onnx/csrc/offline-ctc-greedy-search-decoder.h"
@@ -80,16 +75,14 @@ class OfflineRecognizerCtcImpl : public OfflineRecognizerImpl {
     Init();
   }
 
-#if __ANDROID_API__ >= 9
-  OfflineRecognizerCtcImpl(AAssetManager *mgr,
-                           const OfflineRecognizerConfig &config)
+  template <typename Manager>
+  OfflineRecognizerCtcImpl(Manager *mgr, const OfflineRecognizerConfig &config)
       : OfflineRecognizerImpl(mgr, config),
         config_(config),
         symbol_table_(mgr, config_.model_config.tokens),
         model_(OfflineCtcModel::Create(mgr, config_.model_config)) {
     Init();
   }
-#endif
 
   void Init() {
     if (!config_.model_config.telespeech_ctc.empty()) {
@@ -101,6 +94,23 @@ class OfflineRecognizerCtcImpl : public OfflineRecognizerImpl {
       config_.feat_config.use_energy = false;
       config_.feat_config.normalize_samples = false;
       config_.feat_config.is_mfcc = true;
+    }
+
+    if (!config_.model_config.nemo_ctc.model.empty()) {
+      if (model_->IsGigaAM()) {
+        config_.feat_config.low_freq = 0;
+        config_.feat_config.high_freq = 8000;
+        config_.feat_config.remove_dc_offset = false;
+        config_.feat_config.preemph_coeff = 0;
+        config_.feat_config.window_type = "hann";
+        config_.feat_config.feature_dim = 64;
+      } else {
+        config_.feat_config.low_freq = 0;
+        config_.feat_config.high_freq = 0;
+        config_.feat_config.is_librosa = true;
+        config_.feat_config.remove_dc_offset = false;
+        config_.feat_config.window_type = "hann";
+      }
     }
 
     if (!config_.model_config.wenet_ctc.model.empty()) {

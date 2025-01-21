@@ -52,35 +52,59 @@ public:
     static void on_cap_fream(uint8_t *pData, uint32_t width, uint32_t height, uint32_t Length, void *ctx)
     {
         llm_task *self = static_cast<llm_task *>(ctx);
+        int src_offsetX;
+        int src_offsetY;
+        int src_W;
+        int src_H;
+        int dst_offsetX;
+        int dst_offsetY;
+        int dst_W;
+        int dst_H;
         if ((self->frame_height_ == height) && (self->frame_width_ == width)) {
             if (self->out_callback_) self->out_callback_(pData, Length);
         } else {
-            cv::Mat yuv_src(height, width, CV_8UC2, pData);
             if ((self->frame_height_ >= height) && (self->frame_width_ >= width)) {
-                int offsetX = (self->frame_width_ == width) ? 0 : (self->frame_width_ - width) / 2;
-                int offsetY = (self->frame_height_ == height) ? 0 : (self->frame_height_ - height) / 2;
-                yuv_src.copyTo(self->yuv_dist_(cv::Rect(offsetX, offsetY, width, height)));
-                if (self->out_callback_)
-                    self->out_callback_(self->yuv_dist_.data, self->frame_height_ * self->frame_width_ * 2);
+                src_offsetX = 0;
+                src_offsetY = 0;
+                src_W       = width;
+                src_H       = height;
+                dst_offsetX = (self->frame_width_ == src_W) ? 0 : (self->frame_width_ - src_W) / 2;
+                dst_offsetY = (self->frame_height_ == src_H) ? 0 : (self->frame_height_ - src_H) / 2;
+                dst_W       = width;
+                dst_H       = height;
             } else if ((self->frame_height_ <= height) && (self->frame_width_ <= width)) {
-                int offsetX = (self->frame_width_ == width) ? 0 : (width - self->frame_width_) / 2;
-                int offsetY = (self->frame_height_ == height) ? 0 : (height - self->frame_height_) / 2;
-                yuv_src(cv::Rect(offsetX, offsetY, self->frame_width_, self->frame_height_)).copyTo(self->yuv_dist_);
-                if (self->out_callback_)
-                    self->out_callback_(self->yuv_dist_.data, self->frame_height_ * self->frame_width_ * 2);
+                src_offsetX = (self->frame_width_ == width) ? 0 : (width - self->frame_width_) / 2;
+                src_offsetY = (self->frame_height_ == height) ? 0 : (height - self->frame_height_) / 2;
+                src_W       = self->frame_width_;
+                src_H       = self->frame_height_;
+                dst_offsetX = 0;
+                dst_offsetY = 0;
+                dst_W       = src_W;
+                dst_H       = src_H;
             } else if ((self->frame_height_ >= height) && (self->frame_width_ <= width)) {
-                int offsetX = (self->frame_width_ == width) ? 0 : (width - self->frame_width_) / 2;
-                int offsetY = (self->frame_height_ == height) ? 0 : (self->frame_height_ - height) / 2;
-                yuv_src(cv::Rect(offsetX, offsetY, self->frame_width_, height)).copyTo(self->yuv_dist_);
-                if (self->out_callback_)
-                    self->out_callback_(self->yuv_dist_.data, self->frame_height_ * self->frame_width_ * 2);
+                src_offsetX = (self->frame_width_ == width) ? 0 : (width - self->frame_width_) / 2;
+                src_offsetY = 0;
+                src_W       = self->frame_width_;
+                src_H       = height;
+                dst_offsetX = 0;
+                dst_offsetY = (self->frame_height_ == src_H) ? 0 : (self->frame_height_ - src_H) / 2;
+                dst_W       = src_W;
+                dst_H       = src_H;
             } else {
-                int offsetX = (self->frame_width_ == width) ? 0 : (self->frame_width_ - width) / 2;
-                int offsetY = (self->frame_height_ == height) ? 0 : (self->frame_height_ - height) / 2;
-                yuv_src(cv::Rect(offsetX, offsetY, width, self->frame_height_)).copyTo(self->yuv_dist_);
-                if (self->out_callback_)
-                    self->out_callback_(self->yuv_dist_.data, self->frame_height_ * self->frame_width_ * 2);
+                src_offsetX = 0;
+                src_offsetY = (self->frame_height_ == height) ? 0 : (height - self->frame_height_) / 2;
+                src_W       = width;
+                src_H       = self->frame_height_;
+                dst_offsetX = (self->frame_width_ == src_W) ? 0 : (self->frame_width_ - src_W) / 2;
+                dst_offsetY = 0;
+                dst_W       = src_W;
+                dst_H       = src_H;
             }
+            cv::Mat yuv_src(height, width, CV_8UC2, pData);
+            yuv_src(cv::Rect(src_offsetX, src_offsetY, src_W, src_H))
+                .copyTo(self->yuv_dist_(cv::Rect(dst_offsetX, dst_offsetY, dst_W, dst_H)));
+            if (self->out_callback_)
+                self->out_callback_(self->yuv_dist_.data, self->frame_height_ * self->frame_width_ * 2);
         }
     }
 

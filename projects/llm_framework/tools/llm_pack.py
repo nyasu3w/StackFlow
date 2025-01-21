@@ -6,6 +6,7 @@ import subprocess
 import requests
 import tarfile
 import shutil
+import concurrent.futures
 '''
 {package_name}_{version}-{revision}_{architecture}.deb
 lib-llm_1.0-m5stack1_arm64.deb
@@ -20,11 +21,11 @@ llm-tts_1.0-m5stack1_arm64.deb
 
 def create_lib_deb(package_name, version, src_folder, revision = 'm5stack1'):
     deb_file = f"{package_name}_{version}-{revision}_arm64.deb"
-    deb_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'debian')
+    deb_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'debian-{}'.format(package_name))
     if os.path.exists(deb_folder):
         shutil.rmtree(deb_folder)
     os.makedirs(deb_folder, exist_ok = True)
-    
+
     for item in os.listdir(src_folder):
         if item.startswith('llm_'):
             continue
@@ -131,10 +132,11 @@ def create_lib_deb(package_name, version, src_folder, revision = 'm5stack1'):
     subprocess.run(["dpkg-deb", "-b", deb_folder, deb_file], check=True)
     print(f"Debian package created: {deb_file}")
     shutil.rmtree(deb_folder)
+    return package_name + " creat success!"
 
 def create_data_deb(package_name, version, src_folder, revision = 'm5stack1'):
     deb_file = f"{package_name}_{version}-{revision}_arm64.deb"
-    deb_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'debian')
+    deb_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'debian-{}'.format(package_name))
     if os.path.exists(deb_folder):
         shutil.rmtree(deb_folder)
     os.makedirs(deb_folder, exist_ok = True)
@@ -188,10 +190,11 @@ def create_data_deb(package_name, version, src_folder, revision = 'm5stack1'):
     subprocess.run(["dpkg-deb", "-b", deb_folder, deb_file], check=True)
     print(f"Debian package created: {deb_file}")
     shutil.rmtree(deb_folder)
+    return package_name + " creat success!"
 
 def create_bin_deb(package_name, version, src_folder, revision = 'm5stack1'):
     deb_file = f"{package_name}_{version}-{revision}_arm64.deb"
-    deb_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'debian')
+    deb_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'debian-{}'.format(package_name))
     # os.makedirs(deb_folder, exist_ok=True)
     if os.path.exists(deb_folder):
         shutil.rmtree(deb_folder)
@@ -225,10 +228,7 @@ def create_bin_deb(package_name, version, src_folder, revision = 'm5stack1'):
     with open(os.path.join(deb_folder, f'lib/systemd/system/{package_name}.service'),'w') as f:
         f.write(f'[Unit]\n')
         f.write(f'Description={package_name} Service\n')
-        if package_name == 'llm-sys':
-            f.write(f'After=ubus.service\n')
-            f.write(f'Requires=ubus.service\n')
-        else:
+        if package_name != 'llm-sys':
             f.write(f'After=llm-sys.service\n')
             f.write(f'Requires=llm-sys.service\n')
         f.write(f'\n')
@@ -245,10 +245,11 @@ def create_bin_deb(package_name, version, src_folder, revision = 'm5stack1'):
 
     os.chmod(os.path.join(deb_folder, 'DEBIAN/postinst'), 0o755)
     os.chmod(os.path.join(deb_folder, 'DEBIAN/prerm'), 0o755)
-    
+
     subprocess.run(["dpkg-deb", "-b", deb_folder, deb_file], check=True)
     print(f"Debian package created: {deb_file}")
     shutil.rmtree(deb_folder)
+    return package_name + " creat success!"
 
 if __name__ == "__main__":
 
@@ -259,7 +260,7 @@ if __name__ == "__main__":
         os.system('rm ./*.deb m5stack_* -rf')
         exit(0)
 
-    version = '1.3'
+    version = '1.4'
     data_version = '0.2'
     src_folder = '../dist'
     revision = 'm5stack1'
@@ -268,39 +269,57 @@ if __name__ == "__main__":
     create_data = True
     if len(sys.argv) > 1:
         src_folder = sys.argv[1]
-    if (create_lib):
-        create_lib_deb('lib-llm', version, src_folder, revision)
-    if (create_bin):
-        create_bin_deb('llm-sys', version, src_folder, revision)
-        create_bin_deb('llm-audio', version, src_folder, revision)
-        create_bin_deb('llm-kws', version, src_folder, revision)
-        create_bin_deb('llm-asr', version, src_folder, revision)
-        create_bin_deb('llm-llm', version, src_folder, revision)
-        create_bin_deb('llm-tts', version, src_folder, revision)
-        create_bin_deb('llm-melotts', version, src_folder, revision)
-        create_bin_deb('llm-camera', version, src_folder, revision)
-        create_bin_deb('llm-vlm', version, src_folder, revision)
-        create_bin_deb('llm-yolo', version, src_folder, revision)
-        create_bin_deb('llm-skel', version, src_folder, revision)
-        # create_bin_deb('llm-tokenizer', version, src_folder, revision)
-        
-    if (create_data):
-        create_data_deb('llm-audio-en-us', data_version, src_folder, revision)
-        create_data_deb('llm-audio-zh-cn', data_version, src_folder, revision)
-        create_data_deb('llm-sherpa-ncnn-streaming-zipformer-20M-2023-02-17', data_version, src_folder, revision)
-        create_data_deb('llm-sherpa-ncnn-streaming-zipformer-zh-14M-2023-02-23', data_version, src_folder, revision)
-        create_data_deb('llm-sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01', data_version, src_folder, revision)
-        create_data_deb('llm-sherpa-onnx-kws-zipformer-wenetspeech-3.3M-2024-01-01', data_version, src_folder, revision)
-        # create_data_deb('llm-qwen2-0.5B-prefill-20e', data_version, src_folder, revision)
-        # create_data_deb('llm-qwen2-1.5B-prefill-20e', data_version, src_folder, revision)
-        create_data_deb('llm-qwen2.5-0.5B-prefill-20e', data_version, src_folder, revision)
-        create_data_deb('llm-single-speaker-english-fast', data_version, src_folder, revision)
-        create_data_deb('llm-single-speaker-fast', data_version, src_folder, revision)
-        create_data_deb('llm-melotts-zh-cn', data_version, src_folder, revision)
-        create_data_deb('llm-yolo11n', data_version, src_folder, revision)
-        create_data_deb('llm-yolo11n-pose', data_version, src_folder, revision)
-        create_data_deb('llm-yolo11n-seg', data_version, src_folder, revision)
-        create_data_deb('llm-qwen2.5-coder-0.5B-ax630c', data_version, src_folder, revision)
-        create_data_deb('llm-llama3.2-1B-prefill-ax630c', data_version, src_folder, revision)
-        create_data_deb('llm-openbuddy-llama3.2-1B-ax630c', data_version, src_folder, revision)
-        create_data_deb('llm-internvl2-1B-ax630c', data_version, src_folder, revision)
+    cpu_count = os.cpu_count()
+    if cpu_count - 2 < 1:
+        cpu_count = 2
+    else:
+        cpu_count = cpu_count - 2
+    # cpu_count = 10
+    with concurrent.futures.ThreadPoolExecutor(max_workers=cpu_count) as executor:
+        futures = []
+        if (create_lib):
+            futures.append(executor.submit(create_lib_deb, 'lib-llm', version, src_folder, revision))
+        if (create_bin):
+            futures.append(executor.submit(create_bin_deb,'llm-sys', version, src_folder, revision))
+            futures.append(executor.submit(create_bin_deb,'llm-audio', version, src_folder, revision))
+            futures.append(executor.submit(create_bin_deb,'llm-kws', version, src_folder, revision))
+            futures.append(executor.submit(create_bin_deb,'llm-asr', version, src_folder, revision))
+            futures.append(executor.submit(create_bin_deb,'llm-llm', version, src_folder, revision))
+            futures.append(executor.submit(create_bin_deb,'llm-tts', version, src_folder, revision))
+            futures.append(executor.submit(create_bin_deb,'llm-melotts', version, src_folder, revision))
+            futures.append(executor.submit(create_bin_deb,'llm-camera', version, src_folder, revision))
+            futures.append(executor.submit(create_bin_deb,'llm-vlm', version, src_folder, revision))
+            futures.append(executor.submit(create_bin_deb,'llm-yolo', version, src_folder, revision))
+            futures.append(executor.submit(create_bin_deb,'llm-skel', version, src_folder, revision))
+            futures.append(executor.submit(create_bin_deb,'llm-depth-anything', version, src_folder, revision))
+            futures.append(executor.submit(create_bin_deb,'llm-vad', version, src_folder, revision))
+            futures.append(executor.submit(create_bin_deb,'llm-whisper', version, src_folder, revision))
+        if (create_data):
+            futures.append(executor.submit(create_data_deb,'llm-audio-en-us', data_version, src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-audio-zh-cn', data_version, src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-sherpa-ncnn-streaming-zipformer-20M-2023-02-17', data_version, src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-sherpa-ncnn-streaming-zipformer-zh-14M-2023-02-23', data_version, src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01', '0.3', src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-sherpa-onnx-kws-zipformer-wenetspeech-3.3M-2024-01-01', '0.3', src_folder, revision))
+            # futures.append(executor.submit(create_data_deb,'llm-qwen2-0.5B-prefill-20e', data_version, src_folder, revision))
+            # futures.append(executor.submit(create_data_deb,'llm-qwen2-1.5B-prefill-20e', data_version, src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-qwen2.5-0.5B-prefill-20e', data_version, src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-qwen2.5-1.5B-ax630c', '0.3', src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-single-speaker-english-fast', data_version, src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-single-speaker-fast', data_version, src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-melotts-zh-cn', '0.3', src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-yolo11n', data_version, src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-yolo11n-pose', '0.3', src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-yolo11n-hand-pose', '0.3', src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-yolo11n-seg', data_version, src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-qwen2.5-coder-0.5B-ax630c', data_version, src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-llama3.2-1B-prefill-ax630c', data_version, src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-openbuddy-llama3.2-1B-ax630c', data_version, src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-internvl2.5-1B-ax630c', '0.3', src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-depth-anything-ax630c', '0.3', src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-whisper-tiny', '0.3', src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-silero-vad', '0.3', src_folder, revision))
+        for future in concurrent.futures.as_completed(futures):
+            result = future.result()
+            print(result)
+

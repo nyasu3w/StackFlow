@@ -16,11 +16,6 @@
 #include <utility>
 #include <vector>
 
-#if __ANDROID_API__ >= 9
-#include "android/asset_manager.h"
-#include "android/asset_manager_jni.h"
-#endif
-
 #include "sherpa-onnx/csrc/macros.h"
 #include "sherpa-onnx/csrc/online-recognizer-impl.h"
 #include "sherpa-onnx/csrc/online-recognizer.h"
@@ -44,10 +39,16 @@ class OnlineRecognizerTransducerNeMoImpl : public OnlineRecognizerImpl {
       const OnlineRecognizerConfig &config)
       : OnlineRecognizerImpl(config),
         config_(config),
-        symbol_table_(config.model_config.tokens),
         endpoint_(config_.endpoint_config),
         model_(
             std::make_unique<OnlineTransducerNeMoModel>(config.model_config)) {
+    if (!config.model_config.tokens_buf.empty()) {
+      symbol_table_ = SymbolTable(config.model_config.tokens_buf, false);
+    } else {
+      /// assuming tokens_buf and tokens are guaranteed not being both empty
+      symbol_table_ = SymbolTable(config.model_config.tokens, true);
+    }
+
     if (config.decoding_method == "greedy_search") {
       decoder_ = std::make_unique<OnlineTransducerGreedySearchNeMoDecoder>(
           model_.get(), config_.blank_penalty);
@@ -59,9 +60,9 @@ class OnlineRecognizerTransducerNeMoImpl : public OnlineRecognizerImpl {
     PostInit();
   }
 
-#if __ANDROID_API__ >= 9
+  template <typename Manager>
   explicit OnlineRecognizerTransducerNeMoImpl(
-      AAssetManager *mgr, const OnlineRecognizerConfig &config)
+      Manager *mgr, const OnlineRecognizerConfig &config)
       : OnlineRecognizerImpl(mgr, config),
         config_(config),
         symbol_table_(mgr, config.model_config.tokens),
@@ -79,7 +80,6 @@ class OnlineRecognizerTransducerNeMoImpl : public OnlineRecognizerImpl {
 
     PostInit();
   }
-#endif
 
   std::unique_ptr<OnlineStream> CreateStream() const override {
     auto stream = std::make_unique<OnlineStream>(config_.feat_config);

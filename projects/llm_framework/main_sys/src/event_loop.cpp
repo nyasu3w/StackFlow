@@ -19,10 +19,13 @@
 #include <iostream>
 #include <fstream>
 #include <thread>
+#include <fstream>
 
 #include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #include <list>
 #include <map>
@@ -36,6 +39,8 @@
 #include "remote_action.h"
 #include <simdjson.h>
 #include "hv/ifconfig.h"
+
+#include "StackFlowUtil.h"
 
 void usr_print_error(const std::string &request_id, const std::string &work_id, const std::string &error_msg,
                      int zmq_out)
@@ -270,64 +275,173 @@ sys_lstask_err_1:
     return out;
 }
 
+bool read_file(const std::string &path, std::vector<char> &data)
+{
+    std::fstream fs(path, std::ios::in | std::ios::binary);
+    if (!fs.is_open()) {
+        return false;
+    }
+    fs.seekg(std::ios::end);
+    auto fs_end = fs.tellg();
+    fs.seekg(std::ios::beg);
+    auto fs_beg      = fs.tellg();
+    auto file_size   = static_cast<size_t>(fs_end - fs_beg);
+    auto vector_size = data.size();
+    data.reserve(vector_size + file_size);
+    data.insert(data.end(), std::istreambuf_iterator<char>(fs), std::istreambuf_iterator<char>());
+    fs.close();
+    return true;
+}
+
+bool dump_file(const std::string &path, char *data, int size)
+{
+    std::fstream fs(path, std::ios::out | std::ios::binary);
+    if (!fs.is_open() || fs.fail()) {
+        fprintf(stderr, "[ERR] cannot open file %s \n", path.c_str());
+    }
+    fs.write(data, size);
+    return true;
+}
+
+// sys.file./opt/data/test.txt
+// sys.stream.file./opt/data/test.txt
+// sys.base64.file./opt/data/test.bin
+// sys.base64.stream.file./opt/data.bin
 int sys_push(int com_id, const nlohmann::json &json_obj)
 {
-    int out;
-    nlohmann::json out_body;
-    out_body["request_id"] = json_obj["request_id"];
-    out_body["work_id"]    = json_obj["work_id"];
-    out_body["created"]    = time(NULL);
-    out_body["object"]     = json_obj["object"];
-    out_body["error"]      = nlohmann::json::parse("{\"code\":-10, \"message\":\"Not available at the moment.\"}");
-
-    int stream         = false;
-    int stream_size    = 512;
-    std::string object = json_obj["object"];
-    std::vector<std::string> object_fragment;
-    std::string fragment;
-    for (auto i = object.begin(); i != object.end(); i++) {
-        if (*i == '.') {
-            if (fragment.length()) object_fragment.push_back(fragment);
-            fragment.clear();
-        } else {
-            fragment.push_back(*i);
-        }
+    int out               = 0;
+    std::string object    = json_obj["object"];
+    bool stream           = (object.find("stream") != std::string::npos);
+    bool base64           = (object.find("base64") != std::string::npos);
+    std::string file_path = object.substr(object.find("file") + 5);
+    if (file_path[0] != '/') {
+        usr_print_error(json_obj["request_id"], json_obj["work_id"], "{\"code\":-17, \"message\":\"file path error\"}",
+                        com_id);
+        return out;
     }
-    if (fragment.length()) object_fragment.push_back(fragment);
-
-    if (object_fragment.size() >= 3) stream = object_fragment[2] == "stream" ? true : false;
-    if (object_fragment.size() >= 4) stream_size = std::stoi(object_fragment[3]);
-
-    static std::string bash_str;
+    std::string file_dir = file_path.substr(0, file_path.rfind("/") + 1);
+    file_dir += ".tmp_file";
+    if (access(file_dir.c_str(), F_OK) != 0) {
+        mkdir(file_dir.c_str(), 0777);
+    }
+    std::string file_panduan;
     if (stream) {
-        static std::map<int, std::string> bash_delta;
-        bash_delta[json_obj["data"]["index"]] = json_obj["data"]["delta"];
-        if (!json_obj["data"]["finish"]) {
-            out_body["data"]["index"] = json_obj["data"]["index"];
-            zmq_com_send(com_id, out_body.dump());
+        int index         = json_obj["data"]["index"];
+        bool finish       = json_obj["data"]["finish"];
+        std::string delta = json_obj["data"]["delta"];
+        file_panduan      = file_dir + std::string("/") + std::to_string(index) + std::string(".bin");
+        dump_file(file_panduan, (char *)delta.c_str(), delta.length());
+        if (!finish) {
             return out;
-        } else {
-            for (size_t i = 0; i < bash_delta.size(); i++) {
-                bash_str += bash_delta[i];
-            }
-            bash_delta.clear();
         }
     } else {
-        bash_str = json_obj["data"];
+        file_panduan     = file_dir + std::string("/") + std::string("0.bin");
+        std::string data = json_obj["data"];
+        dump_file(file_panduan, (char *)data.c_str(), data.length());
     }
-
-sys_push_err_1:
-    zmq_com_send(com_id, out_body.dump());
+    std::string merah_cmd;
+    if (base64) {
+        merah_cmd = R"(find )";
+        merah_cmd += file_dir;
+        merah_cmd += R"( -maxdepth 1 -name "*.bin" | sort -n | xargs -i cat {} >> )";
+        merah_cmd += file_dir + "/src.base64";
+        // std::cout << "merah_cmd: " << merah_cmd << "\n" ;
+        system(merah_cmd.c_str());
+        merah_cmd = R"(base64 -d )";
+        merah_cmd += file_dir + "/src.base64";
+        merah_cmd += R"( > )";
+        merah_cmd += file_path;
+        // std::cout << "merah_cmd: " << merah_cmd << "\n" ;
+        system(merah_cmd.c_str());
+    } else {
+        merah_cmd = R"(rm -f )";
+        merah_cmd += file_path;
+        system(merah_cmd.c_str());
+        merah_cmd = R"(find )";
+        merah_cmd += file_dir;
+        merah_cmd += R"( -maxdepth 1 -name "*.bin" | sort -n | xargs -i cat {} >> )";
+        merah_cmd += file_path;
+        system(merah_cmd.c_str());
+    }
+    merah_cmd = R"(rm -rf )";
+    merah_cmd += file_dir;
+    system(merah_cmd.c_str());
+    merah_cmd = R"(sha256sum )";
+    merah_cmd += file_path;
+    merah_cmd += "> /tmp";
+    merah_cmd += file_path.substr(file_path.rfind("/") + 1);
+    merah_cmd += ".base64_info";
+    system(merah_cmd.c_str());
+    merah_cmd = "/tmp";
+    merah_cmd += file_path.substr(file_path.rfind("/") + 1);
+    merah_cmd += ".base64_info";
+    std::vector<char> base64_info;
+    read_file(merah_cmd, base64_info);
+    merah_cmd = std::string("rm -rf ") + merah_cmd;
+    system(merah_cmd.c_str());
+    std::string base64_info_str = std::string(base64_info.data(), 64);
+    std::string error_str       = "{\"code\":0, \"message\":\"sha256:";
+    error_str += base64_info_str;
+    error_str += "\"}";
+    usr_print_error(json_obj["request_id"], json_obj["work_id"], error_str, com_id);
     return out;
 }
 
 int sys_pull(int com_id, const nlohmann::json &json_obj)
 {
-    int out;
-
-sys_pull_err_1:
-    usr_print_error(json_obj["request_id"], json_obj["work_id"],
-                    "{\"code\":-10, \"message\":\"Not available at the moment.\"}", com_id);
+    int out               = 0;
+    std::string object    = json_obj["object"];
+    bool stream           = (object.find("stream") != std::string::npos);
+    std::string file_path = object.substr(object.find("file") + 5);
+    if (access(file_path.c_str(), F_OK) != 0) {
+        usr_print_error(json_obj["request_id"], json_obj["work_id"],
+                        "{\"code\":-17, \"message\":\"file does not exist.\"}", com_id);
+        return -1;
+    }
+    std::vector<char> file_data;
+    read_file(file_path, file_data);
+    std::string base64_data;
+    StackFlows::encode_base64(std::string(file_data.data(), file_data.size()), base64_data);
+    if (stream) {
+        int config_sys_stream_length;
+        SAFE_READING(config_sys_stream_length, int, "config_sys_stream_length");
+        int send_pos = 0;
+        nlohmann::json out_body;
+        out_body["request_id"] = json_obj["request_id"];
+        out_body["work_id"]    = "sys";
+        out_body["created"]    = time(NULL);
+        out_body["object"]     = std::string("sys.base64.stream");
+        out_body["error"]      = nlohmann::json::parse("{\"code\":0, \"message\":\"\"}");
+        size_t i               = 0;
+        for (;;) {
+            out_body["data"]["index"]  = i;
+            out_body["data"]["finish"] = false;
+            if ((send_pos + config_sys_stream_length) < base64_data.size()) {
+                out_body["data"]["delta"] = base64_data.substr(send_pos, config_sys_stream_length);
+                send_pos += config_sys_stream_length;
+                zmq_com_send(com_id, out_body.dump());
+            } else {
+                out_body["data"]["delta"] = base64_data.substr(send_pos);
+                zmq_com_send(com_id, out_body.dump());
+                i++;
+                break;
+            }
+            i++;
+        };
+        out_body["data"]["index"]  = i;
+        out_body["data"]["finish"] = true;
+        out_body["data"]["delta"]  = std::string("");
+        zmq_com_send(com_id, out_body.dump());
+    } else {
+        nlohmann::json out_body;
+        out_body["request_id"] = json_obj["request_id"];
+        out_body["work_id"]    = "sys";
+        out_body["created"]    = time(NULL);
+        out_body["object"]     = std::string("sys.base64.stream");
+        out_body["error"]      = nlohmann::json::parse("{\"code\":0, \"message\":\"\"}");
+        out_body["data"]       = base64_data;
+        zmq_com_send(com_id, out_body.dump());
+    }
     return out;
 }
 
@@ -499,7 +613,7 @@ int sys_reset(int com_id, const nlohmann::json &json_obj)
 
 int sys_version(int com_id, const nlohmann::json &json_obj)
 {
-    usr_out(json_obj["request_id"], json_obj["work_id"], std::string("v1.3"), com_id);
+    usr_out(json_obj["request_id"], json_obj["work_id"], std::string("v1.4"), com_id);
     int out = 0;
     return out;
 }
