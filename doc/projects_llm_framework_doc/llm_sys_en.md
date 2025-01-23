@@ -1,8 +1,10 @@
 # llm-sys
 
-The basic service unit of StackFlow, providing external serial and TCP channels and some system function services, while internally handling port resource allocation and a simple in-memory database.
+The basic service unit of StackFlow, providing external serial and TCP channels and some system function services, while
+internally handling port resource allocation and a simple in-memory database.
 
 ## External API
+
 - sys.ping: Test if communication with the LLM is possible.
 - sys.lsmode: Models that have existed in the system in the past.
 - sys.bashexec: Execute bash commands.
@@ -13,6 +15,7 @@ The basic service unit of StackFlow, providing external serial and TCP channels 
 - sys.version: Get the version of the LLM framework program.
 
 ## Internal API
+
 - sql_select: Query key-value pairs in the small in-memory KV database.
 - register_unit: Register a unit.
 - release_unit: Release a unit.

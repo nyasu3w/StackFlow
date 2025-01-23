@@ -1,12 +1,12 @@
 # llm-yolo
 
-yolo 视觉检测单元，用于提供图片检测服务。可选择多种 yolo 模型。
+YOLO vision detection unit for providing image detection services. Various YOLO models can be selected.
 
 ## setup
 
-配置单元工作。
+Configuring the unit to work.
 
-发送 json：
+Send JSON:
 
 ```json
 {
@@ -23,16 +23,16 @@ yolo 视觉检测单元，用于提供图片检测服务。可选择多种 yolo 
 }
 ```
 
-- request_id：参考基本数据解释。
-- work_id：配置单元时，为 `yolo`。
-- action：调用的方法为 `setup`。
-- object：传输的数据类型为 `yolo.setup`。
-- model：使用的模型为 `yolo11n` 模型。
-- response_format：返回结果为 `yolo.box`。
-- input：输入的为 `yolo.jpg.base64`,代表的是从用户输入，数据类型为 jpg, base64编码。
-- enoutput：是否起用用户结果输出。
+- request_id: Reference for basic data explanation.
+- work_id: Set to `yolo` during configuration.
+- action: The method to call is `setup`.
+- object: Data type being transmitted is `yolo.setup`.
+- model: The model used is `yolo11n`.
+- response_format: The returned result is `yolo.box`.
+- input: The input is `yolo.jpg.base64`, which represents the data from the user input, encoded in jpg and base64.
+- enoutput: Whether to enable user result output.
 
-响应 json：
+Response JSON:
 
 ```json
 {
@@ -48,14 +48,14 @@ yolo 视觉检测单元，用于提供图片检测服务。可选择多种 yolo 
 }
 ```
 
-- created：消息创建时间，unix 时间。
-- work_id：返回成功创建的 work_id 单元。
+- created: Message creation time, Unix time.
+- work_id: The successfully created work_id unit.
 
 ## exit
 
-单元退出。
+Unit exit.
 
-发送 json：
+Send JSON:
 
 ```json
 {
@@ -65,7 +65,7 @@ yolo 视觉检测单元，用于提供图片检测服务。可选择多种 yolo 
 }
 ```
 
-响应 json：
+Response JSON:
 
 ```json
 {
@@ -81,13 +81,13 @@ yolo 视觉检测单元，用于提供图片检测服务。可选择多种 yolo 
 }
 ```
 
-error::code 为 0 表示执行成功。
+`error::code` of 0 means the execution was successful.
 
 ## taskinfo
 
-获取任务列表。
+Retrieve the task list.
 
-发送 json：
+Send JSON:
 
 ```json
 {
@@ -97,7 +97,7 @@ error::code 为 0 表示执行成功。
 }
 ```
 
-响应 json：
+Response JSON:
 
 ```json
 {
@@ -115,9 +115,9 @@ error::code 为 0 表示执行成功。
 }
 ```
 
-获取任务运行参数。
+Retrieve task run parameters.
 
-发送 json：
+Send JSON:
 
 ```json
 {
@@ -127,7 +127,7 @@ error::code 为 0 表示执行成功。
 }
 ```
 
-响应 json：
+Response JSON:
 
 ```json
 {
@@ -150,4 +150,4 @@ error::code 为 0 表示执行成功。
 }
 ```
 
-> **注意：work_id 是按照单元的初始化注册顺序增加的，并不是固定的索引值。**  
+> **Note: work_id increases according to the order of unit initialization, not a fixed index value.**  
