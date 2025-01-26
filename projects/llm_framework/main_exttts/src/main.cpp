@@ -17,6 +17,15 @@
 #include "../../../../SDK/components/utilities/include/sample_log.h"
 #include "subprocess.h"
 
+constexpr const char *CMDLINE_OPENJTALK = 
+    R"(echo "%s")"
+    "| /usr/bin/open_jtalk -m %s -x /var/lib/mecab/dic/open-jtalk/naist-jdic -ow /dev/stdout "
+    "| /usr/bin/sox - -c 2 -t wav - "
+    "| /opt/usr/bin/tinyplay -D0 -d1 -";
+
+constexpr const char *OPENJTALK_VOICE1="/usr/share/hts-voice/nitech-jp-atr503-m001/nitech_jp_atr503_m001.htsvoice";
+constexpr const char *OPENJTALK_VOICE2="/usr/share/hts-voice/tohoku-f01-neutral.htsvoice";
+
 using namespace StackFlows;
 
 int main_exit_flage = 0;
@@ -31,21 +40,11 @@ static std::string base_model_path_;
 static std::string base_model_config_path_;
 
 typedef struct {
-    std::string cmdline;
+    std::string cmdtype;
+    std::string cmdparam;
     std::string sentence;
     float spacker_speed = 1.0;
-    int mode_rate       = 44100;
-    int audio_rate      = 16000;
-    int spacker_role    = 0;
-    float noise_scale   = 0.3f;
-    float length_scale  = 1.0;
-    float noise_scale_w = 0.6f;
-    float sdp_ratio     = 0.2f;
 
-    float get_length_scale()
-    {
-        return (float)(length_scale / spacker_speed);
-    }
 } exttts_config;
 
 typedef std::function<void(const std::string &data, bool finish)> task_callback_t;
@@ -61,24 +60,24 @@ private:
 public:
     exttts_config mode_config_;
     std::string model_;
-    std::string cmdline_;
+    std::string cmdtype_;
+    std::string cmdparam_;
     std::string response_format_;
     std::vector<std::string> inputs_;
     bool enoutput_;
     bool enstream_;
     std::atomic_bool superior_flage_;
     std::string superior_id_;
-    bool enaudio_;
     std::string tts_string_stream_buff;
 
     bool parse_config(const nlohmann::json &config_body)
     {
         try {
             model_           = config_body.at("model");
-            cmdline_ = config_body.at("cmdline");
+            cmdtype_ = config_body.at("cmdtype");
             response_format_ = config_body.at("response_format");
             enoutput_        = config_body.at("enoutput");
-            if (config_body.contains("enaudio")) enaudio_ = config_body.at("enaudio");
+            if (config_body.contains("cmdparam")) cmdparam_ = config_body.at("cmdparam");
             if (config_body.contains("input")) {
                 if (config_body["input"].is_string()) {
                     inputs_.push_back(config_body["input"].get<std::string>());
@@ -128,12 +127,19 @@ public:
 
     bool TTS(const std::string &msg_str)
     {
+        int ret=1;
         SLOGI("TTS:%s", msg_str.c_str());
         char execcmdline[1024];
-        snprintf(execcmdline, sizeof(execcmdline), cmdline_.c_str(), msg_str.c_str());
-        SLOGI("cmdline: %s",execcmdline);
-        system(execcmdline);
-        return false;
+        if(cmdtype_ == "open_jtalk") {
+            const char *voice = OPENJTALK_VOICE1;
+            if(cmdparam_ == "voice2") {
+                voice = OPENJTALK_VOICE2;
+            }
+            snprintf(execcmdline, sizeof(execcmdline), CMDLINE_OPENJTALK, msg_str.c_str(),voice);
+            SLOGI("cmdline: %s",execcmdline);
+            ret = system(execcmdline);
+        }
+        return(ret!=0);
     }
 
     std::vector<std::string> split(const std::string &s, char delim)
@@ -150,7 +156,6 @@ public:
 
     llm_task(const std::string &workid)
     {
-        enaudio_ = true;
     }
 
     ~llm_task()
@@ -473,7 +478,7 @@ public:
             }
             auto llm_task_obj           = llm_task_[work_id_num];
             req_body["model"]           = llm_task_obj->model_;
-            req_body["cmdline"]          = llm_task_obj->cmdline_;
+            req_body["cmdtype"]         = llm_task_obj->cmdtype_;
             req_body["inputs"]          = llm_task_obj->inputs_;
             req_body["response_format"] = llm_task_obj->response_format_;
             req_body["enoutput"]        = llm_task_obj->enoutput_;
