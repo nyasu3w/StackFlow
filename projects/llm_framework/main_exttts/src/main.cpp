@@ -1,5 +1,10 @@
 /*
- */
+*
+* This file was modified from main_melotts/src/main.cpp
+*
+* To use this, you might need to install additional packages (package manager's matter).
+*    apt install open-jtalk open-jtalk-mecab-naist-jdic hts-voice-nitech-jp-atr503-m001 sox
+*/
 #include "StackFlow.h"
 
 #include <signal.h>
@@ -21,6 +26,7 @@ constexpr const char *CMDLINE_OPENJTALK =
     "| /opt/usr/bin/tinyplay -D0 -d1 -";
 
 constexpr const char *OPENJTALK_VOICE1="/usr/share/hts-voice/nitech-jp-atr503-m001/nitech_jp_atr503_m001.htsvoice";
+// voice2 can be download from https://github.com/icn-lab/htsvoice-tohoku-f01
 constexpr const char *OPENJTALK_VOICE2="/usr/share/hts-voice/tohoku-f01-neutral.htsvoice";
 
 using namespace StackFlows;
@@ -110,16 +116,11 @@ public:
         nlohmann::json file_body;
         std::list<std::string> config_file_paths =
             get_config_file_paths(base_model_path_, base_model_config_path_, model_);
-        // Compatible operation
-//        if (model_ == "exttts_zh-cn")
-//            config_file_paths = get_config_file_paths(base_model_path_, base_model_config_path_, "exttts-zh-cn");
-
         return 0;
     }
 
     void set_output(task_callback_t out_callback)
     {
-//        out_callback_ = out_callback;
     }
 
     bool TTS(const std::string &msg_str)
@@ -129,7 +130,7 @@ public:
         char execcmdline[1024];
         if(cmdtype_ == "open_jtalk") {
             const char *voice = OPENJTALK_VOICE1;
-            if(cmdparam_ == "voice2") {
+            if(cmdparam_ == "voice2") {  // only available when the htsvoice is installed.
                 voice = OPENJTALK_VOICE2;
             }
             snprintf(execcmdline, sizeof(execcmdline), CMDLINE_OPENJTALK, msg_str.c_str(),voice);
@@ -305,23 +306,6 @@ public:
         if (!(llm_task_obj && llm_channel)) {
             return;
         }
-/*
-        if (llm_task_obj->superior_flage_) {
-            llm_channel->stop_subscriber_work_id(llm_task_obj->superior_id_);
-            llm_task_obj->tts_string_stream_buff.clear();
-            if (llm_task_obj->response_format_.find("sys") != std::string::npos) {
-                unit_call("audio", "queue_play_stop", data);
-            }
-            std::this_thread::sleep_for(std::chrono::milliseconds(llm_task_obj->awake_delay_));
-            if (llm_task_obj->response_format_.find("sys") != std::string::npos) {
-                unit_call("audio", "play_stop", data);
-            }
-            llm_channel->subscriber_work_id(
-                llm_task_obj->superior_id_,
-                std::bind(&llm_tts::task_user_data, this, std::weak_ptr<llm_task>(llm_task_obj),
-                          std::weak_ptr<llm_channel_obj>(llm_channel), std::placeholders::_1, std::placeholders::_2));
-        }
-*/
     }
 
     int setup(const std::string &work_id, const std::string &object, const std::string &data) override
