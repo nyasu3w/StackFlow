@@ -247,13 +247,51 @@ public:
             return;
         }
         SLOGI("send:%s", data.c_str());
+
+        static std::string prev_data;
+        size_t len = data.length();
+        SLOGI("datalen:%d", len);
+        if(!finish)
+        {
+            for(int i = 0; i < len; i++)
+            {
+                uint8_t tot = (uint8_t) data.c_str()[i];
+                if(0xe0<=tot && tot<=0xef){  // 0xe0--0xef
+                    if(i+3 > len){
+                        prev_data.append(data);
+                        SLOGI(" to try next(3b)");
+                        return;
+                    } else {
+                        //SLOGI("OK[%d,%d]",i,len);
+                    }
+                } else if(0xc0<=tot && tot<=0xdf){  // 0xc0--0xdf
+                    if(i+2 > len){
+                        prev_data.append(data);
+                        SLOGI(" to try next(2b)");
+                        return;
+                    } else {
+                        //SLOGI("OK[%d,%d]",i,len);
+                    }
+                } else {
+                    //SLOGI("OK[%d,%d]",i,len);
+                }
+            }   
+        }
+        //SLOGI("normal course:%s",data.c_str());
+        //SLOGI("prev:%s",prev_data.c_str());
+        std::string outdata = (prev_data.length()>0)? 
+                                prev_data+data : data;
+        prev_data.clear();
+        if(finish)
+           SLOGI("final:%s",outdata.c_str());
+
         if (llm_channel->enstream_) {
             static int count = 0;
             nlohmann::json data_body;
             data_body["index"] = count++;
-            data_body["delta"] = data;
+            data_body["delta"] = outdata;
             if (!finish)
-                data_body["delta"] = data;
+                data_body["delta"] = outdata;
             else
                 data_body["delta"] = std::string("");
             data_body["finish"] = finish;
@@ -262,7 +300,7 @@ public:
             llm_channel->send(llm_task_obj->response_format_, data_body, LLM_NO_ERROR);
         } else if (finish) {
             SLOGI("send utf-8");
-            llm_channel->send(llm_task_obj->response_format_, data, LLM_NO_ERROR);
+            llm_channel->send(llm_task_obj->response_format_, outdata, LLM_NO_ERROR);
         }
     }
 
