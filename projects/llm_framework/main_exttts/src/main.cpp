@@ -21,7 +21,7 @@
 
 constexpr const char *CMDLINE_OPENJTALK = 
     R"(echo "%s")"
-    "| /usr/bin/open_jtalk -m %s -x /var/lib/mecab/dic/open-jtalk/naist-jdic -ow /dev/stdout "
+    "| /usr/bin/open_jtalk -m %s -x /var/lib/mecab/dic/open-jtalk/naist-jdic -ow /dev/stdout -r %f "
     "| /usr/bin/sox - -c 2 -t wav - "
     "| /opt/usr/bin/tinyplay -D0 -d1 -";
 
@@ -46,7 +46,7 @@ typedef struct {
     std::string cmdtype;
     std::string cmdparam;
     std::string sentence;
-    float spacker_speed = 1.0;
+    float speech_speed = 1.0;
 
 } exttts_config;
 
@@ -69,6 +69,7 @@ public:
     std::vector<std::string> inputs_;
     bool enoutput_;
     bool enstream_;
+    float speech_speed_;
     std::atomic_bool superior_flage_;
     std::string superior_id_;
     std::string tts_string_stream_buff;
@@ -80,7 +81,9 @@ public:
             cmdtype_ = config_body.at("cmdtype");
             response_format_ = config_body.at("response_format");
             enoutput_        = config_body.at("enoutput");
-            if (config_body.contains("cmdparam")) cmdparam_ = config_body.at("cmdparam");
+
+            if(config_body.contains("cmdparam")) cmdparam_ = config_body.at("cmdparam");
+            if(config_body.contains("speed")) speech_speed_ = config_body.at("speed");
             if (config_body.contains("input")) {
                 if (config_body["input"].is_string()) {
                     inputs_.push_back(config_body["input"].get<std::string>());
@@ -133,7 +136,7 @@ public:
             if(cmdparam_ == "voice2") {  // only available when the htsvoice is installed.
                 voice = OPENJTALK_VOICE2;
             }
-            snprintf(execcmdline, sizeof(execcmdline), CMDLINE_OPENJTALK, msg_str.c_str(),voice);
+            snprintf(execcmdline, sizeof(execcmdline), CMDLINE_OPENJTALK, msg_str.c_str(),voice,speech_speed_);
             SLOGI("cmdline: %s",execcmdline);
             ret = system(execcmdline);
         }
