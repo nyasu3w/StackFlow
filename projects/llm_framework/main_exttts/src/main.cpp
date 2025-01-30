@@ -21,7 +21,7 @@
 
 constexpr const char *CMDLINE_OPENJTALK = 
     R"(echo "%s")"
-    "| /usr/bin/open_jtalk -m %s -x /var/lib/mecab/dic/open-jtalk/naist-jdic -ow /dev/stdout -r %f "
+    "| /usr/bin/open_jtalk -m %s -x /var/lib/mecab/dic/open-jtalk/naist-jdic -ow /dev/stdout -r %f -g %f "
     "| /usr/bin/sox - -c 2 -t wav - "
     "| /opt/usr/bin/tinyplay -D0 -d1 -";
 
@@ -47,6 +47,7 @@ typedef struct {
     std::string cmdparam;
     std::string sentence;
     float speech_speed = 1.0;
+    float volume = 0.0;  // dB
 
 } exttts_config;
 
@@ -70,6 +71,7 @@ public:
     bool enoutput_;
     bool enstream_;
     float speech_speed_;
+    float volume_;
     std::atomic_bool superior_flage_;
     std::string superior_id_;
     std::string tts_string_stream_buff;
@@ -84,6 +86,7 @@ public:
 
             if(config_body.contains("cmdparam")) cmdparam_ = config_body.at("cmdparam");
             if(config_body.contains("speed")) speech_speed_ = config_body.at("speed");
+            if(config_body.contains("volume")) volume_ = config_body.at("volume");
             if (config_body.contains("input")) {
                 if (config_body["input"].is_string()) {
                     inputs_.push_back(config_body["input"].get<std::string>());
@@ -136,7 +139,7 @@ public:
             if(cmdparam_ == "voice2") {  // only available when the htsvoice is installed.
                 voice = OPENJTALK_VOICE2;
             }
-            snprintf(execcmdline, sizeof(execcmdline), CMDLINE_OPENJTALK, msg_str.c_str(),voice,speech_speed_);
+            snprintf(execcmdline, sizeof(execcmdline), CMDLINE_OPENJTALK, msg_str.c_str(),voice,speech_speed_,volume_);
             SLOGI("cmdline: %s",execcmdline);
             ret = system(execcmdline);
         }
