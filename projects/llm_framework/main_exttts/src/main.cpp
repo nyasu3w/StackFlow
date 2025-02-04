@@ -133,6 +133,7 @@ public:
     {
         int ret=1;
         SLOGI("TTS:%s", msg_str.c_str());
+
         char execcmdline[1024];
         if(cmdtype_ == "open_jtalk") {
             const char *voice = OPENJTALK_VOICE1;
@@ -140,7 +141,7 @@ public:
                 voice = OPENJTALK_VOICE2;
             }
             snprintf(execcmdline, sizeof(execcmdline), CMDLINE_OPENJTALK, msg_str.c_str(),voice,speech_speed_,volume_);
-            SLOGI("cmdline: %s",execcmdline);
+            //SLOGI("cmdline: %s",execcmdline);
             ret = system(execcmdline);
         }
         return(ret!=0);
@@ -173,10 +174,16 @@ private:
     int task_count_;
     std::unordered_map<int, std::shared_ptr<llm_task>> llm_task_;
 
+    bool stopping=false;
+
 public:
     llm_tts() : StackFlow("exttts")
     {
         task_count_ = 1;
+        rpc_ctx_->register_rpc_action("stop",
+                       std::bind(&llm_tts::stop, this, std::placeholders::_1, std::placeholders::_2));
+        rpc_ctx_->register_rpc_action("resume",
+                       std::bind(&llm_tts::resume, this, std::placeholders::_1, std::placeholders::_2));
     }
 
     void task_output(const std::weak_ptr<llm_task> llm_task_obj_weak,
@@ -278,7 +285,12 @@ public:
             if (cutf8 == "，" || cutf8 == "、" || cutf8 == "," || cutf8 == "。" || cutf8 == "." || cutf8 == "!" ||
                 cutf8 == "！" || cutf8 == "?" || cutf8 == "？" || cutf8 == ";" || cutf8 == "；") {
                 faster_stream_buff += cutf8;
-                ret = llm_task_obj->TTS(faster_stream_buff);
+                if(!stopping) 
+                {
+                    ret = llm_task_obj->TTS(faster_stream_buff);
+                } else {
+                    SLOGI("stopping");
+                }
                 faster_stream_buff.clear();
                 if (ret) {
                     error_body["code"]    = -11;
@@ -292,7 +304,12 @@ public:
         if (finish_flage) {
             if (!faster_stream_buff.empty()) {
                 faster_stream_buff.push_back('.');
-                ret = llm_task_obj->TTS(faster_stream_buff);
+                if(!stopping)
+                {
+                    ret = llm_task_obj->TTS(faster_stream_buff);
+                } else {
+                    SLOGI("stopping");
+                }
                 faster_stream_buff.clear();
                 if (ret) {
                     error_body["code"]    = -11;
@@ -492,6 +509,25 @@ public:
         send("None", "None", LLM_NO_ERROR, work_id);
         return 0;
     }
+
+    std::string  stop(pzmq *_pzmq, const std::string &rawdata)
+    {
+        SLOGI("llm_tts::stop");
+
+        stopping=true;
+
+        return LLM_NONE;
+    }
+    std::string resume(pzmq *_pzmq, const std::string &rawdata)
+    {
+        SLOGI("llm_tts::resume");
+
+        stopping=false;
+        return LLM_NONE;
+
+    }
+
+
 
     ~llm_tts()
     {
