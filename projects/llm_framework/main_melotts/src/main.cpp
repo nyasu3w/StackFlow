@@ -415,10 +415,10 @@ public:
         int ret;
         std::string tmp_msg1;
         if (enstream) {
-            std::string finish = sample_json_str_get((*next_data), "finish");
-            tmp_msg1           = sample_json_str_get((*next_data), "delta");
-            finish_flage       = (finish == "true") ? true : false;
-            next_data          = &tmp_msg1;
+            std::string finish_str = sample_json_str_get((*next_data), "finish");
+            finish_flage           = (finish_str.find("true") != std::string::npos);
+            tmp_msg1               = sample_json_str_get((*next_data), "delta");
+            next_data              = &tmp_msg1;
         }
         std::string tmp_msg2;
         if (enbase64) {
