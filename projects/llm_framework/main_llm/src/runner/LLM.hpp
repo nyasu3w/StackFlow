@@ -580,7 +580,7 @@ public:
                 if (_attr.runing_callback)
                 {
                     cached_token.push_back(max_index);
-                    if (cached_token.size() >= 3)
+                    if (cached_token.size() >= 5)
                     {
                         float t_cost_ms = t_cost.cost();
                         float token_per_sec = token_ids.size() / (t_cost_ms / 1000);
