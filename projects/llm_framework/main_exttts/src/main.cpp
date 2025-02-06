@@ -21,7 +21,7 @@
 
 constexpr const char *CMDLINE_OPENJTALK = 
     R"(echo "%s")"
-    "| /usr/bin/open_jtalk -m %s -x /var/lib/mecab/dic/open-jtalk/naist-jdic -ow /dev/stdout "
+    "| /usr/bin/open_jtalk -m %s -x /var/lib/mecab/dic/open-jtalk/naist-jdic -ow /dev/stdout -r %f -g %f "
     "| /usr/bin/sox - -c 2 -t wav - "
     "| /opt/usr/bin/tinyplay -D0 -d1 -";
 
@@ -46,7 +46,8 @@ typedef struct {
     std::string cmdtype;
     std::string cmdparam;
     std::string sentence;
-    float spacker_speed = 1.0;
+    float speech_speed = 1.0;
+    float volume = 0.0;  // dB
 
 } exttts_config;
 
@@ -69,6 +70,8 @@ public:
     std::vector<std::string> inputs_;
     bool enoutput_;
     bool enstream_;
+    float speech_speed_;
+    float volume_;
     std::atomic_bool superior_flage_;
     std::string superior_id_;
     std::string tts_string_stream_buff;
@@ -80,7 +83,10 @@ public:
             cmdtype_ = config_body.at("cmdtype");
             response_format_ = config_body.at("response_format");
             enoutput_        = config_body.at("enoutput");
-            if (config_body.contains("cmdparam")) cmdparam_ = config_body.at("cmdparam");
+
+            if(config_body.contains("cmdparam")) cmdparam_ = config_body.at("cmdparam");
+            if(config_body.contains("speed")) speech_speed_ = config_body.at("speed");
+            if(config_body.contains("volume")) volume_ = config_body.at("volume");
             if (config_body.contains("input")) {
                 if (config_body["input"].is_string()) {
                     inputs_.push_back(config_body["input"].get<std::string>());
@@ -127,14 +133,15 @@ public:
     {
         int ret=1;
         SLOGI("TTS:%s", msg_str.c_str());
+
         char execcmdline[1024];
         if(cmdtype_ == "open_jtalk") {
             const char *voice = OPENJTALK_VOICE1;
             if(cmdparam_ == "voice2") {  // only available when the htsvoice is installed.
                 voice = OPENJTALK_VOICE2;
             }
-            snprintf(execcmdline, sizeof(execcmdline), CMDLINE_OPENJTALK, msg_str.c_str(),voice);
-            SLOGI("cmdline: %s",execcmdline);
+            snprintf(execcmdline, sizeof(execcmdline), CMDLINE_OPENJTALK, msg_str.c_str(),voice,speech_speed_,volume_);
+            //SLOGI("cmdline: %s",execcmdline);
             ret = system(execcmdline);
         }
         return(ret!=0);
@@ -167,10 +174,16 @@ private:
     int task_count_;
     std::unordered_map<int, std::shared_ptr<llm_task>> llm_task_;
 
+    bool stopping=false;
+
 public:
     llm_tts() : StackFlow("exttts")
     {
         task_count_ = 1;
+        rpc_ctx_->register_rpc_action("stop",
+                       std::bind(&llm_tts::stop, this, std::placeholders::_1, std::placeholders::_2));
+        rpc_ctx_->register_rpc_action("resume",
+                       std::bind(&llm_tts::resume, this, std::placeholders::_1, std::placeholders::_2));
     }
 
     void task_output(const std::weak_ptr<llm_task> llm_task_obj_weak,
@@ -272,7 +285,12 @@ public:
             if (cutf8 == "，" || cutf8 == "、" || cutf8 == "," || cutf8 == "。" || cutf8 == "." || cutf8 == "!" ||
                 cutf8 == "！" || cutf8 == "?" || cutf8 == "？" || cutf8 == ";" || cutf8 == "；") {
                 faster_stream_buff += cutf8;
-                ret = llm_task_obj->TTS(faster_stream_buff);
+                if(!stopping) 
+                {
+                    ret = llm_task_obj->TTS(faster_stream_buff);
+                } else {
+                    SLOGI("stopping");
+                }
                 faster_stream_buff.clear();
                 if (ret) {
                     error_body["code"]    = -11;
@@ -286,7 +304,12 @@ public:
         if (finish_flage) {
             if (!faster_stream_buff.empty()) {
                 faster_stream_buff.push_back('.');
-                ret = llm_task_obj->TTS(faster_stream_buff);
+                if(!stopping)
+                {
+                    ret = llm_task_obj->TTS(faster_stream_buff);
+                } else {
+                    SLOGI("stopping");
+                }
                 faster_stream_buff.clear();
                 if (ret) {
                     error_body["code"]    = -11;
@@ -486,6 +509,25 @@ public:
         send("None", "None", LLM_NO_ERROR, work_id);
         return 0;
     }
+
+    std::string  stop(pzmq *_pzmq, const std::string &rawdata)
+    {
+        SLOGI("llm_tts::stop");
+
+        stopping=true;
+
+        return LLM_NONE;
+    }
+    std::string resume(pzmq *_pzmq, const std::string &rawdata)
+    {
+        SLOGI("llm_tts::resume");
+
+        stopping=false;
+        return LLM_NONE;
+
+    }
+
+
 
     ~llm_tts()
     {
