@@ -238,6 +238,13 @@ public:
         }
     }
 
+    void trigger()
+    {
+        if (out_callback_) {
+            out_callback_("True");
+        }
+    }
+
     bool delete_model()
     {
         spotter_.reset();
@@ -269,6 +276,9 @@ public:
     llm_kws() : StackFlow("kws")
     {
         task_count_ = 1;
+        rpc_ctx_->register_rpc_action("trigger",
+                       std::bind(&llm_kws::trigger, this, std::placeholders::_1, std::placeholders::_2));
+
     }
 
     void play_awake_wav(const std::string &wav_file)
@@ -512,6 +522,42 @@ public:
         send("None", "None", LLM_NO_ERROR, work_id);
         return 0;
     }
+
+    std::string  trigger(pzmq *_pzmq, const std::string &rawdata)
+    {
+//        SLOGI("llm_kws::trigger: %s"    , rawdata.c_str());
+   //ipc:///tmp/llm/5556.sock{"request_id":"kws_command","work_id":"kws.1001","action":"trigger"}
+        int pos = rawdata.find("{");
+        SLOGI("llm_kws::trigger: data:pos:%d", pos);
+        SLOGI("llm_kws::trigger:json:%s", rawdata.substr(pos).c_str());
+
+        nlohmann::json error_body;
+        nlohmann::json data;
+        try {
+            data = nlohmann::json::parse(rawdata.substr(pos));
+        } catch (...) {
+            SLOGE("setup json format error.");
+            error_body["code"]    = -2;
+            error_body["message"] = "json format error.";
+            send("None", "None", error_body, "kws");
+            return LLM_NONE;
+        }
+        auto work_id = data["work_id"].get<std::string>();
+
+        int work_id_num = sample_get_work_id_num(work_id);
+        if (llm_task_.find(work_id_num) == llm_task_.end()) {
+            error_body["code"]    = -6;
+            error_body["message"] = "Unit Does Not Exist";
+            send("None", "None", error_body, work_id);
+            return LLM_NONE;
+        }
+
+        llm_task_[work_id_num]->trigger();
+
+        send("None", "None", LLM_NO_ERROR, work_id);
+        return LLM_NONE;
+    }
+
 
     ~llm_kws()
     {
