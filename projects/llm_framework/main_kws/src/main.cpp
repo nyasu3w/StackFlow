@@ -554,7 +554,7 @@ public:
 
         llm_task_[work_id_num]->trigger();
 
-        send("None", "None", LLM_NO_ERROR, work_id);
+//        send("None", "None", LLM_NO_ERROR, work_id);
         return LLM_NONE;
     }
 
