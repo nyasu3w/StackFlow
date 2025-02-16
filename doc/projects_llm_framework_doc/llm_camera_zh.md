@@ -1,6 +1,6 @@
-# llm-yolo
+# llm-camera
 
-yolo 视觉检测单元，用于提供图片检测服务。可选择多种 yolo 模型。
+视频源单元，用于从 USB V4L2 视频设备中获取视频流到内部通道。
 
 ## setup
 
@@ -11,32 +11,34 @@ yolo 视觉检测单元，用于提供图片检测服务。可选择多种 yolo 
 ```json
 {
   "request_id": "2",
-  "work_id": "yolo",
+  "work_id": "camera",
   "action": "setup",
-  "object": "yolo.setup",
+  "object": "camera.setup",
   "data": {
-    "model": "yolo11n",
-    "response_format": "yolo.box",
-    "input": "yolo.jpg.base64",
-    "enoutput": true
+    "response_format": "camera.raw",
+    "input": "/dev/video0",
+    "enoutput": false,
+    "frame_width": 320,
+    "frame_height": 320
   }
 }
 ```
 
 - request_id：参考基本数据解释。
-- work_id：配置单元时，为 `yolo`。
+- work_id：配置单元时，为 `camera`。
 - action：调用的方法为 `setup`。
-- object：传输的数据类型为 `yolo.setup`。
-- model：使用的模型为 `yolo11n` 模型。
-- response_format：返回结果为 `yolo.box`。
-- input：输入的为 `yolo.jpg.base64`,代表的是从用户输入，数据类型为 jpg, base64编码。
-- enoutput：是否起用用户结果输出。
+- object：传输的数据类型为 `camera.setup`。
+- response_format：返回结果为 `camera.raw`，是 yuv422 格式。
+- input：读取的设备名。
+- frame_width：输出的视频帧宽。
+- frame_height：输出的视频帧高。
+- enoutput：是否起用用户结果输出。如果不需要获取摄像头图片，请不要开启该参数，视频流会增加信道的通信压力。
 
 响应 json：
 
 ```json
 {
-  "created": 1737596640,
+  "created": 1731488402,
   "data": "None",
   "error": {
     "code": 0,
@@ -44,7 +46,7 @@ yolo 视觉检测单元，用于提供图片检测服务。可选择多种 yolo 
   },
   "object": "None",
   "request_id": "2",
-  "work_id": "yolo.1001"
+  "work_id": "camera.1003"
 }
 ```
 
@@ -60,7 +62,7 @@ yolo 视觉检测单元，用于提供图片检测服务。可选择多种 yolo 
 ```json
 {
   "request_id": "7",
-  "work_id": "yolo.1001",
+  "work_id": "camera.1003",
   "action": "exit"
 }
 ```
@@ -69,7 +71,7 @@ yolo 视觉检测单元，用于提供图片检测服务。可选择多种 yolo 
 
 ```json
 {
-  "created": 1737596871,
+  "created": 1731488402,
   "data": "None",
   "error": {
     "code": 0,
@@ -77,7 +79,7 @@ yolo 视觉检测单元，用于提供图片检测服务。可选择多种 yolo 
   },
   "object": "None",
   "request_id": "7",
-  "work_id": "yolo.1001"
+  "work_id": "camera.1003"
 }
 ```
 
@@ -92,7 +94,7 @@ error::code 为 0 表示执行成功。
 ```json
 {
   "request_id": "2",
-  "work_id": "yolo",
+  "work_id": "camera",
   "action": "taskinfo"
 }
 ```
@@ -101,17 +103,17 @@ error::code 为 0 表示执行成功。
 
 ```json
 {
-  "created": 1737596668,
+  "created": 1731652311,
   "data": [
-    "yolo.1001"
+    "camera.1003"
   ],
   "error": {
     "code": 0,
     "message": ""
   },
-  "object": "yolo.tasklist",
+  "object": "camera.tasklist",
   "request_id": "2",
-  "work_id": "yolo"
+  "work_id": "camera"
 }
 ```
 
@@ -122,7 +124,7 @@ error::code 为 0 表示执行成功。
 ```json
 {
   "request_id": "2",
-  "work_id": "yolo.1003",
+  "work_id": "camera.1003",
   "action": "taskinfo"
 }
 ```
@@ -131,22 +133,21 @@ error::code 为 0 表示执行成功。
 
 ```json
 {
-  "created": 1737596698,
+  "created": 1731652344,
   "data": {
-    "enoutput": true,
-    "inputs": [
-      "yolo.jpg.base64"
-    ],
-    "model": "yolo11n",
-    "response_format": "yolo.box"
+    "enoutput": false,
+    "response_format": "camera.raw",
+    "input": "/dev/video0",
+    "frame_width": 320,
+    "frame_height": 320
   },
   "error": {
     "code": 0,
     "message": ""
   },
-  "object": "yolo.taskinfo",
+  "object": "camera.taskinfo",
   "request_id": "2",
-  "work_id": "yolo.1001"
+  "work_id": "camera.1003"
 }
 ```
 

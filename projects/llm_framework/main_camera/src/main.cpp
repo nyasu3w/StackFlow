@@ -213,13 +213,14 @@ public:
             std::string base64_data;
             int ret = StackFlows::encode_base64(out_data, base64_data);
             std::string out_json_str;
+            out_json_str.reserve(llm_channel->request_id_.size() + llm_channel->work_id_.size() + base64_data.size() + 108);
             out_json_str += R"({"request_id":")";
             out_json_str += llm_channel->request_id_;
             out_json_str += R"(","work_id":")";
             out_json_str += llm_channel->work_id_;
             out_json_str += R"(","object":"image.yuvraw.base64","error":{"code":0, "message":""},"data":")";
             out_json_str += base64_data;
-            out_json_str += R"("}\n)";
+            out_json_str += "\"}\n";
             llm_channel->send_raw_to_usr(out_json_str);
         }
     }

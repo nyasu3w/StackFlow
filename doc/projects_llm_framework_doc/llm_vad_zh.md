@@ -1,6 +1,6 @@
-# llm-kws
+# llm-vad
 
-语音唤醒单元，用于提供语音唤醒服务，可选择中英文模型，用于提供中英文唤醒服务。
+语音活动检测单元，用于提供识别音频信号中是否存在语音成分服务。
 
 ## setup
 
@@ -11,34 +11,32 @@
 ```json
 {
   "request_id": "2",
-  "work_id": "kws",
+  "work_id": "vad",
   "action": "setup",
-  "object": "kws.setup",
+  "object": "vad.setup",
   "data": {
-    "model": "sherpa-onnx-kws-zipformer-wenetspeech-3.3M-2024-01-01",
-    "response_format": "kws.bool",
+    "model": "silero-vad",
+    "response_format": "vad.bool",
     "input": "sys.pcm",
-    "enoutput": true,
-    "kws": "你好你好"
+    "enoutput": true
   }
 }
 ```
 
 - request_id：参考基本数据解释。
-- work_id：配置单元时，为 `kws`。
+- work_id：配置单元时，为 `vad`。
 - action：调用的方法为 `setup`。
-- object：传输的数据类型为 `kws.setup`。
-- model：使用的模型为 `sherpa-onnx-kws-zipformer-wenetspeech-3.3M-2024-01-01` 中文模型。
-- response_format：返回结果为 `kws.bool` 型。
+- object：传输的数据类型为 `vad.setup`。
+- model：使用的模型为 `silero-vad` 中文模型。
+- response_format：返回结果为 `vad.bool` 型。
 - input：输入的为 `sys.pcm`,代表的是系统音频。
 - enoutput：是否起用用户结果输出。
-- kws：中文唤醒词为 `"你好你好"`。
 
 响应 json：
 
 ```json
 {
-  "created": 1731488402,
+  "created": 1737595236,
   "data": "None",
   "error": {
     "code": 0,
@@ -46,7 +44,7 @@
   },
   "object": "None",
   "request_id": "2",
-  "work_id": "kws.1000"
+  "work_id": "vad.1000"
 }
 ```
 
@@ -62,7 +60,7 @@
 ```json
 {
   "request_id": "3",
-  "work_id": "kws.1000",
+  "work_id": "vad.1000",
   "action": "pause"
 }
 ```
@@ -71,7 +69,7 @@
 
 ```json
 {
-  "created": 1731488402,
+  "created": 1737595314,
   "data": "None",
   "error": {
     "code": 0,
@@ -79,7 +77,7 @@
   },
   "object": "None",
   "request_id": "3",
-  "work_id": "kws.1000"
+  "work_id": "vad.1000"
 }
 ```
 
@@ -94,7 +92,7 @@ error::code 为 0 表示执行成功。
 ```json
 {
   "request_id": "4",
-  "work_id": "kws.1000",
+  "work_id": "vad.1000",
   "action": "work"
 }
 ```
@@ -103,7 +101,7 @@ error::code 为 0 表示执行成功。
 
 ```json
 {
-  "created": 1731488402,
+  "created": 1737595419,
   "data": "None",
   "error": {
     "code": 0,
@@ -111,7 +109,7 @@ error::code 为 0 表示执行成功。
   },
   "object": "None",
   "request_id": "4",
-  "work_id": "kws.1000"
+  "work_id": "vad.1000"
 }
 ```
 
@@ -126,7 +124,7 @@ error::code 为 0 表示执行成功。
 ```json
 {
   "request_id": "5",
-  "work_id": "kws.1000",
+  "work_id": "vad.1000",
   "action": "exit"
 }
 ```
@@ -135,7 +133,7 @@ error::code 为 0 表示执行成功。
 
 ```json
 {
-  "created": 1731488402,
+  "created": 1737595478,
   "data": "None",
   "error": {
     "code": 0,
@@ -143,7 +141,7 @@ error::code 为 0 表示执行成功。
   },
   "object": "None",
   "request_id": "5",
-  "work_id": "kws.1000"
+  "work_id": "vad.1000"
 }
 ```
 
@@ -158,7 +156,7 @@ error::code 为 0 表示执行成功。
 ```json
 {
   "request_id": "2",
-  "work_id": "kws",
+  "work_id": "vad",
   "action": "taskinfo"
 }
 ```
@@ -167,17 +165,17 @@ error::code 为 0 表示执行成功。
 
 ```json
 {
-  "created": 1731580350,
+  "created": 1737595606,
   "data": [
-    "kws.1000"
+    "vad.1000"
   ],
   "error": {
     "code": 0,
     "message": ""
   },
-  "object": "kws.tasklist",
+  "object": "vad.tasklist",
   "request_id": "2",
-  "work_id": "kws"
+  "work_id": "vad"
 }
 ```
 
@@ -186,7 +184,7 @@ error::code 为 0 表示执行成功。
 ```json
 {
   "request_id": "2",
-  "work_id": "kws.1000",
+  "work_id": "vad.1000",
   "action": "taskinfo"
 }
 ```
@@ -195,22 +193,22 @@ error::code 为 0 表示执行成功。
 
 ```json
 {
-  "created": 1731652086,
+  "created": 1737596100,
   "data": {
     "enoutput": true,
-    "inputs_": [
+    "inputs": [
       "sys.pcm"
     ],
-    "model": "sherpa-onnx-kws-zipformer-wenetspeech-3.3M-2024-01-01",
-    "response_format": "kws.bool"
+    "model": "silero-vad",
+    "response_format": "vad.bool"
   },
   "error": {
     "code": 0,
     "message": ""
   },
-  "object": "kws.taskinfo",
+  "object": "vad.taskinfo",
   "request_id": "2",
-  "work_id": "kws.1000"
+  "work_id": "vad.1000"
 }
 ```
 
