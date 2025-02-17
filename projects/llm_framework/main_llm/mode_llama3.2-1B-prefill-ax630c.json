@@ -28,6 +28,7 @@
         "tokens_embed_num":128256,
         "tokens_embed_size":2048,
         "b_use_mmap_load_embed":true,
-        "b_dynamic_load_axmodel_layer":false
+        "b_dynamic_load_axmodel_layer":false,
+        "ext_scripts":["tokenizer_llama3.2-1B-prefill-ax630c.py"]
     }
 }

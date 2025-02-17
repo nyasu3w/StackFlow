@@ -5,6 +5,8 @@
  */
 #include "StackFlowUtil.h"
 #include <vector>
+#include <glob.h>
+#include <fstream>
 #include "pzmq.hpp"
 
 std::string StackFlows::sample_json_str_get(const std::string &json_str, const std::string &json_key)
@@ -298,4 +300,33 @@ std::list<std::string> StackFlows::get_config_file_paths(std::string &base_model
     config_file_paths.push_back(base_model_path + std::string("../share/") + std::string("./mode_") + mode_name +
                                 ".json");
     return config_file_paths;
+}
+
+std::vector<std::string> StackFlows::glob_files(const std::vector<std::string> &patterns)
+{
+    std::vector<std::string> files;
+    glob_t glob_result;
+    memset(&glob_result, 0, sizeof(glob_result));
+    for (const auto &pattern : patterns) {
+        int ret = glob(pattern.c_str(), GLOB_TILDE | GLOB_BRACE, nullptr, &glob_result);
+        if (ret != 0) {
+            // if (ret == GLOB_NOMATCH) {
+            //     std::cerr << "No files matched for pattern: " << pattern << std::endl;
+            // } else {
+            //     std::cerr << "glob() failed with error code: " << ret << std::endl;
+            // }
+            continue;
+        }
+        for (size_t i = 0; i < glob_result.gl_pathc; ++i) {
+            files.push_back(glob_result.gl_pathv[i]);
+        }
+    }
+    globfree(&glob_result);
+    return files;
+}
+
+bool StackFlows::file_exists(const std::string &filePath)
+{
+    std::ifstream file(filePath);
+    return file.good();
 }

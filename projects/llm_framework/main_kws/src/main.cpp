@@ -175,7 +175,13 @@ public:
             temp_awake_key << kws_;
             temp_awake_key.close();
             std::ostringstream awake_key_compile_cmd;
-            awake_key_compile_cmd << "/usr/bin/python3 /opt/m5stack/scripts/text2token.py ";
+            if (file_exists("/opt/m5stack/scripts/text2token.py"))
+                awake_key_compile_cmd << "/usr/bin/python3 /opt/m5stack/scripts/text2token.py ";
+            else if (file_exists("/opt/m5stack/scripts/llm-kws_text2token.py"))
+                awake_key_compile_cmd << "/bin/bash /opt/m5stack/scripts/llm-kws_text2token.py ";
+            else {
+                SLOGE("text2token.py or llm-kws_text2token.py not found!");
+            }
             awake_key_compile_cmd << "--text /tmp/kws_awake.txt.tmp ";
             awake_key_compile_cmd << "--tokens " << mode_config_.model_config.tokens << " ";
             if (file_body["mode_param"].contains("text2token-tokens-type")) {
