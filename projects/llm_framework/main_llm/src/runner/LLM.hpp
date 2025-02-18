@@ -48,6 +48,8 @@ struct LLMAttrType
     int kv_cache_num = 1024; // auto calc
     int kv_cache_size = 256; // auto calc
 
+    float temperature = 0.7f;
+    float top_p = 0.9f;
     bool b_use_mmap_load_embed = false;
     bool b_dynamic_load_axmodel_layer = false;
 
@@ -86,7 +88,7 @@ private:
 
     bool b_stop = false;
 
-    static int post_process(unsigned short *p, int n, std::vector<int> &history, float *val = 0)
+    int post_process(unsigned short *p, int n, std::vector<int> &history, float *val = 0)
     {
         std::vector<float> logits(n);
         for (int i = 0; i < n; i++)
@@ -95,10 +97,10 @@ private:
             logits[i] = *reinterpret_cast<float *>(&proc);
         }
         LLMPostprocess postprocess;
-        postprocess.set_temperature(true, 0.8f);
+        postprocess.set_temperature(true, _attr.temperature);
         postprocess.set_repetition_penalty(true, 1.2f);
         // postprocess.set_top_k_sampling(true, 40);
-        postprocess.set_top_p_sampling(true, 0.9f);
+        postprocess.set_top_p_sampling(true, _attr.top_p);
 
         return postprocess.apply(logits, history);
 

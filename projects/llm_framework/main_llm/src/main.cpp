@@ -119,6 +119,8 @@ public:
             CONFIG_AUTO_SET(file_body["mode_param"], b_use_mmap_load_embed);
             CONFIG_AUTO_SET(file_body["mode_param"], b_dynamic_load_axmodel_layer);
             CONFIG_AUTO_SET(file_body["mode_param"], max_token_len);
+            CONFIG_AUTO_SET(file_body["mode_param"], temperature);
+            CONFIG_AUTO_SET(file_body["mode_param"], top_p);
 
             if (mode_config_.filename_tokenizer_model.find("http:") != std::string::npos) {
                 std::string tokenizer_file;
