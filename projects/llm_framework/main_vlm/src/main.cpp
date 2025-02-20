@@ -44,8 +44,8 @@ public:
     std::string response_format_;
     std::vector<std::string> inputs_;
     std::vector<unsigned short> prompt_data_;
-    std::vector<unsigned char> image_data_;
-    std::vector<unsigned short> img_embed;
+    std::vector<std::vector<unsigned char>> image_datas_;
+    std::vector<std::vector<unsigned short>> img_embeds;
     std::string prompt_;
     task_callback_t out_callback_;
     bool enoutput_;
@@ -215,18 +215,25 @@ public:
     void inference(const std::string &msg)
     {
         try {
-            if (image_data_.empty()) {
+            if (image_datas_.empty()) {
                 lLaMa_->Encode(prompt_data_, prompt_complete(msg));
                 std::string out = lLaMa_->Run(prompt_data_);
                 if (out_callback_) out_callback_(out, true);
             } else {
-                cv::Mat src = cv::imdecode(image_data_, cv::IMREAD_COLOR);
-                if (src.empty()) return;
-                image_data_.clear();
-                lLaMa_->Encode(src, img_embed);
-                lLaMa_->Encode(img_embed, prompt_data_, prompt_complete(msg));
-                std::string out = lLaMa_->Run(prompt_data_);
-                if (out_callback_) out_callback_(out, true);
+                img_embeds.clear();
+                for (auto &img_data : image_datas_) {
+                    cv::Mat src = cv::imdecode(img_data, cv::IMREAD_COLOR);
+                    if (src.empty()) continue;
+                    std::vector<unsigned short> embed;
+                    lLaMa_->Encode(src, embed);
+                    img_embeds.push_back(embed);
+                }
+                image_datas_.clear();
+                if (!img_embeds.empty()) {
+                    lLaMa_->Encode(img_embeds, prompt_data_, prompt_complete(msg));
+                    std::string out = lLaMa_->Run(prompt_data_);
+                    if (out_callback_) out_callback_(out, true);
+                }
             }
         } catch (...) {
             SLOGW("lLaMa_->Run have error!");
@@ -300,7 +307,7 @@ public:
     }
 
     void task_pause(const std::weak_ptr<llm_task> llm_task_obj_weak,
-                const std::weak_ptr<llm_channel_obj> llm_channel_weak)
+                    const std::weak_ptr<llm_channel_obj> llm_channel_weak)
     {
         auto llm_task_obj = llm_task_obj_weak.lock();
         auto llm_channel  = llm_channel_weak.lock();
@@ -369,7 +376,7 @@ public:
             next_data = &tmp_msg2;
         }
         if (object.find("jpeg") != std::string::npos) {
-            llm_task_obj->image_data_.assign(next_data->begin(), next_data->end());
+            llm_task_obj->image_datas_.emplace_back(next_data->begin(), next_data->end());
             return;
         }
         llm_task_obj->inference((*next_data));
