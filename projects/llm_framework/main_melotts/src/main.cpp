@@ -342,6 +342,9 @@ public:
 
     ~llm_task()
     {
+        if (decoder_) {
+            decoder_->Release();
+        }
         _ax_deinit();
     }
 };
