@@ -119,14 +119,29 @@ public:
             CONFIG_AUTO_SET(file_body["mode_param"], b_use_mmap_load_embed);
             CONFIG_AUTO_SET(file_body["mode_param"], b_dynamic_load_axmodel_layer);
             CONFIG_AUTO_SET(file_body["mode_param"], max_token_len);
+            CONFIG_AUTO_SET(file_body["mode_param"], temperature);
+            CONFIG_AUTO_SET(file_body["mode_param"], top_p);
 
             if (mode_config_.filename_tokenizer_model.find("http:") != std::string::npos) {
+                std::string tokenizer_file;
+                if (file_exists(std::string("/opt/m5stack/scripts/") + model_ + std::string("_tokenizer.py"))) {
+                    tokenizer_file = std::string("/opt/m5stack/scripts/") + model_ + std::string("_tokenizer.py");
+                } else if (file_exists(std::string("/opt/m5stack/scripts/") + std::string("tokenizer_") + model_ +
+                                       std::string(".py"))) {
+                    tokenizer_file =
+                        std::string("/opt/m5stack/scripts/") + std::string("tokenizer_") + model_ + std::string(".py");
+                } else {
+                    std::string __log = model_ + std::string("_tokenizer.py");
+                    __log += " or ";
+                    __log += std::string("tokenizer_") + model_ + std::string(".py");
+                    __log += " not found!";
+                    SLOGE("%s", __log.c_str());
+                }
                 if (!tokenizer_server_flage_) {
                     pid_t pid = fork();
                     if (pid == 0) {
-                        execl("/usr/bin/python3", "python3",
-                              ("/opt/m5stack/scripts/" + model_ + "_tokenizer.py").c_str(), "--host", "localhost",
-                              "--port", std::to_string(port_).c_str(), "--model_id", (base_model + "tokenizer").c_str(),
+                        execl("/usr/bin/python3", "python3", tokenizer_file.c_str(), "--host", "localhost", "--port",
+                              std::to_string(port_).c_str(), "--model_id", (base_model + "tokenizer").c_str(),
                               "--content", ("'" + prompt_ + "'").c_str(), nullptr);
                         perror("execl failed");
                         exit(1);
@@ -265,6 +280,33 @@ public:
             SLOGI("send utf-8");
             llm_channel->send(llm_task_obj->response_format_, data, LLM_NO_ERROR);
         }
+    }
+
+    void task_pause(const std::weak_ptr<llm_task> llm_task_obj_weak,
+                const std::weak_ptr<llm_channel_obj> llm_channel_weak)
+    {
+        auto llm_task_obj = llm_task_obj_weak.lock();
+        auto llm_channel  = llm_channel_weak.lock();
+        if (!(llm_task_obj && llm_channel)) {
+            return;
+        }
+        llm_task_obj->lLaMa_->Stop();
+    }
+
+    void pause(const std::string &work_id, const std::string &object, const std::string &data) override
+    {
+        SLOGI("llm_asr::work:%s", data.c_str());
+
+        nlohmann::json error_body;
+        int work_id_num = sample_get_work_id_num(work_id);
+        if (llm_task_.find(work_id_num) == llm_task_.end()) {
+            error_body["code"]    = -6;
+            error_body["message"] = "Unit Does Not Exist";
+            send("None", "None", error_body, work_id);
+            return;
+        }
+        task_pause(llm_task_[work_id_num], get_channel(work_id_num));
+        send("None", "None", LLM_NO_ERROR, work_id);
     }
 
     void task_user_data(const std::weak_ptr<llm_task> llm_task_obj_weak,

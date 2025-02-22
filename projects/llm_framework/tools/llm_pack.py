@@ -7,6 +7,8 @@ import requests
 import tarfile
 import shutil
 import concurrent.futures
+import json
+import glob
 '''
 {package_name}_{version}-{revision}_{architecture}.deb
 lib-llm_1.0-m5stack1_arm64.deb
@@ -27,7 +29,7 @@ def create_lib_deb(package_name, version, src_folder, revision = 'm5stack1'):
     os.makedirs(deb_folder, exist_ok = True)
 
     for item in os.listdir(src_folder):
-        if item.startswith('llm_'):
+        if item.startswith('llm_') or item.startswith('tokenizer_') or item.startswith('llm-kws_'):
             continue
         elif item.startswith('lib'):
             os.makedirs(os.path.join(deb_folder, 'opt/m5stack/lib'), exist_ok = True)
@@ -37,23 +39,23 @@ def create_lib_deb(package_name, version, src_folder, revision = 'm5stack1'):
             shutil.copy2(os.path.join(src_folder, item), os.path.join(deb_folder, 'opt/m5stack/share', item))
     # os.makedirs(os.path.join(deb_folder, 'opt/m5stack/data'), exist_ok = True)
 
-    zip_file = 'm5stack_scripts.tar.gz'
-    down_url = 'https://m5stack.oss-cn-shenzhen.aliyuncs.com/resource/linux/llm/m5stack_scripts.tar.gz'
-    zip_file_extrpath = 'm5stack_scripts'
-    if not os.path.exists(zip_file_extrpath):
-        # Downloading via HTTP (more common)
-        if not os.path.exists(zip_file):
-            response = requests.get(down_url)
-            if response.status_code == 200:
-                with open(zip_file, 'wb') as file:
-                    file.write(response.content)
-            else:
-                print("{} down failed".format(down_url))
-        with tarfile.open(zip_file, 'r:gz') as tar:
-            tar.extractall(path=zip_file_extrpath)
-        print("The {} download successful.".format(down_url))
-    if os.path.exists(zip_file_extrpath):
-        shutil.copytree(zip_file_extrpath, os.path.join(deb_folder, 'opt/m5stack/scripts'))
+    # zip_file = 'm5stack_scripts.tar.gz'
+    # down_url = 'https://m5stack.oss-cn-shenzhen.aliyuncs.com/resource/linux/llm/m5stack_scripts.tar.gz'
+    # zip_file_extrpath = 'm5stack_scripts'
+    # if not os.path.exists(zip_file_extrpath):
+    #     # Downloading via HTTP (more common)
+    #     if not os.path.exists(zip_file):
+    #         response = requests.get(down_url)
+    #         if response.status_code == 200:
+    #             with open(zip_file, 'wb') as file:
+    #                 file.write(response.content)
+    #         else:
+    #             print("{} down failed".format(down_url))
+    #     with tarfile.open(zip_file, 'r:gz') as tar:
+    #         tar.extractall(path=zip_file_extrpath)
+    #     print("The {} download successful.".format(down_url))
+    # if os.path.exists(zip_file_extrpath):
+    #     shutil.copytree(zip_file_extrpath, os.path.join(deb_folder, 'opt/m5stack/scripts'))
 
     zip_file = 'm5stack_dist-packages.tar.gz'
     down_url = 'https://m5stack.oss-cn-shenzhen.aliyuncs.com/resource/linux/llm/m5stack_dist-packages.tar.gz'
@@ -162,10 +164,21 @@ def create_data_deb(package_name, version, src_folder, revision = 'm5stack1'):
     RED = "\033[31m"
     RESET = "\033[0m"
     os.makedirs(os.path.join(deb_folder, 'opt/m5stack/data/models'), exist_ok = True)
-    if os.path.exists(os.path.join(src_folder,'mode_{}.json'.format(package_name[4:]))):
-        shutil.copy2(os.path.join(src_folder,'mode_{}.json'.format(package_name[4:])), os.path.join(deb_folder, 'opt/m5stack/data/models', 'mode_{}.json'.format(package_name[4:])))
+    mode_config_file = os.path.join(src_folder,'mode_{}.json'.format(package_name[4:]))
+    if os.path.exists(mode_config_file):
+        shutil.copy2(mode_config_file, os.path.join(deb_folder, 'opt/m5stack/data/models', 'mode_{}.json'.format(package_name[4:])))
+        try:
+            with open(mode_config_file, 'r', encoding='utf-8') as file:
+                data = json.load(file)
+            for scripts_file in data['mode_param']['ext_scripts']:
+                tokenizer_py_file = os.path.join(src_folder, scripts_file)
+                if os.path.exists(tokenizer_py_file):
+                    os.makedirs(os.path.join(deb_folder, 'opt/m5stack/scripts'), exist_ok = True)
+                    shutil.copy2(tokenizer_py_file, os.path.join(deb_folder, 'opt/m5stack/scripts', scripts_file))
+        except:
+            pass
     else:
-        print(RED, os.path.join(src_folder,'mode_{}.json'.format(package_name[4:])), " miss", RESET)
+        print(RED, mode_config_file, " miss", RESET)
 
     os.makedirs(os.path.join(deb_folder, 'DEBIAN'), exist_ok = True)
     with open(os.path.join(deb_folder, 'DEBIAN/control'),'w') as f:
@@ -202,6 +215,12 @@ def create_bin_deb(package_name, version, src_folder, revision = 'm5stack1'):
     os.makedirs(os.path.join(deb_folder, 'DEBIAN'), exist_ok = True)
     # shutil.copytree(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'deb_overlay'), deb_folder)
     shutil.copy2(os.path.join(src_folder, package_name.replace("-", "_")), os.path.join(deb_folder, 'opt/m5stack/bin', package_name.replace("-", "_")))
+    ext_scripts_files = glob.glob(os.path.join(src_folder, package_name + "_*"))
+    if ext_scripts_files:
+        os.makedirs(os.path.join(deb_folder, 'opt/m5stack/scripts'), exist_ok = True)
+        for ext_script_file in ext_scripts_files:
+            shutil.copy2(ext_script_file, os.path.join(deb_folder, 'opt/m5stack/scripts'))
+
     with open(os.path.join(deb_folder, 'DEBIAN/control'),'w') as f:
         f.write(f'Package: {package_name}\n')
         f.write(f'Version: {version}\n')

@@ -31,6 +31,7 @@ LDFLAGS += ['-l:libcargs.a', '-l:libonnxruntime.a',
             '-l:libsherpa-onnx-core.a', '-l:libkaldi-native-fbank-core.a',
             '-l:libkaldi-decoder-core.a', '-l:libssentencepiece_core.a']
 
+STATIC_FILES += Glob('llm-kws_text2token.py')
 STATIC_FILES += Glob('mode_*.json')
 
 env['COMPONENTS'].append({'target':'llm_kws',
