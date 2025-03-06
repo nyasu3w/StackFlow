@@ -119,6 +119,8 @@ public:
             CONFIG_AUTO_SET(file_body["mode_param"], b_use_mmap_load_embed);
             CONFIG_AUTO_SET(file_body["mode_param"], b_dynamic_load_axmodel_layer);
             CONFIG_AUTO_SET(file_body["mode_param"], max_token_len);
+            CONFIG_AUTO_SET(file_body["mode_param"], temperature);
+            CONFIG_AUTO_SET(file_body["mode_param"], top_p);
 
             if (mode_config_.filename_tokenizer_model.find("http:") != std::string::npos) {
                 std::string tokenizer_file;
@@ -277,6 +279,33 @@ public:
             SLOGI("send utf-8");
             llm_channel->send(llm_task_obj->response_format_, data, LLM_NO_ERROR);
         }
+    }
+
+    void task_pause(const std::weak_ptr<llm_task> llm_task_obj_weak,
+                const std::weak_ptr<llm_channel_obj> llm_channel_weak)
+    {
+        auto llm_task_obj = llm_task_obj_weak.lock();
+        auto llm_channel  = llm_channel_weak.lock();
+        if (!(llm_task_obj && llm_channel)) {
+            return;
+        }
+        llm_task_obj->lLaMa_->Stop();
+    }
+
+    void pause(const std::string &work_id, const std::string &object, const std::string &data) override
+    {
+        SLOGI("llm_asr::work:%s", data.c_str());
+
+        nlohmann::json error_body;
+        int work_id_num = sample_get_work_id_num(work_id);
+        if (llm_task_.find(work_id_num) == llm_task_.end()) {
+            error_body["code"]    = -6;
+            error_body["message"] = "Unit Does Not Exist";
+            send("None", "None", error_body, work_id);
+            return;
+        }
+        task_pause(llm_task_[work_id_num], get_channel(work_id_num));
+        send("None", "None", LLM_NO_ERROR, work_id);
     }
 
     void task_user_data(const std::weak_ptr<llm_task> llm_task_obj_weak,
