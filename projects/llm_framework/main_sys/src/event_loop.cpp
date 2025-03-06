@@ -196,6 +196,37 @@ int sys_hwinfo(int com_id, const nlohmann::json &json_obj)
     return out;
 }
 
+int _sys_unit_call(int com_id, const nlohmann::json &json_obj)
+{
+    std::string json_obj_raw = json_obj.dump();
+    std::string object       = sample_json_str_get(json_obj_raw, "object");
+    std::string data         = sample_json_str_get(json_obj_raw, "data");
+    std::string out          = unit_call(object.substr(0, object.find(".")), object.substr(object.find(".") + 1), data);
+    {
+        nlohmann::json out_body;
+        out_body["request_id"] = json_obj["request_id"];
+        out_body["work_id"]    = json_obj["work_id"];
+        out_body["created"]    = time(NULL);
+        out_body["object"]     = json_obj["object"];
+        try {
+            out_body["data"] = nlohmann::json::parse(out);
+        } catch (...) {
+            out_body["data"] = out;
+        }
+        out_body["error"] = nlohmann::json::parse("{\"code\":0, \"message\":\"\"}");
+        zmq_com_send(com_id, out_body.dump());
+    }
+    return 0;
+}
+
+int sys_unit_call(int com_id, const nlohmann::json &json_obj)
+{
+    int out = 0;
+    std::thread t(_sys_unit_call, com_id, json_obj);
+    t.detach();
+    return out;
+}
+
 int sys_lsmode(int com_id, const nlohmann::json &json_obj)
 {
     int out;
@@ -643,6 +674,7 @@ void server_work()
     key_sql["sys.reboot"]    = sys_reboot;
     key_sql["sys.version"]   = sys_version;
     key_sql["sys.rmmode"]    = sys_rmmode;
+    key_sql["sys.unit_call"] = sys_unit_call;
 }
 
 void server_stop_work()

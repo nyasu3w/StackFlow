@@ -5,7 +5,7 @@ with open(env['PROJECT_TOOL_S']) as f:
     exec(f.read())
 
 if 'CONFIG_AX_620E_MSP_ENABLED' in os.environ:
-    MSP_PATH = check_wget_down("https://m5stack.oss-cn-shenzhen.aliyuncs.com/resource/linux/llm/m5stack_msp.tar.gz", 'm5stack_msp.tar.gz')
+    MSP_PATH = os.environ.get('EXT_MSP_PATH', check_wget_down("https://m5stack.oss-cn-shenzhen.aliyuncs.com/resource/linux/llm/m5stack_msp.tar.gz", 'm5stack_msp.tar.gz'))
     SRCS=[]
     INCLUDE=[]
     PRIVATE_INCLUDE=[]
