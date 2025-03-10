@@ -1,0 +1,36 @@
+digraph G {
+    SYS -> KWS [color="purple"];
+    SYS -> ASR [color="purple"];
+    SYS -> LLM [color="purple"];
+    SYS -> TTS [color="purple"];
+    SYS -> AUDIO [color="purple"];
+    SYS -> CAMERA [color="purple"];
+    SYS -> VAD [color="purple"];
+    SYS -> VLM [color="purple"];
+    SYS -> YOLO [color="purple"];
+    SYS -> DEPTH [color="purple"];
+    KWS -> SYS [color="green"];
+    ASR -> SYS [color="green"];
+    LLM -> SYS [color="green"];
+    TTS -> SYS [color="green"];
+    AUDIO -> SYS [color="green"];
+    CAMERA -> SYS [color="green"];
+    VAD -> SYS  [color="green"];
+    VLM -> SYS  [color="green"];
+    YOLO -> SYS  [color="green"];
+    DEPTH -> SYS  [color="green"];
+    AUDIO -> KWS  [color="blue"];
+    AUDIO -> ASR  [color="blue"];
+    AUDIO -> VAD  [color="blue"];
+    CAMERA -> YOLO [color="blue"];
+    CAMERA -> DEPTH [color="blue"];
+    CAMERA -> VLM [color="blue"];
+    ASR -> VLM  [color="blue"];
+    VLM -> TTS [color="blue"];
+    KWS -> ASR [color="blue"];
+    KWS -> LLM [color="blue"];
+    KWS -> AUDIO [color="blue"];
+    ASR -> LLM [color="blue"];
+    LLM -> TTS [color="blue"];
+    TTS -> AUDIO [color="blue"];
+}

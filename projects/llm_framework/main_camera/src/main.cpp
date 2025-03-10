@@ -13,6 +13,7 @@
 #include <iostream>
 #include "../../../../SDK/components/utilities/include/sample_log.h"
 #include "camera.h"
+#include "axera_camera.h"
 #include <glob.h>
 #include <opencv2/opencv.hpp>
 
@@ -25,6 +26,10 @@ static void __sigint(int iSigNo)
 
 typedef std::function<void(const void *, int)> task_callback_t;
 
+typedef camera_t* (*hal_camera_open_fun)(const char* pdev_name, int width, int height, int fps);
+typedef int (*hal_camera_close_fun)(camera_t* camera);
+
+
 #define CONFIG_AUTO_SET(obj, key)             \
     if (config_body.contains(#key))           \
         mode_config_.key = config_body[#key]; \
@@ -34,7 +39,8 @@ typedef std::function<void(const void *, int)> task_callback_t;
 class llm_task {
 private:
     camera_t *cam;
-
+    hal_camera_open_fun hal_camera_open;
+    hal_camera_close_fun hal_camera_close;
 public:
     std::string response_format_;
     task_callback_t out_callback_;
@@ -49,7 +55,7 @@ public:
     int frame_height_;
     cv::Mat yuv_dist_;
 
-    static void on_cap_fream(uint8_t *pData, uint32_t width, uint32_t height, uint32_t Length, void *ctx)
+    static void on_cap_fream(void *pData, uint32_t width, uint32_t height, uint32_t Length, void *ctx)
     {
         llm_task *self = static_cast<llm_task *>(ctx);
         int src_offsetX;
@@ -127,6 +133,13 @@ public:
         }
         enstream_ = (response_format_.find("stream") != std::string::npos);
         yuv_dist_ = cv::Mat(frame_height_, frame_width_, CV_8UC2);
+        if(devname_.find("/dev/video") != std::string::npos){
+            hal_camera_open = camera_open;
+            hal_camera_close = camera_close;
+        }else if(devname_.find("axera_") != std::string::npos){
+            hal_camera_open = axera_camera_open;
+            hal_camera_close = axera_camera_close;
+        }
         return false;
     }
 
@@ -136,7 +149,7 @@ public:
             return -1;
         }
         try {
-            cam = camera_open(devname_.c_str(), frame_width_, frame_height_, 30);
+            cam = hal_camera_open(devname_.c_str(), frame_width_, frame_height_, 30);
             if (cam == NULL) {
                 printf("Camera open failed \n");
                 return -1;
@@ -166,7 +179,7 @@ public:
     {
         if (cam) {
             cam->camera_capture_stop(cam);
-            camera_close(cam);
+            hal_camera_close(cam);
             cam = NULL;
         }
     }
