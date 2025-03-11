@@ -338,6 +338,7 @@ if __name__ == "__main__":
             futures.append(executor.submit(create_data_deb,'llm-depth-anything-ax630c', '0.3', src_folder, revision))
             futures.append(executor.submit(create_data_deb,'llm-whisper-tiny', '0.3', src_folder, revision))
             futures.append(executor.submit(create_data_deb,'llm-silero-vad', '0.3', src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-deepseek-r1-1.5B-ax630c', '0.3', src_folder, revision))
         for future in concurrent.futures.as_completed(futures):
             result = future.result()
             print(result)
