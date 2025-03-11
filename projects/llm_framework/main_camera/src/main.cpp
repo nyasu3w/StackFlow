@@ -139,6 +139,8 @@ public:
         }else if(devname_.find("axera_") != std::string::npos){
             hal_camera_open = axera_camera_open;
             hal_camera_close = axera_camera_close;
+        }else {
+            return true;
         }
         return false;
     }
