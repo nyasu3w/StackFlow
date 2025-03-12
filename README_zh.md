@@ -18,11 +18,12 @@
 * [特性](#特性)
 * [Demo](#demo)
 * [环境要求](#环境要求)
+* [编译](#编译)
 * [安装](#安装)
 * [升级](#升级)
 * [运行](#运行)
 * [配置](#配置)
-* [API接口](#api-接口)
+* [接口](#接口)
 * [贡献](#贡献)
 
 
@@ -37,7 +38,7 @@
 * 灵活配置。所有单元均可完全配置运行参数，在相同的数据流处理情况下，随意更换模型和修改模型运行参数。
 * 简单易用。开发者只需关注模型和硬件平台，无需关注底层通信和数据处理细节，即可快速实现 AI 服务。
 * 高效稳定。通过 ZMQ 信道传输，数据传输效率高，延迟低，稳定性强。
-* 开源免费。StackFlow 采用 MIT 许可证，开发者可以自由使用和修改。
+* 开源免费。StackFlow 采用 MIT 许可证。
 * 多语言支持。单元主体由 C++ 实现，性能极致优化，可扩展至多变成语言支持。（需要支持 ZMQ 编程）
 
 StackFlow 还在不断优化和迭代，在框架更加完善的同时，会持续增加更多功能，敬请期待。
@@ -49,22 +50,65 @@ StackFlow 语音助手的主要工作模式：
 
 
 ## Demo
-- [StackFlow 连续语音识别]()
-- [StackFlow LLM 大模型唤醒对话]()
-- [StackFlow TTS 语音合成播放]()
-- [StackFlow yolo 视觉检测]()
-- [StackFlow VLM 图片描述]()
+- [StackFlow 连续语音识别](./projects/llm_framework/README.md)
+- [StackFlow LLM 大模型唤醒对话](./projects/llm_framework/README.md)
+- [StackFlow TTS 语音合成播放](./projects/llm_framework/README.md)
+- [StackFlow yolo 视觉检测](https://github.com/Abandon-ht/ModuleLLM_Development_Guide/tree/dev/ESP32/cpp)
+- [StackFlow VLM 图片描述](https://github.com/Abandon-ht/ModuleLLM_Development_Guide/tree/dev/ESP32/cpp)
 
 ## 环境要求 ##
 当前 StackFlow 的 AI 单元是建立在 AXERA 加速平台之上的，主要的芯片平台为 ax630c、ax650n。系统要求为 ubuntu。
 
+## 编译 ##
+StackFlow 主要的运行平台在嵌入式 linux 设备中，一般情况下请在主机 linux 设备中进行编译工作，编译工具链为 aarch64-none-linux-gnu。
+```bash
+# 安装 X86 交叉编译工具链
+wget https://m5stack.oss-cn-shenzhen.aliyuncs.com/resource/linux/llm/gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu.tar.gz
+sudo tar zxvf gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu.tar.gz -C /opt
+
+# 安装依赖
+sudo apt install python3 python3-pip libffi-dev
+pip3 install parse scons requests 
+
+# 下载 StackFlow 源码
+git clone https://github.com/m5stack/StackFlow.git
+cd StackFlow
+git submodule update --init
+cd projects/llm_framework
+scons distclean
+
+# 编译。注意：编译时需要联网下载源码、二进制库等文件，请保持网络畅通。
+scons -j22
+
+# 打包 deb 包。注意：由于 LLM 的模型文件较大，打包 deb 包时，需要使用较大的磁盘空间，建议使用 128G 以上的磁盘空间。打包时会联网下载大量二进制文件，请注意流量消耗。
+cd tools
+python3 llm_pack.py
+```
+
 ## 安装 ##
 StackFlow 的程序和模型数据是分开的，程序安装完成后，需要单独下载模型数据，并配置到程序中。安装是先安装程序包，然后再安装模型包。
-裸机环境安装见[StackFlow 安装教程]() 。
+裸机环境安装(需要在 LLM 设备中执行下面命令):
+```bash
+# 首先安装动态库依赖
+dpkg -i ./lib-llm_1.4-m5stack1_arm64.deb
+# 然后安装 llm-sys 主单元
+dpkg -i ./llm-sys_1.4-m5stack1_arm64.deb
+# 安装其他 llm 单元
+dpkg -i ./llm-xxx_1.4-m5stack1_arm64.deb
+# 安装模型包
+dpkg -i ./llm-xxx_1.4-m5stack1_arm64.deb
+# 注意 lib-llm_1.4-m5stack1_arm64.deb 和 llm-sys_1.4-m5stack1_arm64.deb 的安装顺序，其他 llm 单元和模型包的安装顺序没有要求。
+```
 
 ## 升级
 升级时可单独升级 AI 单元，或者升级整个 StackFlow 框架。  
-升级单个单元时可通过 SD 卡升级或者手动 `dpkg` 命令进行安装。
+升级单个单元时可通过 SD 卡升级或者手动 `dpkg` 命令进行安装。需要注意的时在小版本的包中，可以单独安装升级包，但是大版本升级时，必须安装完所有的 llm 单元。
+命令行升级包：
+```bash
+# 安装需要升级的 llm 单元
+dpkg -i ./llm-xxx_1.4-m5stack1_arm64.deb
+```
+[设备自动升级安装](https://docs.m5stack.com/en/guide/llm/llm/image)
 ## 运行 ##
 相关 AI 服务会在开机时自动运行，也可以通过手动命令启动。  
 sys 单元运行状态查询：
@@ -80,8 +124,9 @@ StackFlow 的配置分为两类，一类是单元工作参数配置，一类是�
 /opt/m5stack/data/models/
 /opt/m5stack/share/
 ```
-## API 接口 ##
-StackFlow 可通过 UART 和 TCP 端口进行访问。
+## 接口 ##
+StackFlow 可通过 UART 和 TCP 端口进行访问。UART 端口的默认波特率为 115200，TCP 端口的默认端口为 10001。参数均可通过配置文件进行修改。
+
 ## 贡献
 
 * 喜欢本项目请先打一颗星；
