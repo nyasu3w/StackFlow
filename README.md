@@ -6,10 +6,6 @@
   StackFlow is a simple, fast, and elegant one-stop AI service infrastructure project aimed at embedded developers. Its purpose is to enable Makers and Hackers to quickly obtain powerful AI acceleration capabilities in current embedded devices. StackFlow can infuse a wise soul into various human-machine interaction devices.
 </p>
 
-<p align="center">
-  <a href="https://opencollective.com/wukong-robot/contribute/tier/8131-sponsor" target="_blank"><img src="https://avatars.githubusercontent.com/u/17420673?s=48&v=4"></a>
-</p>
-
 
 
 ## Table of Contents

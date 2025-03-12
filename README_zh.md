@@ -7,9 +7,6 @@
   StackFlow 是一个简单、疾速、优雅的面向嵌入式开发者一站式 AI 服务基础设施项目，目的是让 Maker 和 Haker 们能够快速的在当前的嵌入式设备中获取到强大的 AI 加速能力。StackFlow 能够为各类人机交互设备注入智慧的灵魂。
 </p>
 
-<p align="center">
-  <a href="https://opencollective.com/wukong-robot/contribute/tier/8131-sponsor" target="_blank"><img src="https://avatars.githubusercontent.com/u/17420673?s=48&v=4"></a>
-</p>
 
 
 
