@@ -286,6 +286,7 @@ if __name__ == "__main__":
     create_lib = True
     create_bin = True
     create_data = True
+    create_llm_data = False
     if len(sys.argv) > 1:
         src_folder = sys.argv[1]
     cpu_count = os.cpu_count()
@@ -320,24 +321,25 @@ if __name__ == "__main__":
             futures.append(executor.submit(create_data_deb,'llm-sherpa-ncnn-streaming-zipformer-zh-14M-2023-02-23', data_version, src_folder, revision))
             futures.append(executor.submit(create_data_deb,'llm-sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01', '0.3', src_folder, revision))
             futures.append(executor.submit(create_data_deb,'llm-sherpa-onnx-kws-zipformer-wenetspeech-3.3M-2024-01-01', '0.3', src_folder, revision))
-            # futures.append(executor.submit(create_data_deb,'llm-qwen2-0.5B-prefill-20e', data_version, src_folder, revision))
-            # futures.append(executor.submit(create_data_deb,'llm-qwen2-1.5B-prefill-20e', data_version, src_folder, revision))
-            futures.append(executor.submit(create_data_deb,'llm-qwen2.5-0.5B-prefill-20e', data_version, src_folder, revision))
-            futures.append(executor.submit(create_data_deb,'llm-qwen2.5-1.5B-ax630c', '0.3', src_folder, revision))
             futures.append(executor.submit(create_data_deb,'llm-single-speaker-english-fast', data_version, src_folder, revision))
             futures.append(executor.submit(create_data_deb,'llm-single-speaker-fast', data_version, src_folder, revision))
-            futures.append(executor.submit(create_data_deb,'llm-melotts-zh-cn', '0.3', src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-melotts-zh-cn', '0.4', src_folder, revision))
             futures.append(executor.submit(create_data_deb,'llm-yolo11n', data_version, src_folder, revision))
             futures.append(executor.submit(create_data_deb,'llm-yolo11n-pose', '0.3', src_folder, revision))
             futures.append(executor.submit(create_data_deb,'llm-yolo11n-hand-pose', '0.3', src_folder, revision))
             futures.append(executor.submit(create_data_deb,'llm-yolo11n-seg', data_version, src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-depth-anything-ax630c', '0.3', src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-whisper-tiny', '0.3', src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-silero-vad', '0.3', src_folder, revision))
+        if (create_llm_data):
+            # futures.append(executor.submit(create_data_deb,'llm-qwen2-0.5B-prefill-20e', data_version, src_folder, revision))
+            # futures.append(executor.submit(create_data_deb,'llm-qwen2-1.5B-prefill-20e', data_version, src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-qwen2.5-0.5B-prefill-20e', data_version, src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-qwen2.5-1.5B-ax630c', '0.3', src_folder, revision))
             futures.append(executor.submit(create_data_deb,'llm-qwen2.5-coder-0.5B-ax630c', data_version, src_folder, revision))
             futures.append(executor.submit(create_data_deb,'llm-llama3.2-1B-prefill-ax630c', data_version, src_folder, revision))
             futures.append(executor.submit(create_data_deb,'llm-openbuddy-llama3.2-1B-ax630c', data_version, src_folder, revision))
             futures.append(executor.submit(create_data_deb,'llm-internvl2.5-1B-ax630c', '0.3', src_folder, revision))
-            futures.append(executor.submit(create_data_deb,'llm-depth-anything-ax630c', '0.3', src_folder, revision))
-            futures.append(executor.submit(create_data_deb,'llm-whisper-tiny', '0.3', src_folder, revision))
-            futures.append(executor.submit(create_data_deb,'llm-silero-vad', '0.3', src_folder, revision))
             futures.append(executor.submit(create_data_deb,'llm-deepseek-r1-1.5B-ax630c', '0.3', src_folder, revision))
         for future in concurrent.futures.as_completed(futures):
             result = future.result()
