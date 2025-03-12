@@ -15,6 +15,10 @@
 #include <arm_neon.h>
 #endif
 
+#ifdef ENABLE_BSON
+#include <bson/bson.h>
+#endif
+
 using namespace StackFlows;
 
 void unit_action_match(int com_id, const std::string &json_str);
@@ -84,7 +88,25 @@ void zmq_bus_com::on_raw_data(const std::string &data)
 
 void zmq_bus_com::on_bson_data(const std::string &data)
 {
-    // todo:..
+#ifdef ENABLE_BSON
+    bson_t *bson = bson_new_from_data((const uint8_t *)data.c_str(), data.length());
+    if (!bson) {
+        SLOGW("bson is error");
+        return ;
+    }
+    char *json = bson_as_canonical_extended_json(bson, NULL);
+    if (!json) {
+        SLOGW("bson to json error");
+        bson_destroy(bson);
+        return ;
+    }
+    std::string new_data(json);
+    on_data(new_data);
+    bson_free(json);
+    bson_destroy(bson);
+#else
+    SLOGW("bson not enable");
+#endif
 }
 
 void zmq_bus_com::send_data(const std::string &data)
