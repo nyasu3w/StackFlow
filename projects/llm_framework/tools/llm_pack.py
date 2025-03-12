@@ -143,8 +143,8 @@ def create_data_deb(package_name, version, src_folder, revision = 'm5stack1'):
         shutil.rmtree(deb_folder)
     os.makedirs(deb_folder, exist_ok = True)
 
-    zip_file = f"m5stack_{package_name}_{version}_data.tar.gz"
-    down_url = f"https://m5stack.oss-cn-shenzhen.aliyuncs.com/resource/linux/llm/m5stack_{package_name}_{version}_data.tar.gz"
+    zip_file = f"m5stack_{package_name[0:4]+package_name[10:]}_{version}_data.tar.gz"
+    down_url = f"https://m5stack.oss-cn-shenzhen.aliyuncs.com/resource/linux/llm/m5stack_{package_name[0:4]+package_name[10:]}_{version}_data.tar.gz"
     zip_file_extrpath = f"m5stack_{package_name}_{version}_data"
     if not os.path.exists(zip_file_extrpath):
         # Downloading via HTTP (more common)
@@ -164,9 +164,9 @@ def create_data_deb(package_name, version, src_folder, revision = 'm5stack1'):
     RED = "\033[31m"
     RESET = "\033[0m"
     os.makedirs(os.path.join(deb_folder, 'opt/m5stack/data/models'), exist_ok = True)
-    mode_config_file = os.path.join(src_folder,'mode_{}.json'.format(package_name[4:]))
+    mode_config_file = os.path.join(src_folder,'mode_{}.json'.format(package_name[10:]))
     if os.path.exists(mode_config_file):
-        shutil.copy2(mode_config_file, os.path.join(deb_folder, 'opt/m5stack/data/models', 'mode_{}.json'.format(package_name[4:])))
+        shutil.copy2(mode_config_file, os.path.join(deb_folder, 'opt/m5stack/data/models', 'mode_{}.json'.format(package_name[10:])))
         try:
             with open(mode_config_file, 'r', encoding='utf-8') as file:
                 data = json.load(file)
@@ -279,7 +279,7 @@ if __name__ == "__main__":
         os.system('rm ./*.deb m5stack_* -rf')
         exit(0)
 
-    version = '1.4'
+    version = '1.5'
     data_version = '0.2'
     src_folder = '../dist'
     revision = 'm5stack1'
@@ -294,7 +294,7 @@ if __name__ == "__main__":
         cpu_count = 2
     else:
         cpu_count = cpu_count - 2
-    # cpu_count = 10
+    # cpu_count = 50
     with concurrent.futures.ThreadPoolExecutor(max_workers=cpu_count) as executor:
         futures = []
         if (create_lib):
@@ -315,32 +315,32 @@ if __name__ == "__main__":
             futures.append(executor.submit(create_bin_deb,'llm-vad', version, src_folder, revision))
             futures.append(executor.submit(create_bin_deb,'llm-whisper', version, src_folder, revision))
         if (create_data):
-            futures.append(executor.submit(create_data_deb,'llm-audio-en-us', data_version, src_folder, revision))
-            futures.append(executor.submit(create_data_deb,'llm-audio-zh-cn', data_version, src_folder, revision))
-            futures.append(executor.submit(create_data_deb,'llm-sherpa-ncnn-streaming-zipformer-20M-2023-02-17', data_version, src_folder, revision))
-            futures.append(executor.submit(create_data_deb,'llm-sherpa-ncnn-streaming-zipformer-zh-14M-2023-02-23', data_version, src_folder, revision))
-            futures.append(executor.submit(create_data_deb,'llm-sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01', '0.3', src_folder, revision))
-            futures.append(executor.submit(create_data_deb,'llm-sherpa-onnx-kws-zipformer-wenetspeech-3.3M-2024-01-01', '0.3', src_folder, revision))
-            futures.append(executor.submit(create_data_deb,'llm-single-speaker-english-fast', data_version, src_folder, revision))
-            futures.append(executor.submit(create_data_deb,'llm-single-speaker-fast', data_version, src_folder, revision))
-            futures.append(executor.submit(create_data_deb,'llm-melotts-zh-cn', '0.4', src_folder, revision))
-            futures.append(executor.submit(create_data_deb,'llm-yolo11n', data_version, src_folder, revision))
-            futures.append(executor.submit(create_data_deb,'llm-yolo11n-pose', '0.3', src_folder, revision))
-            futures.append(executor.submit(create_data_deb,'llm-yolo11n-hand-pose', '0.3', src_folder, revision))
-            futures.append(executor.submit(create_data_deb,'llm-yolo11n-seg', data_version, src_folder, revision))
-            futures.append(executor.submit(create_data_deb,'llm-depth-anything-ax630c', '0.3', src_folder, revision))
-            futures.append(executor.submit(create_data_deb,'llm-whisper-tiny', '0.3', src_folder, revision))
-            futures.append(executor.submit(create_data_deb,'llm-silero-vad', '0.3', src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-model-audio-en-us', data_version, src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-model-audio-zh-cn', data_version, src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-model-sherpa-ncnn-streaming-zipformer-20M-2023-02-17', data_version, src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-model-sherpa-ncnn-streaming-zipformer-zh-14M-2023-02-23', data_version, src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-model-sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01', '0.3', src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-model-sherpa-onnx-kws-zipformer-wenetspeech-3.3M-2024-01-01', '0.3', src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-model-single-speaker-english-fast', data_version, src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-model-single-speaker-fast', data_version, src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-model-melotts-zh-cn', '0.4', src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-model-yolo11n', data_version, src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-model-yolo11n-pose', '0.3', src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-model-yolo11n-hand-pose', '0.3', src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-model-yolo11n-seg', data_version, src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-model-depth-anything-ax630c', '0.3', src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-model-whisper-tiny', '0.3', src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-model-silero-vad', '0.3', src_folder, revision))
         if (create_llm_data):
-            # futures.append(executor.submit(create_data_deb,'llm-qwen2-0.5B-prefill-20e', data_version, src_folder, revision))
-            # futures.append(executor.submit(create_data_deb,'llm-qwen2-1.5B-prefill-20e', data_version, src_folder, revision))
-            futures.append(executor.submit(create_data_deb,'llm-qwen2.5-0.5B-prefill-20e', data_version, src_folder, revision))
-            futures.append(executor.submit(create_data_deb,'llm-qwen2.5-1.5B-ax630c', '0.3', src_folder, revision))
-            futures.append(executor.submit(create_data_deb,'llm-qwen2.5-coder-0.5B-ax630c', data_version, src_folder, revision))
-            futures.append(executor.submit(create_data_deb,'llm-llama3.2-1B-prefill-ax630c', data_version, src_folder, revision))
-            futures.append(executor.submit(create_data_deb,'llm-openbuddy-llama3.2-1B-ax630c', data_version, src_folder, revision))
-            futures.append(executor.submit(create_data_deb,'llm-internvl2.5-1B-ax630c', '0.4', src_folder, revision))
-            futures.append(executor.submit(create_data_deb,'llm-deepseek-r1-1.5B-ax630c', '0.3', src_folder, revision))
+            # futures.append(executor.submit(create_data_deb,'llm-model-qwen2-0.5B-prefill-20e', data_version, src_folder, revision))
+            # futures.append(executor.submit(create_data_deb,'llm-model-qwen2-1.5B-prefill-20e', data_version, src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-model-qwen2.5-0.5B-prefill-20e', data_version, src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-model-qwen2.5-1.5B-ax630c', '0.3', src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-model-qwen2.5-coder-0.5B-ax630c', data_version, src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-model-llama3.2-1B-prefill-ax630c', data_version, src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-model-openbuddy-llama3.2-1B-ax630c', data_version, src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-model-internvl2.5-1B-ax630c', '0.4', src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-model-deepseek-r1-1.5B-ax630c', '0.3', src_folder, revision))
         for future in concurrent.futures.as_completed(futures):
             result = future.result()
             print(result)
