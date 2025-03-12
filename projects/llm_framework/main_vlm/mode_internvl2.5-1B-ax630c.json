@@ -18,7 +18,7 @@
         "filename_tokenizer_model":"http://localhost:8080",
         "filename_tokens_embed":"model.embed_tokens.weight.bfloat16.bin",
         "filename_post_axmodel":"qwen2_post.axmodel",
-        "template_filename_axmodel":"qwen2_p128_l%d_together.axmodel",
+        "template_filename_axmodel":"qwen2_p256_l%d_together.axmodel",
         "filename_vpm_resampler_axmodedl":"intervl_vision_part_224.axmodel",
         "b_use_topk":false,
         "b_bos":false,

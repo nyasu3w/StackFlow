@@ -286,7 +286,7 @@ if __name__ == "__main__":
     create_lib = True
     create_bin = True
     create_data = True
-    create_llm_data = False
+    create_llm_data = True
     if len(sys.argv) > 1:
         src_folder = sys.argv[1]
     cpu_count = os.cpu_count()
@@ -339,7 +339,7 @@ if __name__ == "__main__":
             futures.append(executor.submit(create_data_deb,'llm-qwen2.5-coder-0.5B-ax630c', data_version, src_folder, revision))
             futures.append(executor.submit(create_data_deb,'llm-llama3.2-1B-prefill-ax630c', data_version, src_folder, revision))
             futures.append(executor.submit(create_data_deb,'llm-openbuddy-llama3.2-1B-ax630c', data_version, src_folder, revision))
-            futures.append(executor.submit(create_data_deb,'llm-internvl2.5-1B-ax630c', '0.3', src_folder, revision))
+            futures.append(executor.submit(create_data_deb,'llm-internvl2.5-1B-ax630c', '0.4', src_folder, revision))
             futures.append(executor.submit(create_data_deb,'llm-deepseek-r1-1.5B-ax630c', '0.3', src_folder, revision))
         for future in concurrent.futures.as_completed(futures):
             result = future.result()
