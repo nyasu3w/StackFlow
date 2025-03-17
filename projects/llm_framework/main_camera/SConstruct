@@ -28,10 +28,8 @@ LINK_SEARCH_PATH += [ADir('../static_lib')]
 
 REQUIREMENTS += ['ax_sys', 'ax_interpreter']
 REQUIREMENTS += ['ax_engine', 'ax_interpreter', 'ax_sys', 'ax_vo']
-REQUIREMENTS += ['ax_opal', 'ax_ae', 'ax_skel', 'ax_opal', 'ax_venc', 'ax_mipi', 'ax_ives', 'ax_ivps', 'ax_proton', 'ax_audio', 'mpr', 'tinyalsa']
+REQUIREMENTS += ['ax_ae', 'ax_skel', 'ax_venc', 'ax_mipi', 'ax_ives', 'ax_ivps', 'ax_proton', 'ax_audio', 'tinyalsa']
 REQUIREMENTS += ['ax_audio_3a','samplerate', 'ax_fdk', 'fdk-aac', 'ax_awb', 'ax_af', 'ax_nt_stream', 'ax_nt_ctrl']
-
-
 
 
 INCLUDE += [ADir('../include/opencv4')]
