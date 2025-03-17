@@ -89,6 +89,7 @@ def create_lib_deb(package_name, version, src_folder, revision = 'm5stack1'):
         f.write(f' bsp.\n')
     with open(os.path.join(deb_folder, 'DEBIAN/postinst'),'w') as f:
         f.write(f'#!/bin/sh\n')
+        f.write('''sed -i 's/dpkg -i/apt install -y/g' /usr/local/m5stack/update_check.sh\n''')
         f.write(f'[ -f "/lib/systemd/system/llm-sys.service" ] && systemctl enable llm-sys.service\n')
         f.write(f'[ -f "/lib/systemd/system/llm-sys.service" ] && systemctl start llm-sys.service\n')
         f.write(f'[ -f "/lib/systemd/system/llm-asr.service" ] && systemctl enable llm-asr.service\n')
@@ -189,7 +190,12 @@ def create_data_deb(package_name, version, src_folder, revision = 'm5stack1'):
         f.write(f'Original-Maintainer: m5stack <m5stack@m5stack.com>\n')
         f.write(f'Section: llm-module\n')
         f.write(f'Priority: optional\n')
+        f.write(f'Depends: lib-llm (>= 1.6)\n')
         f.write(f'Homepage: https://www.m5stack.com\n')
+        if deb_file.startswith('llm-model-'):
+            deb_name = deb_file[:deb_file.find('_')]
+            old_deb_name = deb_name.replace('model-','').lower()
+            f.write(f'Conflicts: {old_deb_name}\n')        
         f.write(f'Description: llm-module\n')
         f.write(f' bsp.\n')
     with open(os.path.join(deb_folder, 'DEBIAN/postinst'),'w') as f:
@@ -298,7 +304,7 @@ if __name__ == "__main__":
     with concurrent.futures.ThreadPoolExecutor(max_workers=cpu_count) as executor:
         futures = []
         if (create_lib):
-            futures.append(executor.submit(create_lib_deb, 'lib-llm', version, src_folder, revision))
+            futures.append(executor.submit(create_lib_deb, 'lib-llm', 1.6, src_folder, revision))
         if (create_bin):
             futures.append(executor.submit(create_bin_deb,'llm-sys', version, src_folder, revision))
             futures.append(executor.submit(create_bin_deb,'llm-audio', version, src_folder, revision))
