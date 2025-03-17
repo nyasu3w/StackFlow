@@ -579,13 +579,16 @@ public:
                 if (_attr.runing_callback)
                 {
                     cached_token.push_back(max_index);
-                    if (cached_token.size() >= 5)
+                    if (cached_token.size() >= 3)
                     {
                         float t_cost_ms = t_cost.cost();
                         float token_per_sec = token_ids.size() / (t_cost_ms / 1000);
                         auto tmp_out = tokenizer->Decode(cached_token);
-                        _attr.runing_callback(cached_token.data(), cached_token.size(), tmp_out.c_str(), token_per_sec, _attr.reserve);
-                        cached_token.clear();
+                        if (!tmp_out.empty() && tmp_out.back() != 0xBD)
+                        {
+                            _attr.runing_callback(cached_token.data(), cached_token.size(), tmp_out.c_str(), token_per_sec, _attr.reserve);
+                            cached_token.clear();
+                        }
                     }
                 }
             }
