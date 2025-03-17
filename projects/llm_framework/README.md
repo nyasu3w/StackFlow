@@ -13,7 +13,7 @@ wget https://m5stack.oss-cn-shenzhen.aliyuncs.com/resource/linux/llm/gcc-arm-10.
 sudo tar zxvf gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu.tar.gz -C /opt
 
 sudo apt install python3 python3-pip libffi-dev
-pip3 install parse scons requests 
+pip3 install parse scons requests kconfiglib
 
 git clone https://github.com/m5stack/StackFlow.git
 cd StackFlow

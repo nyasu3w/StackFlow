@@ -1,9 +1,9 @@
 {
-    "mode":"qwen2.5-1.5B-ax630c",
+    "mode":"qwen2.5-coder-0.5B-ax630c",
     "type":"llm",
     "capabilities":[
         "text_generation",
-        "chat"
+        "code_generation"
     ],
     "input_type":[
         "llm.utf-8",
@@ -24,10 +24,11 @@
         "b_use_topk":false,
         "b_bos":false,
         "b_eos":false,
-        "axmodel_num":28,
+        "axmodel_num":24,
         "tokens_embed_num":151936,
-        "tokens_embed_size":1536,
+        "tokens_embed_size":896,
         "b_use_mmap_load_embed":true,
-        "b_dynamic_load_axmodel_layer":false
+        "b_dynamic_load_axmodel_layer":false,
+        "ext_scripts":["tokenizer_qwen2.5-coder-0.5B-ax630c.py"]
     }
 }

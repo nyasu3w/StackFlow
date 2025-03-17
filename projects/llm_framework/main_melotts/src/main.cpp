@@ -233,9 +233,20 @@ public:
         src_delete(src_state);
     }
 
-    bool TTS(const std::string &msg_str)
+    bool TTS(const std::string &msg_str, bool finish)
     {
         try {
+            std::vector<int16_t> wav_pcm_data;
+            if (msg_str.empty()) {
+                SLOGI("empty");
+                if (out_callback_) {
+                    std::string output = wav_pcm_data.empty() ? 
+                        std::string() : 
+                        std::string((char *)wav_pcm_data.data(), wav_pcm_data.size() * sizeof(int16_t));
+                    out_callback_(output, finish);
+                }
+                return false;
+            }
             std::vector<int> phones_bef, tones_bef;
             lexicon_->convert(msg_str, phones_bef, tones_bef);
             // Add blank between words
@@ -284,11 +295,10 @@ public:
             std::vector<float> tmp_pcm((pcmlist.size() * src_ratio + 1));
             int len;
             resample_audio(pcmlist.data(), pcmlist.size(), tmp_pcm.data(), &len, src_ratio);
-            std::vector<int16_t> wav_pcm_data;
             std::transform(tmp_pcm.begin(), tmp_pcm.begin() + len, std::back_inserter(wav_pcm_data),
                            [](const auto val) { return (int16_t)(val * INT16_MAX); });
             if (out_callback_)
-                out_callback_(std::string((char *)wav_pcm_data.data(), wav_pcm_data.size() * sizeof(int16_t)), true);
+                out_callback_(std::string((char *)wav_pcm_data.data(), wav_pcm_data.size() * sizeof(int16_t)), finish);
         } catch (...) {
             return true;
         }
@@ -342,6 +352,9 @@ public:
 
     ~llm_task()
     {
+        if (decoder_) {
+            decoder_->Release();
+        }
         _ax_deinit();
     }
 };
@@ -368,15 +381,17 @@ public:
             return;
         }
         std::string base64_data;
-        int len = encode_base64(data, base64_data);
+        if (!data.empty()) {
+            int len = encode_base64(data, base64_data);
+        }
         if (llm_channel->enstream_) {
             static int count = 0;
             nlohmann::json data_body;
             data_body["index"] = count++;
-            if (!finish)
+            if (!data.empty())
                 data_body["delta"] = base64_data;
             else
-                data_body["delta"] = std::string("");
+                data_body["delta"] = "";
             data_body["finish"] = finish;
             if (finish) count = 0;
             llm_channel->send(llm_task_obj->response_format_, data_body, LLM_NO_ERROR);
@@ -415,10 +430,10 @@ public:
         int ret;
         std::string tmp_msg1;
         if (enstream) {
-            std::string finish = sample_json_str_get((*next_data), "finish");
-            tmp_msg1           = sample_json_str_get((*next_data), "delta");
-            finish_flage       = (finish == "true") ? true : false;
-            next_data          = &tmp_msg1;
+            std::string finish_str = sample_json_str_get((*next_data), "finish");
+            finish_flage           = (finish_str.find("true") != std::string::npos);
+            tmp_msg1               = sample_json_str_get((*next_data), "delta");
+            next_data              = &tmp_msg1;
         }
         std::string tmp_msg2;
         if (enbase64) {
@@ -433,7 +448,7 @@ public:
         for (auto cutf8 : tmp_data) {
             if (is_breakpoint(cutf8)) {
                 llm_task_obj->tts_string_stream_buff += cutf8;
-                ret = llm_task_obj->TTS(llm_task_obj->tts_string_stream_buff);
+                ret = llm_task_obj->TTS(llm_task_obj->tts_string_stream_buff, false);
                 llm_task_obj->tts_string_stream_buff.clear();
                 if (ret) {
                     error_body["code"]    = -11;
@@ -447,13 +462,15 @@ public:
         if (finish_flage) {
             if (!llm_task_obj->tts_string_stream_buff.empty()) {
                 llm_task_obj->tts_string_stream_buff.push_back('.');
-                ret = llm_task_obj->TTS(llm_task_obj->tts_string_stream_buff);
+                ret = llm_task_obj->TTS(llm_task_obj->tts_string_stream_buff, true);
                 llm_task_obj->tts_string_stream_buff.clear();
                 if (ret) {
                     error_body["code"]    = -11;
                     error_body["message"] = "Model run failed.";
                     llm_channel->send("None", "None", error_body, llm_channel->work_id_);
                 }
+            } else {
+                llm_task_obj->TTS("", true);
             }
         }
     }

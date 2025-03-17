@@ -1,24 +1,28 @@
 # llm-melotts
-使用 npu 加速的文字转语音单元，用于提供文字转语音服务，可选择中英文模型，用于提供中英文文字转语音服务。 
+
+使用 npu 加速的文字转语音单元，用于提供文字转语音服务，可选择中英文模型，用于提供中英文文字转语音服务。
 
 ## setup
+
 配置单元工作。
 
 发送 json：
+
 ```json
 {
-    "request_id": "2",
-    "work_id": "melotts",
-    "action": "setup",
-    "object": "melotts.setup",
-    "data": {
-        "model": "melotts_zh-cn",
-        "response_format": "sys.pcm",
-        "input": "tts.utf-8",
-        "enoutput": false
-    }
+  "request_id": "2",
+  "work_id": "melotts",
+  "action": "setup",
+  "object": "melotts.setup",
+  "data": {
+    "model": "melotts_zh-cn",
+    "response_format": "sys.pcm",
+    "input": "tts.utf-8",
+    "enoutput": false
+  }
 }
 ```
+
 - request_id：参考基本数据解释。
 - work_id：配置单元时，为 `melotts`。
 - action：调用的方法为 `setup`。
@@ -32,31 +36,34 @@
 
 ```json
 {
-    "created":1731488402,
-    "data":"None",
-    "error":{
-        "code":0,
-        "message":""
-    },
-    "object":"None",
-    "request_id":"2",
-    "work_id":"melotts.1003"
+  "created": 1731488402,
+  "data": "None",
+  "error": {
+    "code": 0,
+    "message": ""
+  },
+  "object": "None",
+  "request_id": "2",
+  "work_id": "melotts.1003"
 }
 ```
+
 - created：消息创建时间，unix 时间。
 - work_id：返回成功创建的 work_id 单元。
 
 ## link
+
 链接上级单元的输出。
 
 发送 json：
+
 ```json
 {
-    "request_id": "3",
-    "work_id": "melotts.1003",
-    "action": "link",
-    "object":"work_id",
-    "data":"kws.1000"
+  "request_id": "3",
+  "work_id": "melotts.1003",
+  "action": "link",
+  "object": "work_id",
+  "data": "kws.1000"
 }
 ```
 
@@ -64,17 +71,18 @@
 
 ```json
 {
-    "created":1731488402,
-    "data":"None",
-    "error":{
-        "code":0,
-        "message":""
-    },
-    "object":"None",
-    "request_id":"3",
-    "work_id":"melotts.1003"
+  "created": 1731488402,
+  "data": "None",
+  "error": {
+    "code": 0,
+    "message": ""
+  },
+  "object": "None",
+  "request_id": "3",
+  "work_id": "melotts.1003"
 }
 ```
+
 error::code 为 0 表示执行成功。
 
 将 llm 和 melotts 单元链接起来，当 kws melotts 单元停止上次未完成的推理，用于重复唤醒功能。
@@ -85,30 +93,36 @@ error::code 为 0 表示执行成功。
 
 ```json
 {
-    "request_id": "2",
-    "work_id": "melotts",
-    "action": "setup",
-    "object": "melotts.setup",
-    "data": {
-        "model": "melotts_zh-cn",
-        "response_format": "sys.pcm",
-        "input": ["tts.utf-8", "llm.1002", "kws.1000"],
-        "enoutput": false
-    }
+  "request_id": "2",
+  "work_id": "melotts",
+  "action": "setup",
+  "object": "melotts.setup",
+  "data": {
+    "model": "melotts_zh-cn",
+    "response_format": "sys.pcm",
+    "input": [
+      "tts.utf-8",
+      "llm.1002",
+      "kws.1000"
+    ],
+    "enoutput": false
+  }
 }
 ```
 
 ## unlink
+
 取消链接。
 
 发送 json：
+
 ```json
 {
-    "request_id": "4",
-    "work_id": "melotts.1003",
-    "action": "unlink",
-    "object":"work_id",
-    "data":"kws.1000"
+  "request_id": "4",
+  "work_id": "melotts.1003",
+  "action": "unlink",
+  "object": "work_id",
+  "data": "kws.1000"
 }
 ```
 
@@ -116,28 +130,31 @@ error::code 为 0 表示执行成功。
 
 ```json
 {
-    "created":1731488402,
-    "data":"None",
-    "error":{
-        "code":0,
-        "message":""
-    },
-    "object":"None",
-    "request_id":"4",
-    "work_id":"melotts.1003"
+  "created": 1731488402,
+  "data": "None",
+  "error": {
+    "code": 0,
+    "message": ""
+  },
+  "object": "None",
+  "request_id": "4",
+  "work_id": "melotts.1003"
 }
 ```
+
 error::code 为 0 表示执行成功。
 
 ## pause
+
 暂停单元工作。
 
 发送 json：
+
 ```json
 {
-    "request_id": "5",
-    "work_id": "melotts.1003",
-    "action": "pause",
+  "request_id": "5",
+  "work_id": "melotts.1003",
+  "action": "pause"
 }
 ```
 
@@ -145,29 +162,31 @@ error::code 为 0 表示执行成功。
 
 ```json
 {
-    "created":1731488402,
-    "data":"None",
-    "error":{
-        "code":0,
-        "message":""
-    },
-    "object":"None",
-    "request_id":"5",
-    "work_id":"melotts.1003"
+  "created": 1731488402,
+  "data": "None",
+  "error": {
+    "code": 0,
+    "message": ""
+  },
+  "object": "None",
+  "request_id": "5",
+  "work_id": "melotts.1003"
 }
 ```
 
 error::code 为 0 表示执行成功。
 
 ## work
+
 恢复单元工作。
 
 发送 json：
+
 ```json
 {
-    "request_id": "6",
-    "work_id": "melotts.1003",
-    "action": "work",
+  "request_id": "6",
+  "work_id": "melotts.1003",
+  "action": "work"
 }
 ```
 
@@ -175,29 +194,31 @@ error::code 为 0 表示执行成功。
 
 ```json
 {
-    "created":1731488402,
-    "data":"None",
-    "error":{
-        "code":0,
-        "message":""
-    },
-    "object":"None",
-    "request_id":"6",
-    "work_id":"melotts.1003"
+  "created": 1731488402,
+  "data": "None",
+  "error": {
+    "code": 0,
+    "message": ""
+  },
+  "object": "None",
+  "request_id": "6",
+  "work_id": "melotts.1003"
 }
 ```
 
 error::code 为 0 表示执行成功。
 
 ## exit
+
 单元退出。
 
 发送 json：
+
 ```json
 {
-    "request_id": "7",
-    "work_id": "melotts.1003",
-    "action": "exit",
+  "request_id": "7",
+  "work_id": "melotts.1003",
+  "action": "exit"
 }
 ```
 
@@ -205,15 +226,15 @@ error::code 为 0 表示执行成功。
 
 ```json
 {
-    "created":1731488402,
-    "data":"None",
-    "error":{
-        "code":0,
-        "message":""
-    },
-    "object":"None",
-    "request_id":"7",
-    "work_id":"melotts.1003"
+  "created": 1731488402,
+  "data": "None",
+  "error": {
+    "code": 0,
+    "message": ""
+  },
+  "object": "None",
+  "request_id": "7",
+  "work_id": "melotts.1003"
 }
 ```
 
@@ -224,11 +245,12 @@ error::code 为 0 表示执行成功。
 获取任务列表。
 
 发送 json：
+
 ```json
 {
-	"request_id": "2",
-	"work_id": "melotts",
-	"action": "taskinfo"
+  "request_id": "2",
+  "work_id": "melotts",
+  "action": "taskinfo"
 }
 ```
 
@@ -236,15 +258,17 @@ error::code 为 0 表示执行成功。
 
 ```json
 {
-    "created":1731652311,
-    "data":["melotts.1003"],
-    "error":{
-        "code":0,
-        "message":""
-    },
-    "object":"melotts.tasklist",
-    "request_id":"2",
-    "work_id":"melotts"
+  "created": 1731652311,
+  "data": [
+    "melotts.1003"
+  ],
+  "error": {
+    "code": 0,
+    "message": ""
+  },
+  "object": "melotts.tasklist",
+  "request_id": "2",
+  "work_id": "melotts"
 }
 ```
 
@@ -252,9 +276,9 @@ error::code 为 0 表示执行成功。
 
 ```json
 {
-	"request_id": "2",
-	"work_id": "melotts.1003",
-	"action": "taskinfo"
+  "request_id": "2",
+  "work_id": "melotts.1003",
+  "action": "taskinfo"
 }
 ```
 
@@ -262,20 +286,22 @@ error::code 为 0 表示执行成功。
 
 ```json
 {
-    "created":1731652344,
-    "data":{
-        "enoutput":false,
-        "inputs_":["tts.utf-8"],
-        "model":"melotts_zh-cn",
-        "response_format":"sys.pcm"
-    },
-    "error":{
-        "code":0,
-        "message":""
-    },
-    "object":"melotts.taskinfo",
-    "request_id":"2",
-    "work_id":"melotts.1003"
+  "created": 1731652344,
+  "data": {
+    "enoutput": false,
+    "inputs_": [
+      "tts.utf-8"
+    ],
+    "model": "melotts_zh-cn",
+    "response_format": "sys.pcm"
+  },
+  "error": {
+    "code": 0,
+    "message": ""
+  },
+  "object": "melotts.taskinfo",
+  "request_id": "2",
+  "work_id": "melotts.1003"
 }
 ```
 
