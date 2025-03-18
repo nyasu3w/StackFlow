@@ -37,6 +37,9 @@ typedef std::function<void(const std::string &data, bool finish)> task_callback_
 
 class llm_task {
 private:
+    static std::atomic<unsigned int> next_port_;
+    std::atomic_bool tokenizer_server_flage_;
+    unsigned int port_;
     pid_t tokenizer_pid_ = -1;
 
 public:
@@ -49,8 +52,6 @@ public:
     task_callback_t out_callback_;
     bool enoutput_;
     bool enstream_;
-    std::atomic_bool tokenizer_server_flage_;
-    unsigned int port_ = 8080;
 
     void set_output(task_callback_t out_callback)
     {
@@ -126,6 +127,7 @@ public:
             CONFIG_AUTO_SET(file_body["mode_param"], top_p);
 
             if (mode_config_.filename_tokenizer_model.find("http:") != std::string::npos) {
+                mode_config_.filename_tokenizer_model = "http://localhost:" + std::to_string(port_);
                 std::string tokenizer_file;
                 if (file_exists(std::string("/opt/m5stack/scripts/") + model_ + std::string("_tokenizer.py"))) {
                     tokenizer_file = std::string("/opt/m5stack/scripts/") + model_ + std::string("_tokenizer.py");
@@ -236,7 +238,17 @@ public:
         return true;
     }
 
-    llm_task(const std::string &workid) : tokenizer_server_flage_(false)
+    static unsigned int getNextPort()
+    {
+        unsigned int port = next_port_++;
+        if (port > 8090) {
+            next_port_ = 8080;
+            port       = 8080;
+        }
+        return port;
+    }
+
+    llm_task(const std::string &workid) : tokenizer_server_flage_(false), port_(getNextPort())
     {
     }
 
@@ -251,6 +263,8 @@ public:
         }
     }
 };
+
+std::atomic<unsigned int> llm_task::next_port_{8080};
 
 #undef CONFIG_AUTO_SET
 
