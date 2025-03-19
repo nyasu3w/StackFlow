@@ -62,8 +62,9 @@ struct LLMAttrType
 
 class LLM
 {
-private:
+public:
     std::shared_ptr<BaseTokenizer> tokenizer;
+private:
     LLaMaEmbedSelector embed_selector;
 
     LLMAttrType _attr;

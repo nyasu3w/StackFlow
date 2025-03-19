@@ -15,7 +15,11 @@
 #include <stdexcept>
 #include "../../../../SDK/components/utilities/include/sample_log.h"
 using namespace StackFlows;
-
+#ifdef ENABLE_BACKWARD
+#define BACKWARD_HAS_DW 1
+#include "backward.hpp"
+#include "backward.h"
+#endif
 int main_exit_flage = 0;
 static void __sigint(int iSigNo)
 {
@@ -207,12 +211,43 @@ public:
 
     void inference(const std::string &msg)
     {
+#if 1
         try {
             std::string out = lLaMa_->Run(prompt_complete(msg));
             if (out_callback_) out_callback_(out, true);
         } catch (...) {
             SLOGW("lLaMa_->Run have error!");
         }
+#else
+        try {
+            std::string input;
+            if (msg.substr(0, 12) == "<|continue|>") {
+                if (lLaMa_->tokenizer->messages_.size() == 0) {
+                    lLaMa_->tokenizer->messages_complete(ROLE_SYSTEM, prompt_);
+                }
+                lLaMa_->tokenizer->messages_complete(ROLE_USER, msg.substr(12));
+                input = lLaMa_->tokenizer->messages_complete(ROLE_ASSISTANT_HELP);
+                if (input.length() == 0) {
+                    SLOGW("LLM INPUT IS EMPTY");
+                    return;
+                }
+            } else {
+                lLaMa_->tokenizer->messages_clean();
+                lLaMa_->tokenizer->messages_complete(ROLE_SYSTEM, prompt_);
+                lLaMa_->tokenizer->messages_complete(ROLE_USER, msg);
+                input = lLaMa_->tokenizer->messages_complete(ROLE_ASSISTANT_HELP);
+                if (input.length() == 0) {
+                    SLOGW("LLM INPUT IS EMPTY");
+                    return;
+                }
+            }
+            std::string out = lLaMa_->Run(input);
+            if (out_callback_) out_callback_(out, true);
+            lLaMa_->tokenizer->messages_complete(ROLE_ASSISTANT, out);
+        } catch (...) {
+            SLOGW("lLaMa_->Run have error!");
+        }
+#endif
     }
 
     bool pause()
@@ -282,7 +317,7 @@ public:
     }
 
     void task_pause(const std::weak_ptr<llm_task> llm_task_obj_weak,
-                const std::weak_ptr<llm_channel_obj> llm_channel_weak)
+                    const std::weak_ptr<llm_channel_obj> llm_channel_weak)
     {
         auto llm_task_obj = llm_task_obj_weak.lock();
         auto llm_channel  = llm_channel_weak.lock();
