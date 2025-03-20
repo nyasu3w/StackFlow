@@ -1,5 +1,5 @@
 {
-    "mode": "melotts_zh-cn",
+    "mode": "melotts-zh-cn",
     "type": "tts",
     "capabilities": [
         "tts"
@@ -12,9 +12,9 @@
         "sys.play.0_1"
     ],
     "mode_param": {
-        "encoder": "encoder.ort",
-        "decoder": "decoder.axmodel",
-        "gbin": "g.bin",
+        "encoder": "encoder-zh.ort",
+        "decoder": "decoder-zh.axmodel",
+        "gbin": "g-zh_mix_en.bin",
         "tokens": "tokens.txt",
         "lexicon": "lexicon.txt",
         "spacker_speed": 1.0,
