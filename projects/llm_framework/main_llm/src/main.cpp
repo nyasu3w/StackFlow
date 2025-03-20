@@ -575,6 +575,7 @@ public:
             send("None", "None", error_body, work_id);
             return -1;
         }
+        task_pause(llm_task_[work_id_num], get_channel(work_id_num));
         auto llm_channel = get_channel(work_id_num);
         llm_channel->stop_subscriber("");
         llm_task_.erase(work_id_num);
