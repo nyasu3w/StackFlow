@@ -9,6 +9,7 @@
 #include <signal.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <base64.h>
 #include <fstream>
@@ -41,6 +42,11 @@ typedef std::function<void(const std::string &data, bool finish)> task_callback_
 
 class llm_task {
 private:
+    static std::atomic<unsigned int> next_port_;
+    std::atomic_bool tokenizer_server_flage_;
+    unsigned int port_;
+    pid_t tokenizer_pid_ = -1;
+
 public:
     LLMAttrType mode_config_;
     std::unique_ptr<LLM> lLaMa_;
@@ -132,6 +138,7 @@ public:
             CONFIG_AUTO_SET(file_body["mode_param"], top_p);
 
             if (mode_config_.filename_tokenizer_model.find("http:") != std::string::npos) {
+                mode_config_.filename_tokenizer_model = "http://localhost:" + std::to_string(port_);
                 std::string tokenizer_file;
                 if (file_exists(std::string("/opt/m5stack/scripts/") + model_ + std::string("_tokenizer.py"))) {
                     tokenizer_file = std::string("/opt/m5stack/scripts/") + model_ + std::string("_tokenizer.py");
@@ -146,16 +153,16 @@ public:
                     __log += " not found!";
                     SLOGE("%s", __log.c_str());
                 }
-                if (!tokenizer_server_flage_) {
-                    pid_t pid = fork();
-                    if (pid == 0) {
+                if (!tokenizer_server_flage_.load()) {
+                    tokenizer_pid_ = fork();
+                    if (tokenizer_pid_ == 0) {
                         execl("/usr/bin/python3", "python3", tokenizer_file.c_str(), "--host", "localhost", "--port",
                               std::to_string(port_).c_str(), "--model_id", (base_model + "tokenizer").c_str(),
                               "--content", ("'" + prompt_ + "'").c_str(), nullptr);
                         perror("execl failed");
                         exit(1);
                     }
-                    tokenizer_server_flage_ = true;
+                    tokenizer_server_flage_.store(true);
                     SLOGI("port_=%s model_id=%s content=%s", std::to_string(port_).c_str(),
                           (base_model + "tokenizer").c_str(), ("'" + prompt_ + "'").c_str());
                     std::this_thread::sleep_for(std::chrono::seconds(15));
@@ -287,12 +294,27 @@ public:
 
     bool delete_model()
     {
+        if (tokenizer_pid_ != -1) {
+            kill(tokenizer_pid_, SIGTERM);
+            waitpid(tokenizer_pid_, nullptr, 0);
+            tokenizer_pid_ = -1;
+        }
         lLaMa_->Deinit();
         lLaMa_.reset();
         return true;
     }
 
-    llm_task(const std::string &workid)
+    static unsigned int getNextPort()
+    {
+        unsigned int port = next_port_++;
+        if (port > 8089) {
+            next_port_ = 8080;
+            port       = 8080;
+        }
+        return port;
+    }
+
+    llm_task(const std::string &workid) : tokenizer_server_flage_(false), port_(getNextPort())
     {
         sem_init(&inference_semaphore, 0, 0);
         is_running_    = true;
@@ -304,11 +326,17 @@ public:
         is_running_ = false;
         sem_post(&inference_semaphore);
         if (inference_run_) inference_run_->join();
+        if (tokenizer_pid_ != -1) {
+            kill(tokenizer_pid_, SIGTERM);
+            waitpid(tokenizer_pid_, nullptr, WNOHANG);
+        }
         if (lLaMa_) {
             lLaMa_->Deinit();
         }
     }
 };
+
+std::atomic<unsigned int> llm_task::next_port_{8080};
 
 #undef CONFIG_AUTO_SET
 
@@ -619,6 +647,7 @@ public:
             send("None", "None", error_body, work_id);
             return -1;
         }
+        task_pause(llm_task_[work_id_num], get_channel(work_id_num));
         auto llm_channel = get_channel(work_id_num);
         llm_channel->stop_subscriber("");
         llm_task_[work_id_num]->lLaMa_->Stop();
