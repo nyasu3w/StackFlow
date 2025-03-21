@@ -13,6 +13,7 @@
 #include <base64.h>
 #include <fstream>
 #include <stdexcept>
+#include <semaphore.h>
 #include "../../../../SDK/components/utilities/include/sample_log.h"
 using namespace StackFlows;
 #ifdef ENABLE_BACKWARD
@@ -52,6 +53,10 @@ public:
     bool enstream_;
     std::atomic_bool tokenizer_server_flage_;
     unsigned int port_ = 8080;
+    sem_t inference_semaphore;
+    std::unique_ptr<std::thread> inference_run_;
+    std::atomic_bool is_running_;
+    std::string _inference_msg;
 
     void set_output(task_callback_t out_callback)
     {
@@ -209,6 +214,30 @@ public:
         return oss_prompt.str();
     }
 
+    void run()
+    {
+        sem_wait(&inference_semaphore);
+        while (is_running_) {
+            {
+                sem_wait(&inference_semaphore);
+                inference(_inference_msg);
+                sem_wait(&inference_semaphore);
+            }
+        }
+    }
+
+    int inference_async(const std::string &msg)
+    {
+        int count = 0;
+        sem_getvalue(&inference_semaphore, &count);
+        if (count == 0) {
+            _inference_msg = msg;
+            sem_post(&inference_semaphore);
+            sem_post(&inference_semaphore);
+        }
+        return count;
+    }
+
     void inference(const std::string &msg)
     {
 #if 1
@@ -265,10 +294,16 @@ public:
 
     llm_task(const std::string &workid)
     {
+        sem_init(&inference_semaphore, 0, 0);
+        is_running_    = true;
+        inference_run_ = std::make_unique<std::thread>(std::bind(&llm_task::run, this));
     }
 
     ~llm_task()
     {
+        is_running_ = false;
+        sem_post(&inference_semaphore);
+        if (inference_run_) inference_run_->join();
         if (lLaMa_) {
             lLaMa_->Deinit();
         }
@@ -385,7 +420,7 @@ public:
             }
             next_data = &tmp_msg2;
         }
-        llm_task_obj->inference((*next_data));
+        llm_task_obj->inference_async(sample_unescapeString(*next_data));
     }
 
     void task_asr_data(const std::weak_ptr<llm_task> llm_task_obj_weak,
@@ -399,10 +434,10 @@ public:
         }
         if (object.find("stream") != std::string::npos) {
             if (sample_json_str_get(data, "finish") == "true") {
-                llm_task_obj->inference(sample_json_str_get(data, "delta"));
+                llm_task_obj->inference_async(sample_json_str_get(data, "delta"));
             }
         } else {
-            llm_task_obj->inference(data);
+            llm_task_obj->inference_async(data);
         }
     }
 
@@ -586,6 +621,7 @@ public:
         }
         auto llm_channel = get_channel(work_id_num);
         llm_channel->stop_subscriber("");
+        llm_task_[work_id_num]->lLaMa_->Stop();
         llm_task_.erase(work_id_num);
         send("None", "None", LLM_NO_ERROR, work_id);
         return 0;

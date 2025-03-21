@@ -318,6 +318,9 @@ public:
     {
         std::vector<unsigned short> test_embed;
         Encode(test_embed, input_str);
+        if(test_embed.size() == 0) {
+            return "";
+        }
         return Run(test_embed);
     }
 
