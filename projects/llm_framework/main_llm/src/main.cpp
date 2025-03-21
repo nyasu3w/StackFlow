@@ -48,6 +48,7 @@ private:
     pid_t tokenizer_pid_ = -1;
 
 public:
+    enum inference_status { INFERENCE_NONE = 0, INFERENCE_RUNNING };
     LLMAttrType mode_config_;
     std::unique_ptr<LLM> lLaMa_;
     std::string model_;
@@ -57,9 +58,8 @@ public:
     task_callback_t out_callback_;
     bool enoutput_;
     bool enstream_;
-    std::atomic_bool tokenizer_server_flage_;
-    unsigned int port_ = 8080;
     sem_t inference_semaphore;
+    std::atomic_int inference_status_;
     std::unique_ptr<std::thread> inference_run_;
     std::atomic_bool is_running_;
     std::string _inference_msg;
@@ -226,8 +226,8 @@ public:
         sem_wait(&inference_semaphore);
         while (is_running_) {
             {
-                sem_wait(&inference_semaphore);
                 inference(_inference_msg);
+                inference_status_--;
                 sem_wait(&inference_semaphore);
             }
         }
@@ -235,14 +235,12 @@ public:
 
     int inference_async(const std::string &msg)
     {
-        int count = 0;
-        sem_getvalue(&inference_semaphore, &count);
-        if (count == 0) {
-            _inference_msg = msg;
-            sem_post(&inference_semaphore);
+        if (inference_status_ == INFERENCE_NONE) {
+            _inference_msg    = msg;
+            inference_status_ = INFERENCE_RUNNING;
             sem_post(&inference_semaphore);
         }
-        return count;
+        return inference_status_;
     }
 
     void inference(const std::string &msg)
@@ -316,6 +314,7 @@ public:
 
     llm_task(const std::string &workid) : tokenizer_server_flage_(false), port_(getNextPort())
     {
+        inference_status_ = INFERENCE_NONE;
         sem_init(&inference_semaphore, 0, 0);
         is_running_    = true;
         inference_run_ = std::make_unique<std::thread>(std::bind(&llm_task::run, this));
@@ -333,6 +332,7 @@ public:
         if (lLaMa_) {
             lLaMa_->Deinit();
         }
+        sem_destroy(&inference_semaphore);
     }
 };
 

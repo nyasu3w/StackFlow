@@ -47,6 +47,7 @@ typedef std::function<void(const std::vector<nlohmann::json> &data, bool finish)
 class llm_task {
 private:
 public:
+    enum inference_status { INFERENCE_NONE = 0, INFERENCE_RUNNING };
     yolo_config mode_config_;
     std::string model_;
     std::unique_ptr<EngineWrapper> yolo_;
@@ -60,6 +61,7 @@ public:
     std::atomic_bool camera_flage_;
     std::mutex inference_mtx_;
     sem_t inference_semaphore;
+    std::atomic_int inference_status_;
     std::unique_ptr<std::thread> inference_run_;
     std::atomic_bool is_running_;
     cv::Mat _inference_src;
@@ -189,8 +191,8 @@ public:
         sem_wait(&inference_semaphore);
         while (is_running_) {
             {
-                sem_wait(&inference_semaphore);
                 inference(_inference_src, _inference_bgr2rgb);
+                inference_status_--;
                 sem_wait(&inference_semaphore);
             }
         }
@@ -198,15 +200,13 @@ public:
 
     int inference_async(cv::Mat &src, bool bgr2rgb = true)
     {
-        int count = 0;
-        sem_getvalue(&inference_semaphore, &count);
-        if (count == 0) {
+        if (inference_status_ == INFERENCE_NONE) {
             _inference_src     = src;
             _inference_bgr2rgb = bgr2rgb;
-            sem_post(&inference_semaphore);
+            inference_status_  = INFERENCE_RUNNING;
             sem_post(&inference_semaphore);
         }
-        return count;
+        return inference_status_;
     }
 
     bool inference(cv::Mat &src, bool bgr2rgb = true)
@@ -292,6 +292,7 @@ public:
 
     llm_task(const std::string &workid)
     {
+        inference_status_ = INFERENCE_NONE;
         sem_init(&inference_semaphore, 0, 0);
         _ax_init();
         is_running_    = true;
