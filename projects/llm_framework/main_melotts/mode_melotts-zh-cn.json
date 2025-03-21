@@ -1,5 +1,5 @@
 {
-    "mode": "melotts-zh-cn",
+    "mode": "melotts_zh-cn",
     "type": "tts",
     "capabilities": [
         "tts"
