@@ -55,6 +55,74 @@
 - created：消息创建时间，unix 时间。
 - work_id：返回成功创建的 work_id 单元。
 
+## inference
+
+### 流式输入
+
+```json
+{
+    "request_id": "2",
+    "work_id": "llm.1003",
+    "action": "inference",
+    "object": "llm.utf-8.stream",
+    "data": {
+        "delta": "What's ur name?",
+        "index": 0,
+        "finish": true
+    }
+}
+```
+- object：传输的数据类型为 `llm.utf-8.stream` 代表的是从用户 utf-8 的流式输入
+- delta：流式输入的分段数据
+- index：流式输入的分段索引
+- finish:流式输入是否完成的标志位
+
+### 非流式输入
+
+```json
+{
+    "request_id": "2",
+    "work_id": "llm.1003",
+    "action": "inference",
+    "object": "llm.utf-8",
+    "data": "What's ur name?"
+}
+```
+- object：传输的数据类型为 `llm.utf-8` 代表的是从用户 utf-8 的非流式输入
+- data：非流式输入的数据
+
+流式响应 json：
+
+```json
+{"created":1742779468,"data":{"delta":"I am not","finish":false,"index":0},"error":{"code":0,"message":""},"object":"llm.utf-8.stream","request_id":"2","work_id":"llm.1003"}
+{"created":1742779469,"data":{"delta":" a person,","finish":false,"index":1},"error":{"code":0,"message":""},"object":"llm.utf-8.stream","request_id":"2","work_id":"llm.1003"}
+{"created":1742779469,"data":{"delta":" but I'm","finish":false,"index":2},"error":{"code":0,"message":""},"object":"llm.utf-8.stream","request_id":"2","work_id":"llm.1003"}
+{"created":1742779470,"data":{"delta":" here to assist","finish":false,"index":3},"error":{"code":0,"message":""},"object":"llm.utf-8.stream","request_id":"2","work_id":"llm.1003"}
+{"created":1742779471,"data":{"delta":" you with any","finish":false,"index":4},"error":{"code":0,"message":""},"object":"llm.utf-8.stream","request_id":"2","work_id":"llm.1003"}
+{"created":1742779472,"data":{"delta":" questions or tasks","finish":false,"index":5},"error":{"code":0,"message":""},"object":"llm.utf-8.stream","request_id":"2","work_id":"llm.1003"}
+{"created":1742779473,"data":{"delta":" you may have","finish":false,"index":6},"error":{"code":0,"message":""},"object":"llm.utf-8.stream","request_id":"2","work_id":"llm.1003"}
+{"created":1742779474,"data":{"delta":". How can","finish":false,"index":7},"error":{"code":0,"message":""},"object":"llm.utf-8.stream","request_id":"2","work_id":"llm.1003"}
+{"created":1742779474,"data":{"delta":" I help you","finish":false,"index":8},"error":{"code":0,"message":""},"object":"llm.utf-8.stream","request_id":"2","work_id":"llm.1003"}
+{"created":1742779475,"data":{"delta":" today?","finish":false,"index":9},"error":{"code":0,"message":""},"object":"llm.utf-8.stream","request_id":"2","work_id":"llm.1003"}
+{"created":1742779475,"data":{"delta":"","finish":true,"index":10},"error":{"code":0,"message":""},"object":"llm.utf-8.stream","request_id":"2","work_id":"llm.1003"}
+```
+
+非流式响应 json：
+
+```json
+{
+    "created": 1742780120,
+    "data": "As an artificial intelligence, I don't have a name in the traditional sense. However, I am here to assist you with any questions or information you may need. How can I help you today?",
+    "error": {
+        "code": 0,
+        "message": ""
+    },
+    "object": "llm.utf-8",
+    "request_id": "2",
+    "work_id": "llm.1003"
+}
+```
+
 ## link
 
 链接上级单元的输出。
