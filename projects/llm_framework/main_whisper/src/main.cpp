@@ -146,7 +146,7 @@ public:
         "ro", "az", "fi", "is", "gl", "mn", "haw", "oc", "hu", "it", "ka", "ca", "pl", "as", "ru", "lb", "sk",
         "he", "cy", "es", "bs", "pa", "mk", "ba",  "fr", "my", "mi", "nl", "su", "tk", "yo"};
 
-    std::unordered_map<std::string, int> WHISPER_N_TEXT_STATE_MAP{{"tiny", 384}, {"small", 768}};
+    std::unordered_map<std::string, int> WHISPER_N_TEXT_STATE_MAP{{"tiny", 384}, {"base", 512}, {"small", 768}};
 
     std::vector<int32_t> SOT_SEQUENCE{mode_config_.whisper_sot, 50260, mode_config_.whisper_transcribe,
                                       mode_config_.whisper_no_timestamps};
