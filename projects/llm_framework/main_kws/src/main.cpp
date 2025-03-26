@@ -178,7 +178,7 @@ public:
             if (file_exists("/opt/m5stack/scripts/text2token.py"))
                 awake_key_compile_cmd << "/usr/bin/python3 /opt/m5stack/scripts/text2token.py ";
             else if (file_exists("/opt/m5stack/scripts/llm-kws_text2token.py"))
-                awake_key_compile_cmd << "/bin/bash /opt/m5stack/scripts/llm-kws_text2token.py ";
+                awake_key_compile_cmd << "/usr/bin/python3 /opt/m5stack/scripts/llm-kws_text2token.py ";
             else {
                 SLOGE("text2token.py or llm-kws_text2token.py not found!");
             }

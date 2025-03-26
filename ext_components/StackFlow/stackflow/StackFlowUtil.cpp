@@ -8,6 +8,11 @@
 #include <glob.h>
 #include <fstream>
 #include "pzmq.hpp"
+#if defined(__ARM_NEON) || defined(__ARM_NEON__)
+#include <arm_neon.h>
+#endif
+
+// #include <iconv.h>
 
 std::string StackFlows::sample_json_str_get(const std::string &json_str, const std::string &json_key)
 {
@@ -126,22 +131,112 @@ std::string StackFlows::sample_escapeString(const std::string &input)
     return escaped;
 }
 
-std::string StackFlows::sample_unescapeString(const std::string &input)
+void StackFlows::unicode_to_utf8(unsigned int codepoint, char *output, int *length) {
+    if (codepoint <= 0x7F) {
+        output[0] = codepoint & 0x7F;
+        *length = 1;
+    } else if (codepoint <= 0x7FF) {
+        output[0] = 0xC0 | ((codepoint >> 6) & 0x1F);
+        output[1] = 0x80 | (codepoint & 0x3F);
+        *length = 2;
+    } else if (codepoint <= 0xFFFF) {
+        output[0] = 0xE0 | ((codepoint >> 12) & 0x0F);
+        output[1] = 0x80 | ((codepoint >> 6) & 0x3F);
+        output[2] = 0x80 | (codepoint & 0x3F);
+        *length = 3;
+    } else if (codepoint <= 0x10FFFF) {
+        output[0] = 0xF0 | ((codepoint >> 18) & 0x07);
+        output[1] = 0x80 | ((codepoint >> 12) & 0x3F);
+        output[2] = 0x80 | ((codepoint >> 6) & 0x3F);
+        output[3] = 0x80 | (codepoint & 0x3F);
+        *length = 4;
+    } else {
+        *length = 0;
+    }
+}
+
+std::string StackFlows::sample_unescapeString(const std::string &input, bool ucs2)
 {
     std::string unescaped;
-    for (size_t i = 0; i < input.length(); ++i) {
-        if (input[i] == '\\' && i + 1 < input.length()) {
-            switch (input[i + 1]) {
-                case 'n' :unescaped += '\n';++i;break;
-                case 't' :unescaped += '\t';++i;break;
-                case '\\':unescaped += '\\';++i;break;
-                case '\"':unescaped += '\"';++i;break;
-                case 'r' :unescaped += '\r';++i;break;
-                case 'b' :unescaped += '\b';++i;break;
-                default  :unescaped += input[i];break;
+    unescaped.reserve(input.length());
+    const char *itc = input.c_str();
+    const char *itd = itc + input.length();
+    while (itc != itd){
+#if defined(__ARM_NEON) || defined(__ARM_NEON__)
+        if ((itd - itc) >= 16) {
+            const uint8_t *srcstr = (const uint8_t *)itc;
+            uint8x16_t target_open  = vdupq_n_u8('\\');
+            uint8x16_t input_vector = vld1q_u8(srcstr);
+            uint8x16_t result_open  = vceqq_u8(input_vector, target_open);
+            __uint128_t jflage;
+            vst1q_u8((uint8_t *)&jflage, result_open);
+            if (jflage == 0) {
+                int pos = unescaped.size();
+                unescaped.resize(pos + 16);
+                memcpy((void*)(unescaped.c_str() + pos), srcstr, 16);
+                itc += 16;
+                continue;
             }
-        } else {
-            unescaped += input[i];
+        }
+#endif
+        if((*itc == '\\') && (++itc != itd)){
+            switch (*itc)
+            {
+                case 'n' :unescaped += '\n';itc++;break;
+                case 't' :unescaped += '\t';itc++;break;
+                case '\\':unescaped += '\\';itc++;break;
+                case '\"':unescaped += '\"';itc++;break;
+                case 'r' :unescaped += '\r';itc++;break;
+                case 'b' :unescaped += '\b';itc++;break;
+                case 'u' :{
+                    itc++;
+                    if(ucs2) {
+                        unescaped += "\\u";
+                        break;
+                    }
+                    unsigned int codepoint = 0;
+                    auto itcb = itc;
+                    do {
+                        if((itd - itc) < 4) {
+                            codepoint = -1;
+                            break;
+                        }
+                        for (int i = 0; i < 4; i++) {
+                            char c = *itc++;
+                            codepoint <<= 4;
+                            switch (c) {
+                                case '0' ... '9' : codepoint |= (c - '0'); break;
+                                case 'A' ... 'F' : codepoint |= (c - 'A' + 10); break;
+                                case 'a' ... 'f' : codepoint |= (c - 'a' + 10); break;
+                                default: codepoint = -1; i += 4 ; break;
+                            }
+                        }
+                    } while (codepoint >= 0xD800 && codepoint <= 0xDBFF);
+                    if(codepoint == -1) {
+                        itc = itcb;
+                        unescaped += "\\u";
+                        break;
+                    }
+                    char buff[4];
+                    int len = 0;
+                    StackFlows::unicode_to_utf8(codepoint, buff, &len);
+                    if(len != 0) {
+                        for (int i = 0; i < len; i++) {
+                            unescaped += buff[i];
+                        }
+                    } else {
+                        itc = itcb;
+                        unescaped += "\\u";
+                    }
+                }
+                break;
+            default:
+                unescaped += *itc++;
+                break;
+            }
+        }
+        else {
+            unescaped += *itc++;
         }
     }
     return unescaped;

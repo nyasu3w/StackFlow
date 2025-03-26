@@ -1,100 +1,135 @@
-# Module-LLM
+# StackFlow
 
-<div class="product_pic"><img class="pic" src="https://m5stack.oss-cn-shenzhen.aliyuncs.com/resource/docs/products/module/Module%20LLM/4.webp" width="25%">
+<p align="center"><img src="https://static-cdn.m5stack.com/resource/public/assets/m5logo2022.svg" alt="basic" width="300" height="300"></p>
 
-## 描述
 
-**Module LLM**是一款集成化的离线大语言模型 (LLM) 推理模块，专为需要高效，智能交互的终端设备设计，无论是在智能家居，语音助手，还是在工业控制中，Module LLM 都能为您带来流畅，自然的 AI 体验，无需依赖云端，确保隐私安全与稳定性。集成 **StackFlow** 框架，配合 **Arduino/UiFlow** 库，几行代码就可轻松实现端侧智能。<br>
-搭载爱芯 **AX630C** SoC 先进处理器，集成 3.2 TOPs 高能效 NPU，原生支持 Transformer 模型，轻松应对复杂 AI 任务。配备 **4GB LPDDR4** 内存（其中1GB供用户使用，3GB专用于硬件加速）和**32GB eMMC**存储，支持多模型并行加载与串联推理，确保多任务处理流畅无阻。运行功耗仅约 1.5W，远低于同类产品，节能高效，适合长时间运行。<br>
-集成麦克风，扬声器，TF存储卡，**USB OTG** 及 RGB状态灯，满足多样化应用需求，轻松实现语音交互与数据传输。灵活扩展：板载 SD 卡槽支持固件冷/热升级，**UART** 通信接口简化连接与调试，确保模块功能持续优化与扩展。USB 口支持主从自动切换，既可以做调试口，也可以外接更多 USB 设备如摄像头。搭配 LLM 调试套件，用于扩展百兆以太网口，及内核串口，作为 SBC 使用。<br>
-多模型兼容，出厂预装 **Qwen2.5-0.5B** 大语言模型，内置**KWS**（唤醒词），**ASR**（语音识别），**LLM**（大语言模型）及**TTS**（文本转语音）功能，且支持分开调用或 **pipeline** 自动流转，方便开发。后续将支持Qwen2.5-1.5B、Llama3.2-1B及InternVL2-1B等多种端侧LLM/VLM模型，支持热更新模型，紧跟社区潮流，适应不同复杂度的AI任务；视觉识别能力：支持CLIP、YoloWorld等Open world模型，未来将持续更新DepthAnything、SegmentAnything等先进模型，赋能智能识别与分析；<br>
-即插即用，搭配**M5主机**，Module LLM 实现即插即用的AI交互体验。用户无需繁琐设置，即可将其集成到现有智能设备中，快速启用智能化功能，提升设备智能水平。该产品适用于离线语音助手，文本语音转换，智能家居控制，互动机器人等领域。
+<p align="center">
+  StackFlow 是一个简单、疾速、优雅的面向嵌入式开发者一站式 AI 服务基础设施项目，目的是让 Maker 和 Haker 们能够快速的在当前的嵌入式设备中获取到强大的 AI 加速能力。StackFlow 能够为各类人机交互设备注入智慧的灵魂。
+</p>
 
 
 
 
-## 产品特性
+## Table of Contents
 
-- 离线推理,3.2T@INT8精度算力
-
-- 集成KWS（唤醒词），ASR（语音识别），LLM（大语言模型），TTS（文本生成语音）
-
-- 多模型并行
-
-- 板载32GB eMMC存储和4GB LPDDR4内存
-
-- 板载麦克风及扬声器
-
-- 串口通信
-
-- SD卡固件升级
-
-- 支持ADB调试
-
-- RGB提示灯
-
-- 内置ubuntu系统
-
-- 支持OTG功能
-
-- 支持Arduino/UIFlow
-
-  
+* [特性](#特性)
+* [Demo](#demo)
+* [环境要求](#环境要求)
+* [编译](#编译)
+* [安装](#安装)
+* [升级](#升级)
+* [运行](#运行)
+* [配置](#配置)
+* [接口](#接口)
+* [贡献](#贡献)
 
 
-## 应用
+## 特性
+<!-- ![](doc/assets/network.png) -->
+* 分布式通信架构。每个单元都能够单独工作或者和其他单元配合工作。
+* 多模型支持。包括但不限于语音识别、语音合成、图像识别、自然语言处理、LLM 大模型助手推理等。
+* 数据内部流转。可根据需求配置不同单元协同工作，避免复杂的数据处理流程。
+* 简单易用。通过标准 json 交换数据，快速实现 AI 服务。
+* 离线化运行。无需联网即可实现本地 AI 服务。
+* 多平台支持。包括但不限于 Module LLM、LLM630 Compute Kit 等。
+* 灵活配置。所有单元均可完全配置运行参数，在相同的数据流处理情况下，随意更换模型和修改模型运行参数。
+* 简单易用。开发者只需关注模型和硬件平台，无需关注底层通信和数据处理细节，即可快速实现 AI 服务。
+* 高效稳定。通过 ZMQ 信道传输，数据传输效率高，延迟低，稳定性强。
+* 开源免费。StackFlow 采用 MIT 许可证。
+* 多语言支持。单元主体由 C++ 实现，性能极致优化，可扩展至多变成语言支持。（需要支持 ZMQ 编程）
 
-- 离线语音助手
-- 文本语音转换
-- 智能家居控制
-- 互动机器人
+StackFlow 还在不断优化和迭代，在框架更加完善的同时，会持续增加更多功能，敬请期待。
 
-## 规格参数
-
-| 规格         | 参数                                                                        |
-| ------------ | --------------------------------------------------------------------------- |
-| 处理器SoC    | AX630C@Dual Cortex A53 1.2 GHz <br> MAX.12.8 TOPS  @INT4,and 3.2 TOPS @INT8 |
-| 内存         | 4GB LPDDR4(1GB系统内存 + 3GB 硬件加速专用内存)                              |
-| 存储         | 32GB eMMC5.1                                                                |
-| 通信接口     | 串口通信 波特率默认 115200@8N1（可调）                                      |
-| 麦克风       | MSM421A                                                                     |
-| 音频驱动     | AW8737                                                                      |
-| 扬声器       | 8Ω@1W,尺寸:2014 腔体喇叭                                                    |
-| 内置功能单元 | KWS（唤醒词），ASR（语音识别），LLM（大语言模型），TTS（文本生成语音）      |
-| RGB灯        | 3x RGB LED@2020 由LP5562驱动 (状态指示)                                     |
-| 功耗         | 空载：5V@0.5W，满载:5V@1.5W                                                 |
-| 按键         | 用于升级固件进入下载模式                                                    |
-| 升级接口     | SD卡/Type C口                                                               |
-| 工作温度     | 0-40°C                                                                      |
-| 产品尺寸     | 54x54x13mm                                                                  |
-| 包装尺寸     | 133x95x16mm                                                                 |
-| 产品重量     | 17.4g                                                                       |
-| 包装重量     | 32.0g                                                                       |
-
-## 相关链接
-
-- [AX630C](https://m5stack.oss-cn-shenzhen.aliyuncs.com/resource/docs/products/module/Module%20LLM/AX630C.pdf)
-
-## PinMap
-
-| Module LLM   | RXD | TXD |
-| ------------ | --- | --- |
-| Core (Basic) | G16 | G17 |
-| Core2        | G13 | G14 |
-| CoreS3       | G18 | G17 |
-
->LLM Module引脚切换| LLM Module预留了引脚切换焊盘, 一些出现引脚复用冲突的情况下, 可以通过切割PCB线路然后跳线连接至其他组引脚。
-
-<img alt="module size" src="https://m5stack.oss-cn-shenzhen.aliyuncs.com/resource/docs/products/module/Module%20LLM/03.jpg" width="25%" />
-
-> 以`CoreS3`为例子，第一列（左绿色框）是串口通讯的TX引脚，用户根据需要四选一，（从上到下分别代表引脚G18 G7 G14 G10）,默认是IO18引脚，如需要切换其他引脚，切断焊盘连接线（红线处）（建议使用刀片切割），然后连接下面三个引脚之间的一个即可；第二列（右绿色框）是RX引脚切换，如上所述，也是四选一操作。
+StackFlow 语音助手的主要工作模式：
 
 
+开机后，KWS、ASR、LLM、TTS、AUDIO 被配置成协同工作状态。当 KWS 从 AUDIO 单元获取的音频中检测出关键词后，发出唤醒信号。此时，ASR 开始工作，识别 AUDIO 的音频数据，并将结果发布到自己的输出信道中。LLM 接收到 ASR 转换后的文本数据后，开始进行推理，并将结果发布到自己的输出信道中。TTS 接收到 LLM 的结果后，开始进行语音合成，合成完成后根据配置来播放合成好的音频数据。
 
-## 视频
 
-- Module LLM 产品介绍以及例子展示 [Module_LLM_Video.mp4](https://m5stack.oss-cn-shenzhen.aliyuncs.com/resource/docs/products/module/Module%20LLM/Module_LLM_Video.mp4)
+## Demo
+- [StackFlow 连续语音识别](./projects/llm_framework/README.md)
+- [StackFlow LLM 大模型唤醒对话](./projects/llm_framework/README.md)
+- [StackFlow TTS 语音合成播放](./projects/llm_framework/README.md)
+- [StackFlow yolo 视觉检测](https://github.com/Abandon-ht/ModuleLLM_Development_Guide/tree/dev/ESP32/cpp)
+- [StackFlow VLM 图片描述](https://github.com/Abandon-ht/ModuleLLM_Development_Guide/tree/dev/ESP32/cpp)
 
-## AI Benchmark 对比
+## 环境要求 ##
+当前 StackFlow 的 AI 单元是建立在 AXERA 加速平台之上的，主要的芯片平台为 ax630c、ax650n。系统要求为 ubuntu。
 
-<img alt="compare" src="https://m5stack.oss-cn-shenzhen.aliyuncs.com/resource/docs/products/module/Module%20LLM/Benchmark%E5%AF%B9%E6%AF%94.png" width="100%" />
+## 编译 ##
+StackFlow 主要的运行平台在嵌入式 linux 设备中，一般情况下请在主机 linux 设备中进行编译工作，编译工具链为 aarch64-none-linux-gnu。
+```bash
+# 安装 X86 交叉编译工具链
+wget https://m5stack.oss-cn-shenzhen.aliyuncs.com/resource/linux/llm/gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu.tar.gz
+sudo tar zxvf gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu.tar.gz -C /opt
+
+# 安装依赖
+sudo apt install python3 python3-pip libffi-dev
+pip3 install parse scons requests 
+
+# 下载 StackFlow 源码
+git clone https://github.com/m5stack/StackFlow.git
+cd StackFlow
+git submodule update --init
+cd projects/llm_framework
+scons distclean
+
+# 编译。注意：编译时需要联网下载源码、二进制库等文件，请保持网络畅通。
+scons -j22
+
+# 打包 deb 包。注意：由于 LLM 的模型文件较大，打包 deb 包时，需要使用较大的磁盘空间，建议使用 128G 以上的磁盘空间。打包时会联网下载大量二进制文件，请注意流量消耗。
+cd tools
+python3 llm_pack.py
+```
+
+## 安装 ##
+StackFlow 的程序和模型数据是分开的，程序安装完成后，需要单独下载模型数据，并配置到程序中。安装是先安装程序包，然后再安装模型包。
+裸机环境安装(需要在 LLM 设备中执行下面命令):
+```bash
+# 首先安装动态库依赖
+dpkg -i ./lib-llm_1.4-m5stack1_arm64.deb
+# 然后安装 llm-sys 主单元
+dpkg -i ./llm-sys_1.4-m5stack1_arm64.deb
+# 安装其他 llm 单元
+dpkg -i ./llm-xxx_1.4-m5stack1_arm64.deb
+# 安装模型包
+dpkg -i ./llm-xxx_1.4-m5stack1_arm64.deb
+# 注意 lib-llm_1.4-m5stack1_arm64.deb 和 llm-sys_1.4-m5stack1_arm64.deb 的安装顺序，其他 llm 单元和模型包的安装顺序没有要求。
+```
+
+## 升级
+升级时可单独升级 AI 单元，或者升级整个 StackFlow 框架。  
+升级单个单元时可通过 SD 卡升级或者手动 `dpkg` 命令进行安装。需要注意的时在小版本的包中，可以单独安装升级包，但是大版本升级时，必须安装完所有的 llm 单元。
+命令行升级包：
+```bash
+# 安装需要升级的 llm 单元
+dpkg -i ./llm-xxx_1.4-m5stack1_arm64.deb
+```
+[设备自动升级安装](https://docs.m5stack.com/en/guide/llm/llm/image)
+## 运行 ##
+相关 AI 服务会在开机时自动运行，也可以通过手动命令启动。  
+sys 单元运行状态查询：
+```bash
+systemctl status llm-sys
+```
+相关命令可参考 systemd 服务命令。
+
+## 配置 ##
+StackFlow 的配置分为两类，一类是单元工作参数配置，一类是模型工作参数配置。
+两类配置文件均采用 json 格式，配置文件位于多个目录下，目录如下：
+```
+/opt/m5stack/data/models/
+/opt/m5stack/share/
+```
+## 接口 ##
+StackFlow 可通过 UART 和 TCP 端口进行访问。UART 端口的默认波特率为 115200，TCP 端口的默认端口为 10001。参数均可通过配置文件进行修改。
+
+## 贡献
+
+* 喜欢本项目请先打一颗星；
+* 提 bug 请到 [issue 页面](https://github.com/m5stack/StackFlow/issues)；
+* 要贡献代码，欢迎 fork 之后再提 pull request；
+
+## Star 历史
+
+[![Star History Chart](https://api.star-history.com/svg?repos=m5stack/StackFlow&type=Date)](https://star-history.com/#m5stack/StackFlow&Date)

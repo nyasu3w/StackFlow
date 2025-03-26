@@ -17,6 +17,10 @@ LDFLAGS = []
 LINK_SEARCH_PATH = []
 STATIC_FILES = []
 
+if 'CONFIG_LIBBSON_ENABLED' in os.environ:
+    REQUIREMENTS += ['bson']
+    DEFINITIONS += ['-DENABLE_BSON']
+
 # DEFINITIONS += ['-std=c++17']
 
 # REQUIREMENTS += ['Backward_cpp']

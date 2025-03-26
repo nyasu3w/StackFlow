@@ -9,7 +9,7 @@
 #include <ax_sys_api.h>
 #include <sys/stat.h>
 #include <fstream>
-
+#include <semaphore.h>
 #include "../../../../SDK/components/utilities/include/sample_log.h"
 
 using namespace StackFlows;
@@ -59,6 +59,11 @@ public:
     task_callback_t out_callback_;
     std::atomic_bool camera_flage_;
     std::mutex inference_mtx_;
+    sem_t inference_semaphore;
+    std::unique_ptr<std::thread> inference_run_;
+    std::atomic_bool is_running_;
+    cv::Mat _inference_src;
+    bool _inference_bgr2rgb;
 
     bool parse_config(const nlohmann::json &config_body)
     {
@@ -145,54 +150,63 @@ public:
 
     bool inference_decode(const std::string &msg)
     {
-        if (inference_mtx_.try_lock())
-            std::lock_guard<std::mutex> guard(inference_mtx_, std::adopt_lock);
-        else
-            return true;
         cv::Mat src = cv::imdecode(std::vector<uint8_t>(msg.begin(), msg.end()), cv::IMREAD_COLOR);
         if (src.empty()) return true;
-        return inference(src);
+        return inference_async(src) ? false : true;
     }
 
     bool inference_raw_yuv(const std::string &msg)
     {
-        if (inference_mtx_.try_lock())
-            std::lock_guard<std::mutex> guard(inference_mtx_, std::adopt_lock);
-        else
-            return true;
         if (msg.size() != mode_config_.img_w * mode_config_.img_h * 2) {
             throw std::string("img size error");
         }
         cv::Mat camera_data(mode_config_.img_h, mode_config_.img_w, CV_8UC2, (void *)msg.data());
         cv::Mat rgb;
         cv::cvtColor(camera_data, rgb, cv::COLOR_YUV2RGB_YUYV);
-        return inference(rgb, true);
+        return inference_async(rgb, true) ? false : true;
     }
 
     bool inference_raw_rgb(const std::string &msg)
     {
-        if (inference_mtx_.try_lock())
-            std::lock_guard<std::mutex> guard(inference_mtx_, std::adopt_lock);
-        else
-            return true;
         if (msg.size() != mode_config_.img_w * mode_config_.img_h * 3) {
             throw std::string("img size error");
         }
         cv::Mat camera_data(mode_config_.img_h, mode_config_.img_w, CV_8UC3, (void *)msg.data());
-        return inference(camera_data, false);
+        return inference_async(camera_data, false) ? false : true;
     }
 
     bool inference_raw_bgr(const std::string &msg)
     {
-        if (inference_mtx_.try_lock())
-            std::lock_guard<std::mutex> guard(inference_mtx_, std::adopt_lock);
-        else
-            return true;
         if (msg.size() != mode_config_.img_w * mode_config_.img_h * 3) {
             throw std::string("img size error");
         }
         cv::Mat camera_data(mode_config_.img_h, mode_config_.img_w, CV_8UC3, (void *)msg.data());
-        return inference(camera_data);
+        return inference_async(camera_data) ? false : true;
+    }
+
+    void run()
+    {
+        sem_wait(&inference_semaphore);
+        while (is_running_) {
+            {
+                sem_wait(&inference_semaphore);
+                inference(_inference_src, _inference_bgr2rgb);
+                sem_wait(&inference_semaphore);
+            }
+        }
+    }
+
+    int inference_async(cv::Mat &src, bool bgr2rgb = true)
+    {
+        int count = 0;
+        sem_getvalue(&inference_semaphore, &count);
+        if (count == 0) {
+            _inference_src     = src;
+            _inference_bgr2rgb = bgr2rgb;
+            sem_post(&inference_semaphore);
+            sem_post(&inference_semaphore);
+        }
+        return count;
     }
 
     bool inference(cv::Mat &src, bool bgr2rgb = true)
@@ -278,12 +292,19 @@ public:
 
     llm_task(const std::string &workid)
     {
+        sem_init(&inference_semaphore, 0, 0);
         _ax_init();
+        is_running_    = true;
+        inference_run_ = std::make_unique<std::thread>(std::bind(&llm_task::run, this));
     }
 
     ~llm_task()
     {
+        is_running_ = false;
+        sem_post(&inference_semaphore);
+        if (inference_run_) inference_run_->join();
         _ax_deinit();
+        sem_destroy(&inference_semaphore);
     }
 };
 int llm_task::ax_init_flage_ = 0;

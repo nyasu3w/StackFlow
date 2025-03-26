@@ -15,6 +15,10 @@
 #include <arm_neon.h>
 #endif
 
+#ifdef ENABLE_BSON
+#include <bson/bson.h>
+#endif
+
 using namespace StackFlows;
 
 void unit_action_match(int com_id, const std::string &json_str);
@@ -80,6 +84,29 @@ void zmq_bus_com::on_raw_data(const std::string &data)
     new_data[json_str_.length() + 8 + base64_data.length()] = '"';
     new_data[json_str_.length() + 9 + base64_data.length()] = '}';
     on_data(new_data);
+}
+
+void zmq_bus_com::on_bson_data(const std::string &data)
+{
+#ifdef ENABLE_BSON
+    bson_t *bson = bson_new_from_data((const uint8_t *)data.c_str(), data.length());
+    if (!bson) {
+        SLOGW("bson is error");
+        return ;
+    }
+    char *json = bson_as_canonical_extended_json(bson, NULL);
+    if (!json) {
+        SLOGW("bson to json error");
+        bson_destroy(bson);
+        return ;
+    }
+    std::string new_data(json);
+    on_data(new_data);
+    bson_free(json);
+    bson_destroy(bson);
+#else
+    SLOGW("bson not enable");
+#endif
 }
 
 void zmq_bus_com::send_data(const std::string &data)
@@ -173,7 +200,7 @@ void zmq_bus_com::select_json_str(const std::string &json_src, std::function<voi
     do {
         enloop = false;
         switch (reace_event_) {
-            case 0: {
+            case RAW_NONE: {
                 json_str_.reserve(json_str_.length() + src_str->length());
                 const char *data = src_str->c_str();
                 for (int i = 0; i < src_str->length(); i++) {
@@ -203,7 +230,7 @@ void zmq_bus_com::select_json_str(const std::string &json_src, std::function<voi
                             if ((json_str_.length() > 7) && (json_str_[1] == '\"') && (json_str_[2] == 'R') &&
                                 (json_str_[3] == 'A') && (json_str_[4] == 'W') && (json_str_[5] == '\"') &&
                                 (json_str_[6] == ':')) {
-                                reace_event_ = 10;
+                                reace_event_ = RAW_JSON;
                                 raw_msg_len_ = std::stoi(StackFlows::sample_json_str_get(json_str_, "RAW"));
                                 raw_msg_buff_.reserve(raw_msg_len_);
                                 if (json_src.length() > i) {
@@ -211,6 +238,17 @@ void zmq_bus_com::select_json_str(const std::string &json_src, std::function<voi
                                     enloop  = true;
                                 }
                                 break;
+                            } else if ((json_str_.length() > 7) && (json_str_[1] == '\"') && (json_str_[2] == 'B') &&
+                                (json_str_[3] == 'O') && (json_str_[4] == 'N') && (json_str_[5] == '\"') &&
+                                (json_str_[6] == ':')) {
+                                    reace_event_ = RAW_BSON;
+                                    raw_msg_len_ = std::stoi(StackFlows::sample_json_str_get(json_str_, "BON"));
+                                    raw_msg_buff_.reserve(raw_msg_len_);
+                                    if (json_src.length() > i) {
+                                        src_str = std::make_shared<std::string>(src_str->substr(i + 1));
+                                        enloop  = true;
+                                    }
+                                    break;
                             }
                             out_fun(json_str_);
                         }
@@ -223,14 +261,30 @@ void zmq_bus_com::select_json_str(const std::string &json_src, std::function<voi
                     }
                 }
             } break;
-            case 10: {
+            case RAW_JSON: {
                 if (raw_msg_len_ > src_str->length()) {
                     raw_msg_buff_.append(src_str->c_str(), src_str->length());
                     raw_msg_len_ -= src_str->length();
                 } else {
-                    reace_event_ = 0;
+                    reace_event_ = RAW_NONE;
                     raw_msg_buff_.append(src_str->c_str(), raw_msg_len_);
                     on_raw_data(raw_msg_buff_);
+                    raw_msg_buff_.clear();
+                    json_str_.clear();
+                    if (src_str->length() > raw_msg_len_) {
+                        src_str = std::make_shared<std::string>(src_str->substr(raw_msg_len_ + 1));
+                        enloop  = true;
+                    }
+                }
+            } break;
+            case RAW_BSON: {
+                if (raw_msg_len_ > src_str->length()) {
+                    raw_msg_buff_.append(src_str->c_str(), src_str->length());
+                    raw_msg_len_ -= src_str->length();
+                } else {
+                    reace_event_ = RAW_NONE;
+                    raw_msg_buff_.append(src_str->c_str(), raw_msg_len_);
+                    on_bson_data(raw_msg_buff_);
                     raw_msg_buff_.clear();
                     json_str_.clear();
                     if (src_str->length() > raw_msg_len_) {
