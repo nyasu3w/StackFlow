@@ -9,12 +9,14 @@
 #include <signal.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <base64.h>
 #include <fstream>
 #include <stdexcept>
 #include <semaphore.h>
 #include "../../../../SDK/components/utilities/include/sample_log.h"
+#include "thread_safe_list.h"
 using namespace StackFlows;
 #ifdef ENABLE_BACKWARD
 #define BACKWARD_HAS_DW 1
@@ -41,7 +43,13 @@ typedef std::function<void(const std::string &data, bool finish)> task_callback_
 
 class llm_task {
 private:
+    static std::atomic<unsigned int> next_port_;
+    std::atomic_bool tokenizer_server_flage_;
+    unsigned int port_;
+    pid_t tokenizer_pid_ = -1;
+
 public:
+    enum inference_status { INFERENCE_NONE = 0, INFERENCE_RUNNING };
     LLMAttrType mode_config_;
     std::unique_ptr<LLM> lLaMa_;
     std::string model_;
@@ -51,12 +59,9 @@ public:
     task_callback_t out_callback_;
     bool enoutput_;
     bool enstream_;
-    std::atomic_bool tokenizer_server_flage_;
-    unsigned int port_ = 8080;
-    sem_t inference_semaphore;
+
     std::unique_ptr<std::thread> inference_run_;
-    std::atomic_bool is_running_;
-    std::string _inference_msg;
+    thread_safe::list<std::string> async_list_;
 
     void set_output(task_callback_t out_callback)
     {
@@ -132,6 +137,7 @@ public:
             CONFIG_AUTO_SET(file_body["mode_param"], top_p);
 
             if (mode_config_.filename_tokenizer_model.find("http:") != std::string::npos) {
+                mode_config_.filename_tokenizer_model = "http://localhost:" + std::to_string(port_);
                 std::string tokenizer_file;
                 if (file_exists(std::string("/opt/m5stack/scripts/") + model_ + std::string("_tokenizer.py"))) {
                     tokenizer_file = std::string("/opt/m5stack/scripts/") + model_ + std::string("_tokenizer.py");
@@ -146,16 +152,16 @@ public:
                     __log += " not found!";
                     SLOGE("%s", __log.c_str());
                 }
-                if (!tokenizer_server_flage_) {
-                    pid_t pid = fork();
-                    if (pid == 0) {
+                if (!tokenizer_server_flage_.load()) {
+                    tokenizer_pid_ = fork();
+                    if (tokenizer_pid_ == 0) {
                         execl("/usr/bin/python3", "python3", tokenizer_file.c_str(), "--host", "localhost", "--port",
                               std::to_string(port_).c_str(), "--model_id", (base_model + "tokenizer").c_str(),
                               "--content", ("'" + prompt_ + "'").c_str(), nullptr);
                         perror("execl failed");
                         exit(1);
                     }
-                    tokenizer_server_flage_ = true;
+                    tokenizer_server_flage_.store(true);
                     SLOGI("port_=%s model_id=%s content=%s", std::to_string(port_).c_str(),
                           (base_model + "tokenizer").c_str(), ("'" + prompt_ + "'").c_str());
                     std::this_thread::sleep_for(std::chrono::seconds(15));
@@ -216,26 +222,26 @@ public:
 
     void run()
     {
-        sem_wait(&inference_semaphore);
-        while (is_running_) {
+        std::string par;
+        for (;;) {
             {
-                sem_wait(&inference_semaphore);
-                inference(_inference_msg);
-                sem_wait(&inference_semaphore);
+                par = async_list_.get();
+                if (par.empty()) break;
+                inference(par);
             }
         }
     }
 
     int inference_async(const std::string &msg)
     {
-        int count = 0;
-        sem_getvalue(&inference_semaphore, &count);
-        if (count == 0) {
-            _inference_msg = msg;
-            sem_post(&inference_semaphore);
-            sem_post(&inference_semaphore);
+        if (msg.empty()) return -1;
+        if (async_list_.size() < 3) {
+            std::string par = msg;
+            async_list_.put(par);
+        } else {
+            SLOGE("inference list is full\n");
         }
-        return count;
+        return async_list_.size();
     }
 
     void inference(const std::string &msg)
@@ -281,34 +287,71 @@ public:
 
     bool pause()
     {
-        lLaMa_->Stop();
+        if(lLaMa_)
+            lLaMa_->Stop();
         return true;
     }
 
     bool delete_model()
     {
+        if (tokenizer_pid_ != -1) {
+            kill(tokenizer_pid_, SIGTERM);
+            waitpid(tokenizer_pid_, nullptr, 0);
+            tokenizer_pid_ = -1;
+        }
         lLaMa_->Deinit();
         lLaMa_.reset();
         return true;
     }
 
-    llm_task(const std::string &workid)
+    static unsigned int getNextPort()
     {
-        sem_init(&inference_semaphore, 0, 0);
-        is_running_    = true;
+        unsigned int port = next_port_++;
+        if (port > 8089) {
+            next_port_ = 8080;
+            port       = 8080;
+        }
+        return port;
+    }
+
+    llm_task(const std::string &workid) : tokenizer_server_flage_(false), port_(getNextPort())
+    {
         inference_run_ = std::make_unique<std::thread>(std::bind(&llm_task::run, this));
     }
 
+    void start()
+    {
+        if (!inference_run_) {
+            inference_run_ = std::make_unique<std::thread>(std::bind(&llm_task::run, this));
+        }
+    }
+
+    void stop()
+    {
+        if (inference_run_) {
+            std::string par;
+            async_list_.put(par);
+            if(lLaMa_)
+                lLaMa_->Stop();
+            inference_run_->join();
+            inference_run_.reset();
+        }
+    }    
+
     ~llm_task()
     {
-        is_running_ = false;
-        sem_post(&inference_semaphore);
-        if (inference_run_) inference_run_->join();
+        stop();
+        if (tokenizer_pid_ != -1) {
+            kill(tokenizer_pid_, SIGTERM);
+            waitpid(tokenizer_pid_, nullptr, WNOHANG);
+        }
         if (lLaMa_) {
             lLaMa_->Deinit();
         }
     }
 };
+
+std::atomic<unsigned int> llm_task::next_port_{8080};
 
 #undef CONFIG_AUTO_SET
 
@@ -620,9 +663,9 @@ public:
             send("None", "None", error_body, work_id);
             return -1;
         }
+        llm_task_[work_id_num]->stop();
         auto llm_channel = get_channel(work_id_num);
         llm_channel->stop_subscriber("");
-        llm_task_[work_id_num]->lLaMa_->Stop();
         llm_task_.erase(work_id_num);
         send("None", "None", LLM_NO_ERROR, work_id);
         return 0;
@@ -635,6 +678,7 @@ public:
             if (iteam == llm_task_.end()) {
                 break;
             }
+            iteam->second->stop();
             get_channel(iteam->first)->stop_subscriber("");
             iteam->second.reset();
             llm_task_.erase(iteam->first);

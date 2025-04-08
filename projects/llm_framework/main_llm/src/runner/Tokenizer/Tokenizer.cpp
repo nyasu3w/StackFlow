@@ -860,6 +860,16 @@ public:
                     msg["content"] = message.second;
                     messages_list.push_back(msg);
                 } break;
+                case ROLE_TOOL: {
+                    msg["role"]    = "tool";
+                    msg["content"] = message.second;
+                    messages_list.push_back(msg);
+                } break;
+                case ROLE_IPYTHON: {
+                    msg["role"]    = "ipython";
+                    msg["content"] = message.second;
+                    messages_list.push_back(msg);
+                } break;
                 case ROLE_ASSISTANT: {
                     msg["role"]    = "assistant";
                     msg["content"] = message.second;

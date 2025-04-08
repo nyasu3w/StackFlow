@@ -1,6 +1,7 @@
 {
     "mode":"yolo11n",
     "type":"cv",
+    "homepage":"https://github.com/ultralytics/ultralytics",
     "capabilities":[
         "Detection"
     ],
@@ -8,7 +9,8 @@
         "yolo.jpeg.base64"
     ],
     "output_type":[
-        "yolo.yolobox"
+        "yolo.box",
+        "yolo.boxV2"
     ],
     "mode_param":{
         "yolo_model":"yolo11n.axmodel",

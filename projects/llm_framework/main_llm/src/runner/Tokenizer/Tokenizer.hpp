@@ -15,9 +15,12 @@ enum TokenizerType
     TKT_AUTO,
     TKT_END
 };
+
 enum TokenizeRole{
     ROLE_USER,//用户输入
     ROLE_SYSTEM,//提示词
+    ROLE_TOOL,  //工具
+    ROLE_IPYTHON,  //工具
     ROLE_ASSISTANT,//助手回复
     ROLE_ASSISTANT_HELP// 询问句
 };

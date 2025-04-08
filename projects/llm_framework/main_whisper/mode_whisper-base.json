@@ -1,7 +1,7 @@
 {
-    "mode": "whisper-tiny",
+    "mode": "whisper-base",
     "type": "asr",
-    "homepage":"https://huggingface.co/openai/whisper-tiny",
+    "homepage":"https://huggingface.co/openai/whisper-base",
     "capabilities": [
         "Automatic_Speech_Recognition",
         "English",
@@ -14,13 +14,13 @@
         "asr.utf-8"
     ],
     "mode_param": {
-        "model_type": "tiny",
-        "language": "ja",
-        "encoder": "tiny-encoder.axmodel",
-        "decoder_main": "tiny-decoder-main.axmodel",
-        "decoder_loop": "tiny-decoder-loop.axmodel",
-        "positional_embedding": "tiny-positional_embedding.bin",
-        "tokens": "tiny-tokens.txt",
+        "model_type": "base",
+        "language": "zh",
+        "encoder": "base-encoder.axmodel",
+        "decoder_main": "base-decoder-main.axmodel",
+        "decoder_loop": "base-decoder-loop.axmodel",
+        "positional_embedding": "base-positional_embedding.bin",
+        "tokens": "base-tokens.txt",
         "t2s": "t2s.json",
         "whisper_sample_rate": 16000,
         "whisper_n_fft": 400,

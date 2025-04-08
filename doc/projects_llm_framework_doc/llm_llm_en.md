@@ -55,6 +55,75 @@ Response json:
 - created: Message creation time, unix time.
 - work_id: The successfully created work_id unit.
 
+## inference
+
+### streaming input
+
+```json
+{
+    "request_id": "2",
+    "work_id": "llm.1003",
+    "action": "inference",
+    "object": "llm.utf-8.stream",
+    "data": {
+        "delta": "What's ur name?",
+        "index": 0,
+        "finish": true
+    }
+}
+```
+- object: The data type transmitted is llm.utf-8.stream, indicating a streaming input from the user's UTF-8.
+- delta: Segment data of the streaming input.
+- index: Index of the segment in the streaming input.
+- finish: A flag indicating whether the streaming input has completed.
+
+### non-streaming input
+
+```json
+{
+    "request_id": "2",
+    "work_id": "llm.1003",
+    "action": "inference",
+    "object": "llm.utf-8",
+    "data": "What's ur name?"
+}
+```
+
+- object: The data type transmitted is llm.utf-8, indicating a non-streaming input from the user's UTF-8.
+- data: Data for non-streaming input.
+
+streaming response json:
+
+```json
+{"created":1742779468,"data":{"delta":"I am not","finish":false,"index":0},"error":{"code":0,"message":""},"object":"llm.utf-8.stream","request_id":"2","work_id":"llm.1003"}
+{"created":1742779469,"data":{"delta":" a person,","finish":false,"index":1},"error":{"code":0,"message":""},"object":"llm.utf-8.stream","request_id":"2","work_id":"llm.1003"}
+{"created":1742779469,"data":{"delta":" but I'm","finish":false,"index":2},"error":{"code":0,"message":""},"object":"llm.utf-8.stream","request_id":"2","work_id":"llm.1003"}
+{"created":1742779470,"data":{"delta":" here to assist","finish":false,"index":3},"error":{"code":0,"message":""},"object":"llm.utf-8.stream","request_id":"2","work_id":"llm.1003"}
+{"created":1742779471,"data":{"delta":" you with any","finish":false,"index":4},"error":{"code":0,"message":""},"object":"llm.utf-8.stream","request_id":"2","work_id":"llm.1003"}
+{"created":1742779472,"data":{"delta":" questions or tasks","finish":false,"index":5},"error":{"code":0,"message":""},"object":"llm.utf-8.stream","request_id":"2","work_id":"llm.1003"}
+{"created":1742779473,"data":{"delta":" you may have","finish":false,"index":6},"error":{"code":0,"message":""},"object":"llm.utf-8.stream","request_id":"2","work_id":"llm.1003"}
+{"created":1742779474,"data":{"delta":". How can","finish":false,"index":7},"error":{"code":0,"message":""},"object":"llm.utf-8.stream","request_id":"2","work_id":"llm.1003"}
+{"created":1742779474,"data":{"delta":" I help you","finish":false,"index":8},"error":{"code":0,"message":""},"object":"llm.utf-8.stream","request_id":"2","work_id":"llm.1003"}
+{"created":1742779475,"data":{"delta":" today?","finish":false,"index":9},"error":{"code":0,"message":""},"object":"llm.utf-8.stream","request_id":"2","work_id":"llm.1003"}
+{"created":1742779475,"data":{"delta":"","finish":true,"index":10},"error":{"code":0,"message":""},"object":"llm.utf-8.stream","request_id":"2","work_id":"llm.1003"}
+```
+
+non-streaming response json:
+
+```json
+{
+    "created": 1742780120,
+    "data": "As an artificial intelligence, I don't have a name in the traditional sense. However, I am here to assist you with any questions or information you may need. How can I help you today?",
+    "error": {
+        "code": 0,
+        "message": ""
+    },
+    "object": "llm.utf-8",
+    "request_id": "2",
+    "work_id": "llm.1003"
+}
+```
+
 ## link
 
 Link the output of the upper unit.
