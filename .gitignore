@@ -2,3 +2,8 @@
 projects/core135_llm_product_test_ui
 projects/imx678_test
 projects/test_*
+
+*.code-workspace
+*.pyc
+venv/
+gitt/
