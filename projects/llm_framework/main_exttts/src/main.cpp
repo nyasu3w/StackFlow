@@ -510,7 +510,7 @@ public:
         return 0;
     }
 
-    std::string  stop(pzmq *_pzmq, const std::string &rawdata)
+    std::string  stop(pzmq *_pzmq, const std::shared_ptr<StackFlows::pzmq_data>& rawdata)
     {
         SLOGI("llm_tts::stop");
 
@@ -518,7 +518,7 @@ public:
 
         return LLM_NONE;
     }
-    std::string resume(pzmq *_pzmq, const std::string &rawdata)
+    std::string resume(pzmq *_pzmq, const std::shared_ptr<StackFlows::pzmq_data>& rawdata)
     {
         SLOGI("llm_tts::resume");
 

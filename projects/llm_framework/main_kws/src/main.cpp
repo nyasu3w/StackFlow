@@ -539,10 +539,11 @@ public:
         return 0;
     }
 
-    std::string  trigger(pzmq *_pzmq, const std::string &rawdata)
+    std::string  trigger(pzmq *_pzmq, const std::shared_ptr<StackFlows::pzmq_data>& rawdata0)
     {
 //        SLOGI("llm_kws::trigger: %s"    , rawdata.c_str());
    //ipc:///tmp/llm/5556.sock{"request_id":"kws_command","work_id":"kws.1001","action":"trigger"}
+        const std::string rawdata = rawdata0->string();
         int pos = rawdata.find("{");
         SLOGI("llm_kws::trigger: data:pos:%d", pos);
         SLOGI("llm_kws::trigger:json:%s", rawdata.substr(pos).c_str());
