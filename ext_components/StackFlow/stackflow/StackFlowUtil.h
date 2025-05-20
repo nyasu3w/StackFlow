@@ -8,6 +8,10 @@
 #include <cstring>
 #include <unordered_map>
 #include <list>
+#include <vector>
+#include <functional>
+#include "pzmq.hpp"
+#include <memory>
 #define WORK_ID_NONE -100
 
 #define RPC_PUSH_PARAM(_obj, _data1, _data2)                                                     \
@@ -27,10 +31,14 @@ int sample_get_work_id_num(const std::string &work_id);
 std::string sample_get_work_id_name(const std::string &work_id);
 std::string sample_get_work_id(int work_id_num, const std::string &unit_name);
 std::string sample_escapeString(const std::string &input);
-std::string sample_unescapeString(const std::string &input);
+std::string sample_unescapeString(const std::string &input, bool ucs2 = false);
 bool decode_stream(const std::string &in, std::string &out, std::unordered_map<int, std::string> &stream_buff);
 int decode_base64(const std::string &in, std::string &out);
 int encode_base64(const std::string &in, std::string &out);
 std::string unit_call(const std::string &unit_name, const std::string &unit_action, const std::string &data);
+void unit_call(const std::string &unit_name, const std::string &unit_action, const std::string &data, std::function<void(const std::shared_ptr<StackFlows::pzmq_data> &)> callback);
 std::list<std::string> get_config_file_paths(std::string &base_model_path, std::string &base_model_config_path, const std::string &mode_name);
+std::vector<std::string> glob_files(const std::vector<std::string> &patterns);
+bool file_exists(const std::string& filePath);
+void unicode_to_utf8(unsigned int codepoint, char *output, int *length);
 };  // namespace StackFlows

@@ -1,6 +1,9 @@
 {
     "mode":"yolo11n",
     "type":"cv",
+    "homepage":"https://github.com/ultralytics/ultralytics",
+    "compile_flage":"pulsar2 build  --target_hardware AX620E --input yolo11n.onnx --output_dir output --config yolo11n_config.json",
+    "pulsar_version":"3.4-983bb35e",
     "capabilities":[
         "Detection"
     ],
@@ -8,7 +11,8 @@
         "yolo.jpeg.base64"
     ],
     "output_type":[
-        "yolo.yolobox"
+        "yolo.box",
+        "yolo.boxV2"
     ],
     "mode_param":{
         "yolo_model":"yolo11n.axmodel",

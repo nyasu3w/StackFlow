@@ -14,7 +14,7 @@
 #if __cplusplus
 extern "C" {
 #endif
-typedef void (*vcamera_frame_get)(uint8_t* pdata, uint32_t width, uint32_t height, uint32_t length, void* ctx);
+typedef void (*vcamera_frame_get)(void* pdata, uint32_t width, uint32_t height, uint32_t length, void* ctx);
 typedef enum { CAMERA_STATE_CLOSE, CAMERA_SATTE_OPEN, CAMERA_SATTE_CAP, CAMERA_STATE_ERR } CAMERA_STATE_t;
 
 typedef struct {
@@ -32,7 +32,7 @@ typedef struct camera_t {
     uint32_t height_;
     CAMERA_Buffer_t* pcamera_buffer_;
     vcamera_frame_get pcallback_;
-    CAMERA_STATE_t state_; /* 0 Not open, 1 Turn on the camera, 2 Start capturing,
+    int state_; /* 0 Not open, 1 Turn on the camera, 2 Start capturing,
                             3 Error */
     pthread_t capture_thread_id_;
     void* ctx_;

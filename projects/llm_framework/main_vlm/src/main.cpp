@@ -9,6 +9,7 @@
 #include <signal.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <base64.h>
 #include <fstream>
@@ -37,6 +38,11 @@ typedef std::function<void(const std::string &data, bool finish)> task_callback_
 
 class llm_task {
 private:
+    static std::atomic<unsigned int> next_port_;
+    std::atomic_bool tokenizer_server_flage_;
+    unsigned int port_;
+    pid_t tokenizer_pid_ = -1;
+
 public:
     LLMAttrType mode_config_;
     std::unique_ptr<LLM> lLaMa_;
@@ -50,8 +56,6 @@ public:
     task_callback_t out_callback_;
     bool enoutput_;
     bool enstream_;
-    std::atomic_bool tokenizer_server_flage_;
-    unsigned int port_ = 8080;
 
     void set_output(task_callback_t out_callback)
     {
@@ -98,6 +102,7 @@ public:
                     SLOGW("config file :%s miss", file_name.c_str());
                     continue;
                 }
+                SLOGI("config file :%s read", file_name.c_str());
                 config_file >> file_body;
                 config_file.close();
                 break;
@@ -121,23 +126,43 @@ public:
             CONFIG_AUTO_SET(file_body["mode_param"], b_eos);
             CONFIG_AUTO_SET(file_body["mode_param"], axmodel_num);
             CONFIG_AUTO_SET(file_body["mode_param"], tokens_embed_num);
+            CONFIG_AUTO_SET(file_body["mode_param"], img_token_id);
             CONFIG_AUTO_SET(file_body["mode_param"], tokens_embed_size);
             CONFIG_AUTO_SET(file_body["mode_param"], b_use_mmap_load_embed);
             CONFIG_AUTO_SET(file_body["mode_param"], b_dynamic_load_axmodel_layer);
             CONFIG_AUTO_SET(file_body["mode_param"], max_token_len);
+            CONFIG_AUTO_SET(file_body["mode_param"], temperature);
+            CONFIG_AUTO_SET(file_body["mode_param"], top_p);
+            CONFIG_AUTO_SET(file_body["mode_param"], vpm_width);
+            CONFIG_AUTO_SET(file_body["mode_param"], vpm_height);
 
             if (mode_config_.filename_tokenizer_model.find("http:") != std::string::npos) {
-                if (!tokenizer_server_flage_) {
-                    pid_t pid = fork();
-                    if (pid == 0) {
-                        execl("/usr/bin/python3", "python3",
-                              ("/opt/m5stack/scripts/" + model_ + "_tokenizer.py").c_str(), "--host", "localhost",
-                              "--port", std::to_string(port_).c_str(), "--model_id", (base_model + "tokenizer").c_str(),
+                mode_config_.filename_tokenizer_model = "http://localhost:" + std::to_string(port_);
+                std::string tokenizer_file;
+                if (file_exists(std::string("/opt/m5stack/scripts/") + model_ + std::string("_tokenizer.py"))) {
+                    tokenizer_file = std::string("/opt/m5stack/scripts/") + model_ + std::string("_tokenizer.py");
+                } else if (file_exists(std::string("/opt/m5stack/scripts/") + std::string("tokenizer_") + model_ +
+                                       std::string(".py"))) {
+                    tokenizer_file =
+                        std::string("/opt/m5stack/scripts/") + std::string("tokenizer_") + model_ + std::string(".py");
+                } else {
+                    std::string __log = model_ + std::string("_tokenizer.py");
+                    __log += " or ";
+                    __log += std::string("tokenizer_") + model_ + std::string(".py");
+                    __log += " not found!";
+                    SLOGE("%s", __log.c_str());
+                }
+                if (!tokenizer_server_flage_.load()) {
+                    tokenizer_pid_ = fork();
+                    if (tokenizer_pid_ == 0) {
+                        setenv("PYTHONPATH", "/opt/m5stack/lib/vlm/site-packages", 1);
+                        execl("/usr/bin/python3", "python3", tokenizer_file.c_str(), "--host", "localhost", "--port",
+                              std::to_string(port_).c_str(), "--model_id", (base_model + "tokenizer").c_str(),
                               "--content", ("'" + prompt_ + "'").c_str(), nullptr);
                         perror("execl failed");
                         exit(1);
                     }
-                    tokenizer_server_flage_ = true;
+                    tokenizer_server_flage_.store(true);
                     SLOGI("port_=%s model_id=%s content=%s", std::to_string(port_).c_str(),
                           (base_model + "tokenizer").c_str(), ("'" + prompt_ + "'").c_str());
                     std::this_thread::sleep_for(std::chrono::seconds(15));
@@ -158,7 +183,11 @@ public:
                 }
             };
             lLaMa_ = std::make_unique<LLM>();
-            if (!lLaMa_->Init(mode_config_)) return -2;
+            if (!lLaMa_->Init(mode_config_)) {
+                lLaMa_->Deinit();
+                lLaMa_.reset();
+                return -2;
+            }
 
         } catch (...) {
             SLOGE("config false");
@@ -189,7 +218,7 @@ public:
                 oss_prompt << input;
                 break;
         }
-        SLOGI("prompt_complete:%s", oss_prompt.str().c_str());
+        // SLOGI("prompt_complete:%s", oss_prompt.str().c_str());
         return oss_prompt.str();
     }
 
@@ -222,22 +251,54 @@ public:
 
     bool delete_model()
     {
+        if (tokenizer_pid_ != -1) {
+            kill(tokenizer_pid_, SIGTERM);
+            waitpid(tokenizer_pid_, nullptr, 0);
+            tokenizer_pid_ = -1;
+        }
         lLaMa_->Deinit();
         lLaMa_.reset();
         return true;
     }
 
-    llm_task(const std::string &workid)
+    static unsigned int getNextPort()
+    {
+        unsigned int port = next_port_++;
+        if (port > 8099) {
+            next_port_ = 8090;
+            port       = 8090;
+        }
+        return port;
+    }
+
+    llm_task(const std::string &workid) : tokenizer_server_flage_(false), port_(getNextPort())
+    {
+    }
+
+    void start()
+    {
+    }
+
+    void stop()
     {
     }
 
     ~llm_task()
     {
+        stop();
+        if (tokenizer_pid_ != -1) {
+            kill(tokenizer_pid_, SIGTERM);
+            waitpid(tokenizer_pid_, nullptr, WNOHANG);
+            // tokenizer_pid_ = -1;
+        }
         if (lLaMa_) {
             lLaMa_->Deinit();
+            // lLaMa_.reset();
         }
     }
 };
+
+std::atomic<unsigned int> llm_task::next_port_{8090};
 
 #undef CONFIG_AUTO_SET
 
@@ -278,6 +339,33 @@ public:
             SLOGI("send utf-8");
             llm_channel->send(llm_task_obj->response_format_, data, LLM_NO_ERROR);
         }
+    }
+
+    void task_pause(const std::weak_ptr<llm_task> llm_task_obj_weak,
+                    const std::weak_ptr<llm_channel_obj> llm_channel_weak)
+    {
+        auto llm_task_obj = llm_task_obj_weak.lock();
+        auto llm_channel  = llm_channel_weak.lock();
+        if (!(llm_task_obj && llm_channel)) {
+            return;
+        }
+        llm_task_obj->lLaMa_->Stop();
+    }
+
+    void pause(const std::string &work_id, const std::string &object, const std::string &data) override
+    {
+        SLOGI("llm_asr::work:%s", data.c_str());
+
+        nlohmann::json error_body;
+        int work_id_num = sample_get_work_id_num(work_id);
+        if (llm_task_.find(work_id_num) == llm_task_.end()) {
+            error_body["code"]    = -6;
+            error_body["message"] = "Unit Does Not Exist";
+            send("None", "None", error_body, work_id);
+            return;
+        }
+        task_pause(llm_task_[work_id_num], get_channel(work_id_num));
+        send("None", "None", LLM_NO_ERROR, work_id);
     }
 
     void task_user_data(const std::weak_ptr<llm_task> llm_task_obj_weak,
@@ -524,6 +612,8 @@ public:
             send("None", "None", error_body, work_id);
             return -1;
         }
+        llm_task_[work_id_num]->stop();
+        task_pause(llm_task_[work_id_num], get_channel(work_id_num));
         auto llm_channel = get_channel(work_id_num);
         llm_channel->stop_subscriber("");
         llm_task_.erase(work_id_num);
@@ -538,6 +628,7 @@ public:
             if (iteam == llm_task_.end()) {
                 break;
             }
+            iteam->second->stop();
             get_channel(iteam->first)->stop_subscriber("");
             iteam->second.reset();
             llm_task_.erase(iteam->first);

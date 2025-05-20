@@ -17,6 +17,10 @@ LDFLAGS = []
 LINK_SEARCH_PATH = []
 STATIC_FILES = []
 
+if 'CONFIG_LIBBSON_ENABLED' in os.environ:
+    REQUIREMENTS += ['bson']
+    DEFINITIONS += ['-DENABLE_BSON']
+
 # DEFINITIONS += ['-std=c++17']
 
 # REQUIREMENTS += ['Backward_cpp']
@@ -33,7 +37,7 @@ LDFLAGS+=['-Wl,-rpath=/opt/m5stack/lib', '-Wl,-rpath=/usr/local/m5stack/lib', '-
 
 STATIC_FILES += [AFile('sys_config.json')]
 REQUIREMENTS += ['simdjson_component']
-env['COMPONENTS'].append({'target':'llm_sys',
+env['COMPONENTS'].append({'target':'llm_sys-1.6',
                           'SRCS':SRCS,
                           'INCLUDE':INCLUDE,
                           'PRIVATE_INCLUDE':PRIVATE_INCLUDE,

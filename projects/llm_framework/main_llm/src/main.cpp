@@ -9,12 +9,22 @@
 #include <signal.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <base64.h>
 #include <fstream>
 #include <stdexcept>
+#include <semaphore.h>
 #include "../../../../SDK/components/utilities/include/sample_log.h"
+#include "thread_safe_list.h"
 using namespace StackFlows;
+#ifdef ENABLE_BACKWARD
+#define BACKWARD_HAS_DW 1
+#include "backward.hpp"
+#include "backward.h"
+#endif
+
+#define MAX_TASK_NUM 2
 
 int main_exit_flage = 0;
 static void __sigint(int iSigNo)
@@ -36,7 +46,13 @@ typedef std::function<void(const std::string &data, bool finish)> task_callback_
 
 class llm_task {
 private:
+    static std::atomic<unsigned int> next_port_;
+    std::atomic_bool tokenizer_server_flage_;
+    unsigned int port_;
+    pid_t tokenizer_pid_ = -1;
+
 public:
+    enum inference_status { INFERENCE_NONE = 0, INFERENCE_RUNNING };
     LLMAttrType mode_config_;
     std::unique_ptr<LLM> lLaMa_;
     std::string model_;
@@ -46,8 +62,9 @@ public:
     task_callback_t out_callback_;
     bool enoutput_;
     bool enstream_;
-    std::atomic_bool tokenizer_server_flage_;
-    unsigned int port_ = 8080;
+
+    std::unique_ptr<std::thread> inference_run_;
+    thread_safe::list<std::string> async_list_;
 
     void set_output(task_callback_t out_callback)
     {
@@ -94,6 +111,7 @@ public:
                     SLOGW("config file :%s miss", file_name.c_str());
                     continue;
                 }
+                SLOGI("config file :%s read", file_name.c_str());
                 config_file >> file_body;
                 config_file.close();
                 break;
@@ -119,19 +137,36 @@ public:
             CONFIG_AUTO_SET(file_body["mode_param"], b_use_mmap_load_embed);
             CONFIG_AUTO_SET(file_body["mode_param"], b_dynamic_load_axmodel_layer);
             CONFIG_AUTO_SET(file_body["mode_param"], max_token_len);
+            CONFIG_AUTO_SET(file_body["mode_param"], temperature);
+            CONFIG_AUTO_SET(file_body["mode_param"], top_p);
 
             if (mode_config_.filename_tokenizer_model.find("http:") != std::string::npos) {
-                if (!tokenizer_server_flage_) {
-                    pid_t pid = fork();
-                    if (pid == 0) {
-                        execl("/usr/bin/python3", "python3",
-                              ("/opt/m5stack/scripts/" + model_ + "_tokenizer.py").c_str(), "--host", "localhost",
-                              "--port", std::to_string(port_).c_str(), "--model_id", (base_model + "tokenizer").c_str(),
+                mode_config_.filename_tokenizer_model = "http://localhost:" + std::to_string(port_);
+                std::string tokenizer_file;
+                if (file_exists(std::string("/opt/m5stack/scripts/") + model_ + std::string("_tokenizer.py"))) {
+                    tokenizer_file = std::string("/opt/m5stack/scripts/") + model_ + std::string("_tokenizer.py");
+                } else if (file_exists(std::string("/opt/m5stack/scripts/") + std::string("tokenizer_") + model_ +
+                                       std::string(".py"))) {
+                    tokenizer_file =
+                        std::string("/opt/m5stack/scripts/") + std::string("tokenizer_") + model_ + std::string(".py");
+                } else {
+                    std::string __log = model_ + std::string("_tokenizer.py");
+                    __log += " or ";
+                    __log += std::string("tokenizer_") + model_ + std::string(".py");
+                    __log += " not found!";
+                    SLOGE("%s", __log.c_str());
+                }
+                if (!tokenizer_server_flage_.load()) {
+                    tokenizer_pid_ = fork();
+                    if (tokenizer_pid_ == 0) {
+                        setenv("PYTHONPATH", "/opt/m5stack/lib/llm/site-packages", 1);
+                        execl("/usr/bin/python3", "python3", tokenizer_file.c_str(), "--host", "localhost", "--port",
+                              std::to_string(port_).c_str(), "--model_id", (base_model + "tokenizer").c_str(),
                               "--content", ("'" + prompt_ + "'").c_str(), nullptr);
                         perror("execl failed");
                         exit(1);
                     }
-                    tokenizer_server_flage_ = true;
+                    tokenizer_server_flage_.store(true);
                     SLOGI("port_=%s model_id=%s content=%s", std::to_string(port_).c_str(),
                           (base_model + "tokenizer").c_str(), ("'" + prompt_ + "'").c_str());
                     std::this_thread::sleep_for(std::chrono::seconds(15));
@@ -190,52 +225,146 @@ public:
         return oss_prompt.str();
     }
 
+    void run()
+    {
+        std::string par;
+        for (;;) {
+            {
+                par = async_list_.get();
+                if (par.empty()) break;
+                inference(par);
+            }
+        }
+    }
+
+    int inference_async(const std::string &msg)
+    {
+        if (msg.empty()) return -1;
+        if (async_list_.size() < 3) {
+            std::string par = msg;
+            async_list_.put(par);
+        } else {
+            SLOGE("inference list is full\n");
+        }
+        return async_list_.size();
+    }
+
     void inference(const std::string &msg)
     {
+#if 1
         try {
             std::string out = lLaMa_->Run(prompt_complete(msg));
             if (out_callback_) out_callback_(out, true);
         } catch (...) {
             SLOGW("lLaMa_->Run have error!");
         }
+#else
+        try {
+            std::string input;
+            if (msg.substr(0, 12) == "<|continue|>") {
+                if (lLaMa_->tokenizer->messages_.size() == 0) {
+                    lLaMa_->tokenizer->messages_complete(ROLE_SYSTEM, prompt_);
+                }
+                lLaMa_->tokenizer->messages_complete(ROLE_USER, msg.substr(12));
+                input = lLaMa_->tokenizer->messages_complete(ROLE_ASSISTANT_HELP);
+                if (input.length() == 0) {
+                    SLOGW("LLM INPUT IS EMPTY");
+                    return;
+                }
+            } else {
+                lLaMa_->tokenizer->messages_clean();
+                lLaMa_->tokenizer->messages_complete(ROLE_SYSTEM, prompt_);
+                lLaMa_->tokenizer->messages_complete(ROLE_USER, msg);
+                input = lLaMa_->tokenizer->messages_complete(ROLE_ASSISTANT_HELP);
+                if (input.length() == 0) {
+                    SLOGW("LLM INPUT IS EMPTY");
+                    return;
+                }
+            }
+            std::string out = lLaMa_->Run(input);
+            if (out_callback_) out_callback_(out, true);
+            lLaMa_->tokenizer->messages_complete(ROLE_ASSISTANT, out);
+        } catch (...) {
+            SLOGW("lLaMa_->Run have error!");
+        }
+#endif
     }
 
     bool pause()
     {
-        lLaMa_->Stop();
+        if (lLaMa_) lLaMa_->Stop();
         return true;
     }
 
     bool delete_model()
     {
+        if (tokenizer_pid_ != -1) {
+            kill(tokenizer_pid_, SIGTERM);
+            waitpid(tokenizer_pid_, nullptr, 0);
+            tokenizer_pid_ = -1;
+        }
         lLaMa_->Deinit();
         lLaMa_.reset();
         return true;
     }
 
-    llm_task(const std::string &workid)
+    static unsigned int getNextPort()
     {
+        unsigned int port = next_port_++;
+        if (port > 8089) {
+            next_port_ = 8080;
+            port       = 8080;
+        }
+        return port;
+    }
+
+    llm_task(const std::string &workid) : tokenizer_server_flage_(false), port_(getNextPort())
+    {
+        inference_run_ = std::make_unique<std::thread>(std::bind(&llm_task::run, this));
+    }
+
+    void start()
+    {
+        if (!inference_run_) {
+            inference_run_ = std::make_unique<std::thread>(std::bind(&llm_task::run, this));
+        }
+    }
+
+    void stop()
+    {
+        if (inference_run_) {
+            std::string par;
+            async_list_.put(par);
+            if (lLaMa_) lLaMa_->Stop();
+            inference_run_->join();
+            inference_run_.reset();
+        }
     }
 
     ~llm_task()
     {
+        stop();
+        if (tokenizer_pid_ != -1) {
+            kill(tokenizer_pid_, SIGTERM);
+            waitpid(tokenizer_pid_, nullptr, WNOHANG);
+        }
         if (lLaMa_) {
             lLaMa_->Deinit();
         }
     }
 };
 
+std::atomic<unsigned int> llm_task::next_port_{8080};
+
 #undef CONFIG_AUTO_SET
 
 class llm_llm : public StackFlow {
 private:
-    int task_count_;
     std::unordered_map<int, std::shared_ptr<llm_task>> llm_task_;
 
 public:
     llm_llm() : StackFlow("llm")
     {
-        task_count_ = 2;
     }
 
     void task_output(const std::weak_ptr<llm_task> llm_task_obj_weak,
@@ -265,6 +394,33 @@ public:
             SLOGI("send utf-8");
             llm_channel->send(llm_task_obj->response_format_, data, LLM_NO_ERROR);
         }
+    }
+
+    void task_pause(const std::weak_ptr<llm_task> llm_task_obj_weak,
+                    const std::weak_ptr<llm_channel_obj> llm_channel_weak)
+    {
+        auto llm_task_obj = llm_task_obj_weak.lock();
+        auto llm_channel  = llm_channel_weak.lock();
+        if (!(llm_task_obj && llm_channel)) {
+            return;
+        }
+        llm_task_obj->lLaMa_->Stop();
+    }
+
+    void pause(const std::string &work_id, const std::string &object, const std::string &data) override
+    {
+        SLOGI("llm_asr::work:%s", data.c_str());
+
+        nlohmann::json error_body;
+        int work_id_num = sample_get_work_id_num(work_id);
+        if (llm_task_.find(work_id_num) == llm_task_.end()) {
+            error_body["code"]    = -6;
+            error_body["message"] = "Unit Does Not Exist";
+            send("None", "None", error_body, work_id);
+            return;
+        }
+        task_pause(llm_task_[work_id_num], get_channel(work_id_num));
+        send("None", "None", LLM_NO_ERROR, work_id);
     }
 
     void task_user_data(const std::weak_ptr<llm_task> llm_task_obj_weak,
@@ -309,7 +465,7 @@ public:
             }
             next_data = &tmp_msg2;
         }
-        llm_task_obj->inference((*next_data));
+        llm_task_obj->inference_async(sample_unescapeString(*next_data));
     }
 
     void task_asr_data(const std::weak_ptr<llm_task> llm_task_obj_weak,
@@ -323,10 +479,10 @@ public:
         }
         if (object.find("stream") != std::string::npos) {
             if (sample_json_str_get(data, "finish") == "true") {
-                llm_task_obj->inference(sample_json_str_get(data, "delta"));
+                llm_task_obj->inference_async(sample_json_str_get(data, "delta"));
             }
         } else {
-            llm_task_obj->inference(data);
+            llm_task_obj->inference_async(data);
         }
     }
 
@@ -345,7 +501,7 @@ public:
     int setup(const std::string &work_id, const std::string &object, const std::string &data) override
     {
         nlohmann::json error_body;
-        if ((llm_task_channel_.size() - 1) == task_count_) {
+        if ((llm_task_channel_.size() - 1) == MAX_TASK_NUM) {
             error_body["code"]    = -21;
             error_body["message"] = "task full";
             send("None", "None", error_body, "llm");
@@ -508,6 +664,7 @@ public:
             send("None", "None", error_body, work_id);
             return -1;
         }
+        llm_task_[work_id_num]->stop();
         auto llm_channel = get_channel(work_id_num);
         llm_channel->stop_subscriber("");
         llm_task_.erase(work_id_num);
@@ -522,6 +679,7 @@ public:
             if (iteam == llm_task_.end()) {
                 break;
             }
+            iteam->second->stop();
             get_channel(iteam->first)->stop_subscriber("");
             iteam->second.reset();
             llm_task_.erase(iteam->first);

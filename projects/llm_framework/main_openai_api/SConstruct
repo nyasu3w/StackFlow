@@ -1,0 +1,68 @@
+import os
+
+Import('env')
+with open(env['PROJECT_TOOL_S']) as f:
+    exec(f.read())
+
+# env.Append(CXXFLAGS=['-O3', '-fopenmp', '-std=c++17'])
+SRCS = append_srcs_dir(ADir('src'))
+INCLUDE = [ADir('include'), ADir('.')]
+PRIVATE_INCLUDE = []
+REQUIREMENTS = ['pthread']
+STATIC_LIB = []
+DYNAMIC_LIB = []
+DEFINITIONS = []
+DEFINITIONS_PRIVATE = []
+LDFLAGS = []
+LINK_SEARCH_PATH = []
+STATIC_FILES = []
+
+
+ModuleLLMOpenAIPluginPath = wget_github_commit('https://github.com/m5stack/ModuleLLM-OpenAI-Plugin.git', '9612b20800eb1708e648744e3cb333c4f743811c', True)
+python_venv = check_wget_down("https://m5stack.oss-cn-shenzhen.aliyuncs.com/resource/linux/llm/m5stack_llm-openai-api-python-venv_v1.6.tar.gz", 'm5stack_llm-openai-api-python-venv_v1.6.tar.gz')
+
+
+DEFINITIONS += ['-O3', '-fopenmp', '-std=c++17']
+LDFLAGS+=['-Wl,-rpath=/opt/m5stack/lib', '-Wl,-rpath=/usr/local/m5stack/lib', '-Wl,-rpath=/usr/local/m5stack/lib/gcc-10.3', '-Wl,-rpath=/opt/lib', '-Wl,-rpath=/opt/usr/lib', '-Wl,-rpath=./']
+LINK_SEARCH_PATH += [ADir('../static_lib')]
+
+STATIC_FILES += Glob('mode_*.json')
+
+
+STATIC_FILES += [ModuleLLMOpenAIPluginPath]
+STATIC_FILES += [os.path.join(python_venv, 'openai-api')]
+
+IGNORE_FILES = []
+IGNORE_FILES += ['openai-api']
+IGNORE_FILES += [os.path.basename(ModuleLLMOpenAIPluginPath)]
+
+
+import json
+if not os.path.exists('../dist'):
+    os.makedirs('../dist')
+ignore = {'ignore':[]}
+try:
+    with open('../dist/fileignore', 'a+') as f:
+        f.seek(0)
+        ignore = json.load(f)
+except:
+    pass
+ignore['ignore'] += IGNORE_FILES
+ignore['ignore'] = list(set(ignore['ignore']))
+with open('../dist/fileignore', 'w') as f:
+    json.dump(ignore, f, indent=4)
+
+env['COMPONENTS'].append({'target':'llm_openai_api-1.7',
+                          'SRCS':SRCS,
+                          'INCLUDE':INCLUDE,
+                          'PRIVATE_INCLUDE':PRIVATE_INCLUDE,
+                          'REQUIREMENTS':REQUIREMENTS,
+                          'STATIC_LIB':STATIC_LIB,
+                          'DYNAMIC_LIB':DYNAMIC_LIB,
+                          'DEFINITIONS':DEFINITIONS,
+                          'DEFINITIONS_PRIVATE':DEFINITIONS_PRIVATE,
+                          'LDFLAGS':LDFLAGS,
+                          'LINK_SEARCH_PATH':LINK_SEARCH_PATH,
+                          'STATIC_FILES':STATIC_FILES,
+                          'REGISTER':'project'
+                          })
