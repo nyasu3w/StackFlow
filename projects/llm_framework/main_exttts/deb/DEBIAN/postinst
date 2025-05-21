@@ -1,0 +1,4 @@
+#!/bin/sh
+[ -f "/lib/systemd/system/llm-exttts.service" ] && systemctl enable llm-exttts.service
+[ -f "/lib/systemd/system/llm-exttts.service" ] && systemctl start llm-exttts.service
+exit 0

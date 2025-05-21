@@ -1,0 +1,4 @@
+#!/bin/sh
+[ -f "/lib/systemd/system/llm-exttts.service" ] && systemctl stop llm-exttts.service
+[ -f "/lib/systemd/system/llm-exttts.service" ] && systemctl disable llm-exttts.service
+exit 0
